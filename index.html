@@ -3435,13 +3435,22 @@ function renderAdmin() {
           ? `<span style="background:rgba(201,168,76,0.3);color:var(--gold);border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700;display:block;margin-top:4px;">⏳ En attente</span>`
           : `<span style="background:rgba(45,106,79,0.3);color:var(--green-light);border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700;display:block;margin-top:4px;">✅ Payé</span>`;
         // Vérifier si des documents sont requis
-        const hasCertif   = reg.members && reg.members.some(m => m.qsResult === 'certificat_requis');
-        const hasPassAide = reg._rows && reg._rows.some(r => r.pass_aide && r.pass_aide.trim());
-        const passAideVal = reg._rows && reg._rows[0] ? (reg._rows[0].pass_aide || '') : 
-                           (reg.responsable && reg.responsable.passAide ? reg.responsable.passAide : '');
-        const hasPassJeunes    = passAideVal.includes('Pass jeunes');
-        const hasAtoutNormandie= passAideVal.includes('Atout Normandie');
-        const hasPassSport     = passAideVal.includes('Pass sport');
+        // Fonctionne depuis localStorage (PC adhérent) ET depuis Sheet (autre PC via _rows)
+        const hasCertif = (
+          // Depuis localStorage
+          (reg.members && reg.members.some(m => m.qsResult === 'certificat_requis')) ||
+          // Depuis Sheet (_rows chargés via gviz)
+          (reg._rows && reg._rows.some(r => r.qs_sante === 'Certificat requis'))
+        );
+        // Pass aide : chercher dans _rows (Sheet) ou dans les données locales
+        const passAideVal = (
+          (reg._rows && reg._rows[0] && reg._rows[0].pass_aide) ||
+          (reg.responsable && (reg.responsable.passAide || reg.responsable.pass_aide)) ||
+          ''
+        );
+        const hasPassJeunes     = passAideVal.includes('Pass jeunes') || passAideVal.includes('Passjeunes');
+        const hasAtoutNormandie = passAideVal.includes('Atout Normandie') || passAideVal.includes('Atout');
+        const hasPassSport      = passAideVal.includes('Pass sport') || passAideVal.includes('Passsport');
         const hasAnyDoc = hasCertif || hasPassJeunes || hasAtoutNormandie || hasPassSport;
 
         const docsCheckboxes = hasAnyDoc ? `
@@ -3646,6 +3655,14 @@ function mergerDossiersSheet(dossiers) {
         activities: [],
         qsResult:  d.qs_sante === 'Certificat requis' ? 'certificat_requis'
                  : d.qs_sante === 'Attestation OK'    ? 'attestation_ok' : null
+      });
+      // Conserver les données Sheet dans _rows pour accès aux champs pass_aide et qs_sante
+      if (!reg._rows) reg._rows = [];
+      reg._rows.push({
+        qs_sante:   d.qs_sante   || '',
+        pass_aide:  d.pass_aide  || '',
+        activite:   d.activite   || '',
+        activite_id:d.activite_id|| ''
       });
     }
 
