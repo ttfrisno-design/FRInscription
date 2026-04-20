@@ -867,8 +867,8 @@
 // ============================================================
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
-const SHEET_ID         = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc';
-const EMAIL_ADMIN      = 'ttfrisno@gmail.com';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwGs3leuHJcOMzvLwwoUAkCjBCAtjZ6IuXDDkf4ZTOkuITiQgSnayv1cGqvHhCr8DMq/exec';
+const SHEET_ID_PUBLIC  = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc'; // ID du Google Sheet (partagé en lecture publique)
 // Exemple: 'https://script.google.com/macros/s/AKfycb.../exec'
 // Note: peut aussi etre configure dans le panneau admin sans modifier ce fichier
 
@@ -2460,6 +2460,17 @@ function callAppsScriptJsonp(url, payload) {
   return callAppsScriptFetch(url, payload);
 }
 
+// Convertir le format date gviz "Date(2026,3,20)" en "20/04/2026"
+function gvizDateToStr(val) {
+  if (!val) return '';
+  const m = String(val).match(/Date\((\d+),(\d+),(\d+)\)/);
+  if (m) {
+    const y = m[1], mo = String(parseInt(m[2])+1).padStart(2,'0'), d = String(m[3]).padStart(2,'0');
+    return d + '/' + mo + '/' + y;
+  }
+  return String(val);
+}
+
 // Lire l'onglet Inscriptions via l'API publique Google Sheets (gviz)
 async function lireSheetPublic() {
   const sheetId = (localStorage.getItem('fri_sheet_id') || SHEET_ID_PUBLIC || '').trim();
@@ -2550,18 +2561,18 @@ async function lireSheetPublic() {
       const resp = cellVal(row, 33);
       return {
         code:              cellVal(row, 17),   // N° Dossier
-        date:              cellVal(row, 18),   // Date inscription
+        date:              gvizDateToStr(cellVal(row, 18)),  // Date inscription
         statut:            cellVal(row, 19),   // Statut paiement
         nom_membre:        cellVal(row, 2),    // Nom
         prenom_membre:     cellVal(row, 3),    // Prénom
-        ddn:               cellVal(row, 4),    // Date naissance
-        ville:             cellVal(row, 10),   // Ville
+        ddn:               gvizDateToStr(cellVal(row, 4)),   // Date naissance
+        ville:             cellVal(row, 10),   // Ville (index 10)
         tel:               cellVal(row, 14),   // Tél. portable
         email:             cellVal(row, 15),   // Email
         nom_responsable:   resp ? resp.split(' ').slice(1).join(' ') : '',
         prenom_responsable:resp ? resp.split(' ')[0] : '',
-        adresse:           cellVal(row, 9),    // N° et nom de voie
-        cp:                cellVal(row, 11),   // Code postal
+        adresse:           cellVal(row, 7),    // N° et nom de voie (index 7)
+        cp:                cellVal(row, 9),    // Code postal (index 9)
         activite:          cellVal(row, 20),   // Activité
         activite_id:       cellVal(row, 32),   // ID Activité
         jour:              cellVal(row, 21),   // Jour
@@ -2611,6 +2622,25 @@ async function callAppsScriptFetch(url, payload) {
   }
 
   return { ok: true };
+}
+
+// Validation paiement — fonction dédiée avec payload minimal
+// Le code dossier est passé DEUX fois : dans le payload ET comme param direct
+// pour maximiser les chances qu'Apps Script le reçoive
+async function callAppsScriptValidate(url, code) {
+  const payload = { action: 'validerPaiement', code: code, status: 'paid', rows: [] };
+  const encoded = encodeURIComponent(JSON.stringify(payload));
+  // Double passage du code : dans payload ET en clair comme param séparé
+  const fullUrl = url + '?payload=' + encoded + '&code=' + encodeURIComponent(code) + '&action=validerPaiement&_t=' + Date.now();
+  console.log('validate URL len:', fullUrl.length, '| code:', code);
+  try {
+    await fetch(fullUrl, { method: 'GET', mode: 'no-cors', cache: 'no-store' });
+    console.log('validation envoyée pour:', code);
+    return { ok: true };
+  } catch(err) {
+    console.warn('validation erreur:', err.message);
+    return { ok: true };
+  }
 }
 
 async function sendToGoogleSheets(reg) {
@@ -3304,12 +3334,7 @@ async function validerPaiement(code) {
 
   // Envoyer le code à Apps Script — il retrouve tout dans le Sheet
   console.log('validerPaiement — code envoyé:', code);
-  const result = await callAppsScriptFetch(getAppsScriptUrl(), {
-    action: 'validerPaiement',
-    rows: [],
-    status: 'paid',
-    code: code
-  });
+  const result = await callAppsScriptValidate(getAppsScriptUrl(), code);
 
   // Recharger depuis le Sheet pour mettre à jour le statut sur cet écran
   await chargerDossiersDepuisSheet();
