@@ -869,7 +869,7 @@
 // ============================================================
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwYV1GA3QcuNQSB9YQZku1aiIFZPM3XCq82g4jRt5jjvsL7oMIbOmmXEE5CEQ-EDffF/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc3HMqCxIjajZbgDyopWAcL9OU89QIYNtjfXTQHKeQWHF80Zhy4YzaWBU1EUxe9Ih/exec';
 const SHEET_ID_PUBLIC  = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc'; // ID du Google Sheet (partagé en lecture publique)
 // Exemple: 'https://script.google.com/macros/s/AKfycb.../exec'
 // Note: peut aussi etre configure dans le panneau admin sans modifier ce fichier
@@ -1848,6 +1848,102 @@ function updateQS(memberId) {
 }
 
 // ============================================================
+// DOSSIER EXISTANT — ajout d'activités
+// ============================================================
+// Activités déjà souscrites dans un dossier existant (chargées depuis le Sheet)
+let activitesExistantes = []; // [{actId, tarif}]
+let dossiersExistantsActCount = 0; // nb activités éligibles déjà comptées
+
+function toggleDossierExistant() {
+  const panel = document.getElementById('dossier-existant-panel');
+  const toggle = document.getElementById('dossier-existant-toggle');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block';
+    toggle.textContent = '▲ Masquer';
+  } else {
+    panel.style.display = 'none';
+    toggle.textContent = '▼ Afficher';
+  }
+}
+
+async function chargerDossierExistant() {
+  const code = (document.getElementById('code-dossier-existant')?.value || '').trim().toUpperCase();
+  const res  = document.getElementById('dossier-existant-result');
+  if (!code.match(/^FRI-[A-Z0-9]{4}$/)) {
+    res.innerHTML = '<span style="color:var(--red)">❌ Code invalide (format FRI-XXXX)</span>';
+    return;
+  }
+  res.innerHTML = '⏳ Chargement…';
+
+  // Chercher d'abord dans le localStorage
+  const local = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
+  const localReg = local.find(r => r.code === code);
+
+  // Puis dans le Sheet via gviz
+  const sheetResult = await lireSheetPublic();
+  const sheetDossier = sheetResult.dossiers ? sheetResult.dossiers.filter(d => d.code === code) : [];
+
+  if (!localReg && sheetDossier.length === 0) {
+    res.innerHTML = '<span style="color:var(--red)">❌ Dossier introuvable. Vérifiez le code.</span>';
+    return;
+  }
+
+  // Construire la liste des activités existantes
+  const NON_DISCOUNTABLE = ['marche-nordic','country-init-a','country-debu-a','country-novice','country-inter','country-init-j','country-debu-j'];
+  activitesExistantes = [];
+  let totalExistant = 0;
+  let countEligibles = 0;
+
+  if (localReg) {
+    localReg.members.forEach(m => {
+      const counted = new Set();
+      (m.activities || []).forEach(actId => {
+        const act = getActById(actId);
+        if (!act) return;
+        if (act.linkedWith) {
+          const pk = [actId, act.linkedWith].sort().join('|');
+          if (counted.has(pk)) return;
+          counted.add(pk);
+        }
+        const isno = (localReg.responsable.commune || 'isno') === 'isno';
+        const price = isno ? act.isno : act.hc;
+        activitesExistantes.push({ actId, tarif: price, nom: act.name.replace(/\n/g,' — ') });
+        totalExistant += price;
+        if (!NON_DISCOUNTABLE.includes(actId) && !actId.startsWith('tt-')) countEligibles++;
+      });
+    });
+  } else {
+    // Depuis le Sheet
+    const seen = new Set();
+    sheetDossier.forEach(d => {
+      const id = d.activite_id;
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      const price = Number(d.tarif) || 0;
+      activitesExistantes.push({ actId: id, tarif: price, nom: d.activite });
+      totalExistant += price;
+      if (!NON_DISCOUNTABLE.includes(id) && !id.startsWith('tt-')) countEligibles++;
+    });
+  }
+
+  dossiersExistantsActCount = countEligibles;
+
+  const actsList = activitesExistantes.map(a =>
+    '<li style="padding:3px 0">' + a.nom + ' — <strong>' + a.tarif + '€</strong></li>'
+  ).join('');
+
+  res.innerHTML = '<div style="background:var(--green-pale);border:1px solid var(--green-light);border-radius:8px;padding:12px;margin-top:8px;">'
+    + '<div style="font-weight:700;color:var(--green);margin-bottom:6px;">✅ Dossier ' + code + ' chargé</div>'
+    + '<div style="font-size:12px;color:var(--gray);margin-bottom:6px;">' + activitesExistantes.length + ' activité(s) existante(s) — ' + totalExistant + '€</div>'
+    + '<ul style="font-size:12px;color:var(--dark);margin:0;padding-left:16px;">' + actsList + '</ul>'
+    + '<p style="font-size:12px;color:var(--gray);margin-top:8px;margin-bottom:0;">Nouvelles activites: remise 15% recalculee globalement si 3 activites eligibles.</p>'
+    + '</div>';
+
+  // Recalculate totals with existing activities
+  renderSummarySection();
+}
+
+// ============================================================
 // CALC TOTALS
 // ============================================================
 function calcTotals() {
@@ -1878,8 +1974,21 @@ function calcTotals() {
     });
   });
 
-  // 15% off if >= 3 activities in family
-  const familyActCount = state.members.reduce((acc,m) => acc + m.activities.filter(id => !NON_DISCOUNTABLE.includes(id) && !id.startsWith('tt-')).length, 0);
+  // 15% off if >= 3 activities in family (inclut les activités du dossier existant)
+  const familyActCountNew = state.members.reduce((acc,m) => {
+    const counted = new Set();
+    m.activities.forEach(actId => {
+      const act = getActById(actId);
+      if (act && act.linkedWith) {
+        const pk = [actId, act.linkedWith].sort().join('|');
+        if (counted.has(pk)) return;
+        counted.add(pk);
+      }
+      if (!NON_DISCOUNTABLE.includes(actId) && !actId.startsWith('tt-')) acc++;
+    });
+    return acc;
+  }, 0);
+  const familyActCount = familyActCountNew + (dossiersExistantsActCount || 0);
   const discount = familyActCount >= 3 ? Math.round(discountableTotal * 0.15) : 0;
 
   return {
@@ -1971,7 +2080,7 @@ function renderSummary() {
           <tr class="total-row"><td><strong>TOTAL À RÉGLER</strong></td><td style="text-align:right"><strong>${t.grandTotal}€</strong></td></tr>
         </tbody>
       </table>
-      ${t.familyActCount >= 3 ? '' : '<p style="font-size:12px;color:var(--gray);margin-top:8px;">ℹ️ La remise de 15% s\'applique à partir de 3 activités éligibles dans la même famille.</p>'}
+      ${t.familyActCount >= 3 ? '<p style="font-size:12px;color:var(--green);margin-top:8px;">✅ Remise 15% appliquée (${t.familyActCount} activités éligibles${dossiersExistantsActCount > 0 ? " dont " + dossiersExistantsActCount + " du dossier existant" : ""})</p>' : '<p style="font-size:12px;color:var(--gray);margin-top:8px;">ℹ️ La remise de 15% s\'applique à partir de 3 activités éligibles dans la même famille${dossiersExistantsActCount > 0 ? " (vous en avez déjà " + dossiersExistantsActCount + " dans votre dossier existant)" : ""}.</p>'}
     </div>
     <div class="card">
       <div class="card-title">🏥 Résultats questionnaires santé</div>
@@ -2530,11 +2639,6 @@ async function lireSheetPublic() {
       return { ok: true, dossiers: [] };
     }
     
-    // Log la première ligne brute pour voir la structure
-    if (gviz.table.rows[0]) {
-      const r0 = gviz.table.rows[0];
-    }
-
     // Convertir les lignes gviz en objets dossier
     // Double approche : par nom de colonne ET par index (robustesse maximale)
     const cols = gviz.table.cols.map(c => c.label || c.id || '');
@@ -3330,8 +3434,27 @@ function renderAdmin() {
         const statutBadge = isPending
           ? `<span style="background:rgba(201,168,76,0.3);color:var(--gold);border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700;display:block;margin-top:4px;">⏳ En attente</span>`
           : `<span style="background:rgba(45,106,79,0.3);color:var(--green-light);border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700;display:block;margin-top:4px;">✅ Payé</span>`;
+        // Vérifier si des documents sont requis
+        const hasCertif   = reg.members && reg.members.some(m => m.qsResult === 'certificat_requis');
+        const hasPassAide = reg._rows && reg._rows.some(r => r.pass_aide && r.pass_aide.trim());
+        const passAideVal = reg._rows && reg._rows[0] ? (reg._rows[0].pass_aide || '') : 
+                           (reg.responsable && reg.responsable.passAide ? reg.responsable.passAide : '');
+        const hasPassJeunes    = passAideVal.includes('Pass jeunes');
+        const hasAtoutNormandie= passAideVal.includes('Atout Normandie');
+        const hasPassSport     = passAideVal.includes('Pass sport');
+        const hasAnyDoc = hasCertif || hasPassJeunes || hasAtoutNormandie || hasPassSport;
+
+        const docsCheckboxes = hasAnyDoc ? `
+          <div style="background:rgba(255,255,255,0.05);border-radius:6px;padding:8px;margin-bottom:6px;font-size:11px;">
+            <div style="color:rgba(255,255,255,0.6);margin-bottom:5px;font-weight:600;">📎 Documents reçus :</div>
+            ${hasCertif        ? `<label style="display:flex;align-items:center;gap:5px;margin:3px 0;cursor:pointer;color:rgba(255,255,255,0.8)"><input type="checkbox" id="doc-certif-${reg.id}" style="cursor:pointer"> Certificat médical</label>` : ''}
+            ${hasPassJeunes    ? `<label style="display:flex;align-items:center;gap:5px;margin:3px 0;cursor:pointer;color:rgba(255,255,255,0.8)"><input type="checkbox" id="doc-passjeunes-${reg.id}" style="cursor:pointer"> Pass'jeunes 76 / Handipass'sport</label>` : ''}
+            ${hasAtoutNormandie? `<label style="display:flex;align-items:center;gap:5px;margin:3px 0;cursor:pointer;color:rgba(255,255,255,0.8)"><input type="checkbox" id="doc-atout-${reg.id}" style="cursor:pointer"> Atout Normandie</label>` : ''}
+            ${hasPassSport     ? `<label style="display:flex;align-items:center;gap:5px;margin:3px 0;cursor:pointer;color:rgba(255,255,255,0.8)"><input type="checkbox" id="doc-passsport-${reg.id}" style="cursor:pointer"> Pass'sport État</label>` : ''}
+          </div>` : '';
+
         const validateBtn = isPending
-          ? `<button onclick="validerPaiement('${reg.code}')" style="background:var(--gold);color:var(--dark);border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:700;display:block;width:100%;margin-bottom:4px;" title="Valider le paiement et envoyer l'email de confirmation">✅ Valider paiement</button>`
+          ? docsCheckboxes + `<button onclick="validerPaiement('${reg.code}', '${reg.id}')" style="background:var(--gold);color:var(--dark);border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:700;display:block;width:100%;margin-bottom:4px;" title="Valider le paiement et envoyer l'email de confirmation">✅ Valider paiement</button>`
           : '';
         return `<tr style="${rowBg}">
           <td style="padding:10px 12px;white-space:nowrap;font-size:12px">${reg.date}</td>
@@ -3358,18 +3481,34 @@ function renderAdmin() {
 }
 
 // ── Valider paiement manuel (admin) ──
-async function validerPaiement(code) {
+async function validerPaiement(code, regId) {
   if (!requireAdmin()) return;
-  if (!confirm('Confirmer la réception du paiement et envoyer l\'email de confirmation à l\'adhérent ?')) return;
+  
+  // Vérifier si des cases de documents sont cochées et demander confirmation si non cochées
+  const allRegs = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
+  const reg  = allRegs.find(r => r.code === code || String(r.id) === String(regId));
+  
+  const docIds = ['certif','passjeunes','atout','passsport'];
+  const unchecked = docIds.filter(d => {
+    const el = document.getElementById('doc-' + d + '-' + (regId || code));
+    return el && !el.checked; // case exists but not checked
+  });
+  const anyDocBox = docIds.some(d => document.getElementById('doc-' + d + '-' + (regId || code)));
+  
+  if (anyDocBox && unchecked.length > 0) {
+    if (!confirm('Attention : certains documents ne sont pas encore cochés comme reçus. Valider quand même le paiement ?')) return;
+  } else {
+    if (!confirm('Confirmer la réception du paiement et envoyer l\'email de confirmation à l\'adhérent ?')) return;
+  }
 
   const btn = event && event.target ? event.target : null;
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Validation...'; }
 
   // Mettre à jour le localStorage local si le dossier existe
-  const regs = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
-  const reg  = regs.find(r => r.code === code || String(r.id) === code);
-  if (reg) {
-    reg.status         = 'paid';
+  const regsLocal = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
+  const regLocal = regsLocal.find(r => r.code === code || String(r.id) === code);
+  if (regLocal) {
+    regLocal.status         = 'paid';
     reg.dateValidation = new Date().toLocaleDateString('fr-FR');
     reg.validePar      = adminSession;
     localStorage.setItem('fri_registrations', JSON.stringify(regs));
