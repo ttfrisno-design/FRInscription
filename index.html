@@ -3509,9 +3509,9 @@ async function validerPaiement(code, regId) {
   const regLocal = regsLocal.find(r => r.code === code || String(r.id) === code);
   if (regLocal) {
     regLocal.status         = 'paid';
-    reg.dateValidation = new Date().toLocaleDateString('fr-FR');
-    reg.validePar      = adminSession;
-    localStorage.setItem('fri_registrations', JSON.stringify(regs));
+    regLocal.dateValidation = new Date().toLocaleDateString('fr-FR');
+    regLocal.validePar      = adminSession;
+    localStorage.setItem('fri_registrations', JSON.stringify(regsLocal));
   }
 
   // Envoyer le code à Apps Script — il retrouve tout dans le Sheet
