@@ -741,21 +741,23 @@
     <div id="admin-login-error" style="display:none;background:#ffeeed;color:var(--red);border:1px solid #f5c6c3;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:16px;">
       ❌ Identifiant ou mot de passe incorrect.
     </div>
-    <div class="field" style="margin-bottom:14px">
-      <label>Identifiant</label>
-      <input type="text" id="admin-login-user" placeholder="Identifiant" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('admin-login-pass').focus()">
-    </div>
-    <div class="field" style="margin-bottom:22px">
-      <label>Mot de passe</label>
-      <div style="position:relative">
-        <input type="password" id="admin-login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doAdminLogin()" style="width:100%;padding-right:44px">
-        <button onclick="toggleAdminPassVis()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:var(--gray);" id="pass-eye">👁</button>
+    <form onsubmit="doAdminLogin();return false;" autocomplete="on">
+      <div class="field" style="margin-bottom:14px">
+        <label>Identifiant</label>
+        <input type="text" id="admin-login-user" placeholder="Identifiant" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('admin-login-pass').focus()">
       </div>
-    </div>
-    <div style="display:flex;gap:10px">
-      <button class="btn btn-secondary" onclick="hideAdminLogin()" style="flex:1">Annuler</button>
-      <button class="btn btn-primary" onclick="doAdminLogin()" style="flex:2">Connexion →</button>
-    </div>
+      <div class="field" style="margin-bottom:22px">
+        <label>Mot de passe</label>
+        <div style="position:relative">
+          <input type="password" id="admin-login-pass" placeholder="••••••••" autocomplete="current-password" style="width:100%;padding-right:44px">
+          <button type="button" onclick="toggleAdminPassVis()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:var(--gray);" id="pass-eye">👁</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button type="button" class="btn btn-secondary" onclick="hideAdminLogin()" style="flex:1">Annuler</button>
+        <button type="submit" class="btn btn-primary" style="flex:2">Connexion →</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -867,7 +869,7 @@
 // ============================================================
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwGs3leuHJcOMzvLwwoUAkCjBCAtjZ6IuXDDkf4ZTOkuITiQgSnayv1cGqvHhCr8DMq/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwYV1GA3QcuNQSB9YQZku1aiIFZPM3XCq82g4jRt5jjvsL7oMIbOmmXEE5CEQ-EDffF/exec';
 const SHEET_ID_PUBLIC  = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc'; // ID du Google Sheet (partagé en lecture publique)
 // Exemple: 'https://script.google.com/macros/s/AKfycb.../exec'
 // Note: peut aussi etre configure dans le panneau admin sans modifier ce fichier
@@ -2057,8 +2059,8 @@ function saveDossier() {
   document.getElementById('step-b-num').style.background = 'var(--green)';
 
   if (isHelloAsso) {
-    // Show HelloAsso payment button
-    document.getElementById('step-b-title').textContent = 'Payez sur HelloAsso';
+    // HelloAsso : ouvrir le lien puis enregistrer le dossier en attente (comme les autres modes)
+    document.getElementById('step-b-title').textContent = 'Réglez via HelloAsso';
     document.getElementById('step-b-content').innerHTML = `
       <div class="helloasso-box" style="margin-bottom:0">
         <div class="helloasso-logo">HelloAsso</div>
@@ -2067,16 +2069,23 @@ function saveDossier() {
           💳 Payer sur HelloAsso (nouvel onglet)
         </button>
         <p style="font-size:12px;color:#888;margin-top:10px;">
-          HelloAsso s'ouvrira dans un <strong>nouvel onglet</strong>. Revenez ici après le paiement pour valider.
+          Après paiement, revenez ici et enregistrez votre dossier.<br>
+          L'association vérifiera votre paiement et validera votre inscription.
         </p>
+      </div>
+      <div style="border:2px solid #e8c84a;border-radius:12px;background:#fffdf0;padding:18px;margin-top:14px;">
+        <div style="font-size:13px;font-weight:700;color:#856404;margin-bottom:10px;">⚠️ Important</div>
+        <div style="font-size:14px;color:var(--dark);line-height:1.7;">
+          Votre inscription sera <strong>confirmée par l'association</strong> après vérification de votre paiement HelloAsso.<br>
+          Vous recevrez un email de confirmation dès validation.
+        </div>
+        <button class="btn btn-primary" onclick="confirmDossierSansPaiement('${code}')" style="margin-top:14px;width:100%;justify-content:center;">
+          📋 Enregistrer mon dossier
+        </button>
       </div>`;
 
-    // Unlock step C (confirmation)
-    const cardC = document.getElementById('card-step-c');
-    cardC.style.opacity = '1';
-    cardC.style.pointerEvents = '';
-    cardC.style.borderLeftColor = 'var(--green)';
-    document.getElementById('step-c-num').style.background = 'var(--green)';
+    // Masquer step C (plus besoin de confirmer manuellement)
+    document.getElementById('card-step-c').style.display = 'none';
 
   } else {
     // Other payment mode: show info message, hide step C
@@ -2171,6 +2180,7 @@ async function confirmDossierSansPaiement(code) {
         <div style="font-size:56px;margin-bottom:12px">📋</div>
         <div style="font-family:'Playfair Display',serif;font-size:26px;color:var(--dark);margin-bottom:6px">Dossier enregistré !</div>
         <div style="font-size:15px;color:var(--gray)">Merci <strong>${reg.responsable.prenom} ${reg.responsable.nom}</strong></div>
+        <div style="font-size:13px;color:var(--gray);margin-top:6px;">Mode de règlement : <strong>${modeLabelFinal}</strong></div>
       </div>
 
       <div style="background:var(--green-pale);border:2px solid var(--green-light);border-radius:12px;padding:18px 20px;text-align:center;margin-bottom:20px;">
@@ -2206,7 +2216,6 @@ async function confirmDossierSansPaiement(code) {
     </div>`;
 
   // Send to sheet with pending_manual status
-  console.log('confirmDossierSansPaiement — appel sendToGoogleSheets pour', reg.code);
   await sendToGoogleSheets(reg);
 }
 
@@ -2267,9 +2276,7 @@ async function confirmPayment() {
   showConfirmation(reg, false, true);
 
   // Background: send to Google Sheets + emails (with visual feedback)
-  console.log('confirmPayment — appel sendToGoogleSheets pour', reg.code);
   const saved = await sendToGoogleSheets(reg);
-  console.log('sendToGoogleSheets résultat:', saved);
   if (!saved) {
     // Update confirmation screen to show sync warning
     const syncEl = document.getElementById('sync-status');
@@ -2501,7 +2508,6 @@ async function lireSheetPublic() {
     if (!resp.ok) return { ok: false, reason: 'HTTP ' + resp.status };
 
     let text = await resp.text();
-    console.log('gviz raw (500 chars):', text.substring(0, 500));
 
     // gviz retourne : google.visualization.Query.setResponse({...})
     const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/);
@@ -2513,7 +2519,6 @@ async function lireSheetPublic() {
     const gviz = JSON.parse(match[1]);
     const nbRows = gviz.table?.rows?.length || 0;
     const nbCols = gviz.table?.cols?.length || 0;
-    console.log('gviz status:', gviz.status, '| cols:', nbCols, '| rows:', nbRows);
     if (gviz.table?.cols) console.log('gviz cols:', gviz.table.cols.map(c => '"'+(c.label||c.id||'')+'"').join(', '));
     
     if (!gviz.table || !gviz.table.rows) {
@@ -2528,7 +2533,6 @@ async function lireSheetPublic() {
     // Log la première ligne brute pour voir la structure
     if (gviz.table.rows[0]) {
       const r0 = gviz.table.rows[0];
-      console.log('Ligne 0 brute:', JSON.stringify(r0).substring(0, 400));
     }
 
     // Convertir les lignes gviz en objets dossier
@@ -2589,11 +2593,8 @@ async function lireSheetPublic() {
     });
     
     // Log avant filtre
-    console.log('gviz avant filtre:', dossiers.length, 'lignes');
-    console.log('codes:', dossiers.slice(0,5).map(d => d.code).join(', '));
     
     const filtered = dossiers.filter(d => d.code && d.code !== 'null' && d.code !== '');
-    console.log('gviz après filtre:', filtered.length, 'dossiers');
     if (filtered.length > 0) console.log('Premier dossier:', JSON.stringify(filtered[0]).substring(0, 300));
 
     return { ok: true, dossiers: filtered };
@@ -2615,12 +2616,10 @@ async function callAppsScriptFetch(url, payload) {
   params.set('_t', Date.now());
   const fullUrl = url + '?' + params.toString();
 
-  console.log('fetch no-cors:', payload.action, '| url len:', fullUrl.length);
 
   // Méthode 1 : fetch no-cors
   try {
     await fetch(fullUrl, { method: 'GET', mode: 'no-cors', cache: 'no-store' });
-    console.log('fetch no-cors OK:', payload.action);
     return { ok: true };
   } catch(err) {
     console.warn('fetch no-cors KO:', err.message);
@@ -2652,7 +2651,6 @@ function callAppsScriptValidate(url, code) {
     params.set('_t', Date.now());
     const fullUrl = url + '?' + params.toString();
 
-    console.log('validate script tag | code:', code, '| url len:', fullUrl.length);
 
     let done = false;
     const t = setTimeout(() => {
@@ -2662,7 +2660,6 @@ function callAppsScriptValidate(url, code) {
         if (s.parentNode) s.parentNode.removeChild(s);
         // Timeout = Apps Script a reçu la requête mais pas retourné JSONP
         // C'est normal pour validerPaiement qui retourne du JSON non-JSONP
-        console.log('validate timeout (normal) — requête envoyée pour:', code);
         resolve({ ok: true });
       }
     }, 8000);
@@ -2673,7 +2670,6 @@ function callAppsScriptValidate(url, code) {
         clearTimeout(t);
         delete window[cbName];
         if (s.parentNode) s.parentNode.removeChild(s);
-        console.log('validate callback reçu:', data);
         resolve({ ok: true });
       }
     };
@@ -2686,7 +2682,6 @@ function callAppsScriptValidate(url, code) {
         done = true;
         clearTimeout(t);
         delete window[cbName];
-        console.log('validate script onerror (302→normal) pour:', code);
         resolve({ ok: true });
       }
     };
@@ -2703,7 +2698,6 @@ async function sendToGoogleSheets(reg) {
   }
   try {
     const rows = buildRows(reg);
-    console.log('sendToGoogleSheets — rows:', rows.length, '| code:', reg.code, '| status:', reg.status);
     if (rows.length === 0) {
       console.error('buildRows a retourné 0 lignes — inscription non envoyée');
       return false;
@@ -2715,12 +2709,10 @@ async function sendToGoogleSheets(reg) {
       status: reg.status === 'pending_manual' ? 'pending' : 'paid'
     };
     const payloadSize = JSON.stringify(payloadObj).length;
-    console.log('Payload size:', payloadSize, 'chars');
     
     const result = await callAppsScript(payloadObj);
     if (result.ok) {
       dequeueRetry(reg.id);
-      console.log('Inscription envoyée avec succès');
       return true;
     }
     console.warn('Envoi échoué:', result.reason);
@@ -3384,7 +3376,6 @@ async function validerPaiement(code) {
   }
 
   // Envoyer le code à Apps Script — il retrouve tout dans le Sheet
-  console.log('validerPaiement — code envoyé:', code);
   const result = await callAppsScriptValidate(getAppsScriptUrl(), code);
 
   // Recharger depuis le Sheet pour mettre à jour le statut sur cet écran
@@ -3435,7 +3426,6 @@ async function chargerDossiersDepuisSheet() {
 
   // Debug visible
   if (el) el.textContent = 'Résultat brut : ok=' + result.ok + ' | dossiers=' + (result.dossiers ? result.dossiers.length : 'undefined');
-  console.log('getDossiers result:', JSON.stringify(result).substring(0, 300));
 
   if (!result.ok) {
     showAdminToast('❌ Serveur : ' + (result.reason || 'Erreur inconnue'), 'orange');
@@ -3523,7 +3513,6 @@ function mergerDossiersSheet(dossiers) {
     reg._rows.push(d);
   });
 
-  console.log('mergerDossiersSheet: ' + Object.keys(byCode).length + ' dossiers uniques');
 
   // Fusionner dans localStorage — le Sheet fait autorité pour le statut
   const local = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
