@@ -867,8 +867,8 @@
 // ============================================================
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyldncvL2foHMzYMZjZ5iYh_rKI5zBkOXmDKdaBw2n_v_HWWgGM7GQBsnwBZZA6JQq2/exec';
-const SHEET_ID_PUBLIC  = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc'; // ID du Google Sheet (partagé en lecture publique)
+const SHEET_ID         = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc';
+const EMAIL_ADMIN      = 'ttfrisno@gmail.com';
 // Exemple: 'https://script.google.com/macros/s/AKfycb.../exec'
 // Note: peut aussi etre configure dans le panneau admin sans modifier ce fichier
 
@@ -2206,6 +2206,7 @@ async function confirmDossierSansPaiement(code) {
     </div>`;
 
   // Send to sheet with pending_manual status
+  console.log('confirmDossierSansPaiement — appel sendToGoogleSheets pour', reg.code);
   await sendToGoogleSheets(reg);
 }
 
@@ -2266,7 +2267,9 @@ async function confirmPayment() {
   showConfirmation(reg, false, true);
 
   // Background: send to Google Sheets + emails (with visual feedback)
+  console.log('confirmPayment — appel sendToGoogleSheets pour', reg.code);
   const saved = await sendToGoogleSheets(reg);
+  console.log('sendToGoogleSheets résultat:', saved);
   if (!saved) {
     // Update confirmation screen to show sync warning
     const syncEl = document.getElementById('sync-status');
@@ -2619,11 +2622,21 @@ async function sendToGoogleSheets(reg) {
   }
   try {
     const rows = buildRows(reg);
-    const result = await callAppsScript({
+    console.log('sendToGoogleSheets — rows:', rows.length, '| code:', reg.code, '| status:', reg.status);
+    if (rows.length === 0) {
+      console.error('buildRows a retourné 0 lignes — inscription non envoyée');
+      return false;
+    }
+    // Vérifier la taille du payload
+    const payloadObj = {
       action: 'addRegistration',
       rows: rows,
       status: reg.status === 'pending_manual' ? 'pending' : 'paid'
-    });
+    };
+    const payloadSize = JSON.stringify(payloadObj).length;
+    console.log('Payload size:', payloadSize, 'chars');
+    
+    const result = await callAppsScript(payloadObj);
     if (result.ok) {
       dequeueRetry(reg.id);
       console.log('Inscription envoyée avec succès');
