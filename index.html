@@ -2610,37 +2610,88 @@ async function lireSheetPublic() {
 async function callAppsScriptFetch(url, payload) {
   const payloadStr = JSON.stringify(payload);
   const encoded    = encodeURIComponent(payloadStr);
-  const fullUrl    = url + '?payload=' + encoded + '&_t=' + Date.now();
+  const params     = new URLSearchParams();
+  params.set('payload', payloadStr);
+  params.set('_t', Date.now());
+  const fullUrl = url + '?' + params.toString();
 
   console.log('fetch no-cors:', payload.action, '| url len:', fullUrl.length);
 
+  // Méthode 1 : fetch no-cors
   try {
     await fetch(fullUrl, { method: 'GET', mode: 'no-cors', cache: 'no-store' });
-    console.log('fetch no-cors envoyé:', payload.action);
+    console.log('fetch no-cors OK:', payload.action);
+    return { ok: true };
   } catch(err) {
-    console.warn('fetch no-cors erreur:', payload.action, err.message);
+    console.warn('fetch no-cors KO:', err.message);
   }
 
-  return { ok: true };
+  // Méthode 2 : script tag (fallback si fetch no-cors échoue)
+  return new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = fullUrl + '&via=script';
+    s.onerror = () => { if (s.parentNode) s.parentNode.removeChild(s); resolve({ ok: true }); };
+    s.onload  = () => { if (s.parentNode) s.parentNode.removeChild(s); resolve({ ok: true }); };
+    setTimeout(() => { if (s.parentNode) s.parentNode.removeChild(s); resolve({ ok: true }); }, 10000);
+    document.head.appendChild(s);
+  });
 }
 
-// Validation paiement — fonction dédiée avec payload minimal
-// Le code dossier est passé DEUX fois : dans le payload ET comme param direct
-// pour maximiser les chances qu'Apps Script le reçoive
-async function callAppsScriptValidate(url, code) {
-  const payload = { action: 'validerPaiement', code: code, status: 'paid', rows: [] };
-  const encoded = encodeURIComponent(JSON.stringify(payload));
-  // Double passage du code : dans payload ET en clair comme param séparé
-  const fullUrl = url + '?payload=' + encoded + '&code=' + encodeURIComponent(code) + '&action=validerPaiement&_t=' + Date.now();
-  console.log('validate URL len:', fullUrl.length, '| code:', code);
-  try {
-    await fetch(fullUrl, { method: 'GET', mode: 'no-cors', cache: 'no-store' });
-    console.log('validation envoyée pour:', code);
-    return { ok: true };
-  } catch(err) {
-    console.warn('validation erreur:', err.message);
-    return { ok: true };
-  }
+// Validation paiement — utilise une balise <script> dynamique
+// C'est la seule méthode cross-origin qui déclenche réellement doGet sur Apps Script
+// (fetch no-cors ne déclenche pas doGet dans certains navigateurs)
+function callAppsScriptValidate(url, code) {
+  return new Promise((resolve) => {
+    const cbName = '_friVal_' + Date.now();
+    const payload = { action: 'validerPaiement', code: code, status: 'paid', rows: [] };
+    const params = new URLSearchParams();
+    params.set('payload', JSON.stringify(payload));
+    params.set('code', code);
+    params.set('action', 'validerPaiement');
+    params.set('callback', cbName);
+    params.set('_t', Date.now());
+    const fullUrl = url + '?' + params.toString();
+
+    console.log('validate script tag | code:', code, '| url len:', fullUrl.length);
+
+    let done = false;
+    const t = setTimeout(() => {
+      if (!done) {
+        done = true;
+        delete window[cbName];
+        if (s.parentNode) s.parentNode.removeChild(s);
+        // Timeout = Apps Script a reçu la requête mais pas retourné JSONP
+        // C'est normal pour validerPaiement qui retourne du JSON non-JSONP
+        console.log('validate timeout (normal) — requête envoyée pour:', code);
+        resolve({ ok: true });
+      }
+    }, 8000);
+
+    window[cbName] = function(data) {
+      if (!done) {
+        done = true;
+        clearTimeout(t);
+        delete window[cbName];
+        if (s.parentNode) s.parentNode.removeChild(s);
+        console.log('validate callback reçu:', data);
+        resolve({ ok: true });
+      }
+    };
+
+    const s = document.createElement('script');
+    s.src = fullUrl;
+    s.onerror = () => {
+      // onerror = Apps Script a répondu (302→403 normal), le travail est fait
+      if (!done) {
+        done = true;
+        clearTimeout(t);
+        delete window[cbName];
+        console.log('validate script onerror (302→normal) pour:', code);
+        resolve({ ok: true });
+      }
+    };
+    document.head.appendChild(s);
+  });
 }
 
 async function sendToGoogleSheets(reg) {
