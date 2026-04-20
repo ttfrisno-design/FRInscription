@@ -870,7 +870,7 @@
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwTAkPvOvWiLZtdutsV68bWnAH703zryYBIMW5uyKFVGRzoCkzG4KUzXewgiywecVqN/exec';
-const SHEET_ID_PUBLIC  = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc'; // ID du Google Sheet (partagé en lecture publique)
+const SHEET_ID_PUBLIC  = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc'; // ID du Google Sheet FRI
 // Exemple: 'https://script.google.com/macros/s/AKfycb.../exec'
 // Note: peut aussi etre configure dans le panneau admin sans modifier ce fichier
 
@@ -1192,86 +1192,76 @@ function placeBadgeHtml(actId) {
   return `<span class="places-badge places-ok">🟢 ${p.available} places</span>`;
 }
 
-// Load places from Apps Script (with cache)
+// Charger les places depuis l'onglet Places du Sheet via gviz (même méthode que les dossiers)
+// Structure de l'onglet Places : col A=ID Activite, col B=Nom, col C=Capacite, col D=Inscrits, col E=Places restantes
 async function loadPlaces(force = false) {
   const now = Date.now();
   if (!force && state.placesLoaded && (now - state.placesLoadedAt) < PLACES_CACHE_TTL) return;
-  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === 'VOTRE_URL_APPS_SCRIPT_ICI') {
-    // No Apps Script yet: init all activities with default capacity
-    getAllActs().forEach(act => {
+
+  // Initialiser avec les valeurs par défaut
+  getAllActs().forEach(act => {
+    if (!state.places[act.id])
       state.places[act.id] = { capacity: DEFAULT_CAPACITY, registered: 0, available: DEFAULT_CAPACITY };
+  });
+
+  const sheetId = (localStorage.getItem('fri_sheet_id') || SHEET_ID_PUBLIC || '').trim();
+  if (!sheetId) {
+    state.placesLoaded = true; state.placesLoadedAt = now; return;
+  }
+
+  try {
+    const id = sheetId.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/) ?
+      sheetId.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)[1] : sheetId;
+    const url = 'https://docs.google.com/spreadsheets/d/' + id +
+      '/gviz/tq?tqx=out:json&sheet=Places&headers=1&_t=' + now;
+    console.log('loadPlaces gviz URL:', url.substring(0, 100));
+    const resp = await fetch(url, { cache: 'no-store' });
+    console.log('loadPlaces HTTP:', resp.status);
+    if (!resp.ok) {
+      console.warn('loadPlaces: HTTP', resp.status, '— onglet Places inaccessible');
+      state.placesLoaded = true; state.placesLoadedAt = now; return;
+    }
+    const text = await resp.text();
+    const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/);
+    if (!match) {
+      console.warn('loadPlaces: format gviz invalide');
+      state.placesLoaded = true; state.placesLoadedAt = now; return;
+    }
+    const gviz = JSON.parse(match[1]);
+    const nbRows = gviz.table?.rows?.length || 0;
+    console.log('loadPlaces: cols=', gviz.table?.cols?.map(c=>c.label).join('|'), '| rows=', nbRows);
+    if (!gviz.table || !gviz.table.rows || nbRows === 0) {
+      console.warn('loadPlaces: onglet Places vide');
+      state.placesLoaded = true; state.placesLoadedAt = now; return;
+    }
+
+    // Col 0=ID Activite, col 2=Capacite max, col 3=Inscrits, col 4=Places restantes
+    let updated = 0;
+    gviz.table.rows.forEach(row => {
+      if (!row.c) return;
+      const actId    = row.c[0] ? String(row.c[0].v || '').trim() : '';
+      const capacity = row.c[2] ? Number(row.c[2].v ?? DEFAULT_CAPACITY) : DEFAULT_CAPACITY;
+      const inscrits = row.c[3] ? Number(row.c[3].v ?? 0) : 0;
+      if (actId) {
+        state.places[actId] = {
+          capacity,
+          registered: inscrits,
+          available: Math.max(0, capacity - inscrits)
+        };
+        updated++;
+      }
     });
+    console.log('loadPlaces: ' + updated + ' activités chargées depuis le Sheet');
     state.placesLoaded = true;
     state.placesLoadedAt = now;
-    return;
-  }
-  try {
-    const url = APPS_SCRIPT_URL + '?action=getPlaces';
-    const resp = await fetch(url, { mode: 'no-cors' });
-    // no-cors => opaque response, can't read body
-    // Use a CORS-enabled proxy approach: redirect with callback
-    throw new Error('no-cors fallback');
-  } catch {
-    // Fallback: fetch via a GET that returns JSONP-like response
-    // Apps Script supports callback param for JSONP
-    await loadPlacesJsonp();
+  } catch(err) {
+    console.error('loadPlaces erreur:', err.message);
+    state.placesLoaded = true; state.placesLoadedAt = now;
   }
 }
 
-function loadPlacesJsonp() {
-  return new Promise((resolve) => {
-    if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === 'VOTRE_URL_APPS_SCRIPT_ICI') {
-      resolve(); return;
-    }
-    const cbName = '_friPlacesCb_' + Date.now();
-    const timeout = setTimeout(() => {
-      delete window[cbName];
-      script.remove();
-      // Fallback to default capacity
-      getAllActs().forEach(act => {
-        if (!state.places[act.id])
-          state.places[act.id] = { capacity: DEFAULT_CAPACITY, registered: 0, available: DEFAULT_CAPACITY };
-      });
-      state.placesLoaded = true;
-      state.placesLoadedAt = Date.now();
-      resolve();
-    }, 6000);
-
-    window[cbName] = function(data) {
-      clearTimeout(timeout);
-      delete window[cbName];
-      script.remove();
-      if (data && data.places) {
-        // Merge server data; fill missing with defaults
-        getAllActs().forEach(act => {
-          const srv = data.places[act.id];
-          if (srv) {
-            state.places[act.id] = {
-              capacity: srv.capacity,
-              registered: srv.registered,
-              available: Math.max(0, srv.capacity - srv.registered)
-            };
-          } else {
-            state.places[act.id] = { capacity: DEFAULT_CAPACITY, registered: 0, available: DEFAULT_CAPACITY };
-          }
-        });
-      } else {
-        getAllActs().forEach(act => {
-          if (!state.places[act.id])
-            state.places[act.id] = { capacity: DEFAULT_CAPACITY, registered: 0, available: DEFAULT_CAPACITY };
-        });
-      }
-      state.placesLoaded = true;
-      state.placesLoadedAt = Date.now();
-      resolve();
-    };
-
-    const script = document.createElement('script');
-    script.src = APPS_SCRIPT_URL + '?action=getPlaces&callback=' + cbName;
-    script.onerror = () => { clearTimeout(timeout); window[cbName]({ places: null }); };
-    document.head.appendChild(script);
-  });
-}
+// Alias maintenu pour compatibilité
+function loadPlacesJsonp() { return loadPlaces(true); }
 
 // Decrement places locally after successful registration
 function decrementPlaces(activities) {
@@ -2590,8 +2580,8 @@ function gvizDateToStr(val) {
 // Lire l'onglet Inscriptions via l'API publique Google Sheets (gviz)
 async function lireSheetPublic() {
   const sheetId = (localStorage.getItem('fri_sheet_id') || SHEET_ID_PUBLIC || '').trim();
-  if (!sheetId || sheetId === 'VOTRE_SHEET_ID_ICI') {
-    return { ok: false, reason: 'Sheet ID non configuré — saisissez-le dans la configuration admin' };
+  if (!sheetId) {
+    return { ok: false, reason: 'Sheet ID non configuré' };
   }
 
   // Extraire l'ID si l'utilisateur a collé l'URL complète du Sheet
