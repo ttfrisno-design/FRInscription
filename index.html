@@ -3455,9 +3455,14 @@ function renderAdmin() {
         const hasAnyDoc = hasCertif || hasPassJeunes || hasAtoutNormandie || hasPassSport;
         const docId = String(reg.code || reg.id || '').replace(/[^A-Z0-9]/g, '');
 
-        const docsCheckboxes = (isPending && hasAnyDoc) ? `
+        // Attestation QS santé : toujours requise pour tous les dossiers
+        // Les autres documents : uniquement si l'adhérent les a sélectionnés
+        const docsCheckboxes = isPending ? `
           <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:8px;margin-bottom:6px;font-size:11px;">
             <div style="color:rgba(255,255,255,0.7);margin-bottom:6px;font-weight:600;">📎 Documents à recevoir :</div>
+            <label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:rgba(255,255,255,0.9)">
+              <input type="checkbox" id="doc-qs-${docId}" style="cursor:pointer;width:14px;height:14px">
+              📋 Attestation QS santé signée${hasCertif ? ' <span style="color:#ffab40;font-weight:600">(+ certificat médical requis ⚠️)</span>' : ''}</label>
             ${hasCertif ? `<label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:white;font-weight:600">
               <input type="checkbox" id="doc-certif-${docId}" style="cursor:pointer;width:14px;height:14px"> ⚠️ Certificat médical</label>` : ''}
             ${hasPassJeunes ? `<label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:rgba(255,255,255,0.9)">
@@ -3504,7 +3509,7 @@ async function validerPaiement(code, regId) {
   const reg  = allRegs.find(r => r.code === code || String(r.id) === String(regId));
   
   const safeId = String(code || regId || '').replace(/[^A-Z0-9]/g, '');
-  const docIds = ['certif','passjeunes','atout','passsport'];
+  const docIds = ['qs','certif','passjeunes','atout','passsport'];
   const unchecked = docIds.filter(d => {
     const el = document.getElementById('doc-' + d + '-' + safeId);
     return el && !el.checked;
