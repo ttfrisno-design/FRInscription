@@ -869,7 +869,7 @@
 // ============================================================
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwbIDwNYf27f8GRFyfnzR-4jfBMS2l2LMyeuLAwpzBbM2YFAKk6sW8Uc94h5fVk-r-t/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby9hSElobGiEs4WnyycZSyR6oCgxxipfZVAOJM6XUpzeOZ_n90lzf0PgR1rCccCQeKu/exec';
 const SHEET_ID_PUBLIC  = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc'; // ID du Google Sheet FRI
 // Exemple: 'https://script.google.com/macros/s/AKfycb.../exec'
 // Note: peut aussi etre configure dans le panneau admin sans modifier ce fichier
@@ -1898,8 +1898,8 @@ async function chargerDossierExistant() {
         }
         const isno = (localReg.responsable.commune || 'isno') === 'isno';
         let price = isno ? act.isno : act.hc;
-      // Réduction femmes TT adultes : -30€
-      if (actId.startsWith('tt-adulte') && m.sexe === 'F') price = Math.max(0, price - 30);
+      // Réduction femmes TT : -30€
+      if (isTTActivity(actId) && m.sexe === 'F') price = Math.max(0, price - 30);
         activitesExistantes.push({ actId, tarif: price, nom: act.name.replace(/\n/g,' — ') });
         totalExistant += price;
         if (!NON_DISCOUNTABLE.includes(actId) && !actId.startsWith('tt-')) countEligibles++;
@@ -1937,6 +1937,14 @@ async function chargerDossierExistant() {
 }
 
 // ============================================================
+// HELPERS
+// ============================================================
+function isTTActivity(actId) {
+  // Réduction -30€ uniquement pour TT adultes (pas jeunes, pas ping bien-être)
+  return actId.startsWith('tt-adulte') || actId.startsWith('tt-loisirs');
+}
+
+// ============================================================
 // CALC TOTALS
 // ============================================================
 function calcTotals() {
@@ -1962,8 +1970,8 @@ function calcTotals() {
         counted.add(pairKey);
       }
       let price = isno ? act.isno : act.hc;
-      // Réduction femmes TT : -30€ si le membre est de sexe féminin et activité TT adulte
-      if (actId.startsWith('tt-adulte') && m.sexe === 'F') price = Math.max(0, price - 30);
+      // Réduction femmes TT : -30€ si le membre est de sexe féminin et activité TT
+      if (isTTActivity(actId) && m.sexe === 'F') price = Math.max(0, price - 30);
       totalBeforeDiscount += price;
       if (!NON_DISCOUNTABLE.includes(actId) && !actId.startsWith('tt-')) discountableTotal += price;
     });
