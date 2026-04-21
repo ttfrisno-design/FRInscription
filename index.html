@@ -869,7 +869,7 @@
 // ============================================================
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxf5CDq4OHrrrfic6q63YD1JMncWbkXRzk7bRWXWX4mvjKUbDKQzeK33JR7SqaAxWi-/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzH-rvs5_HaNb9-vh3pcqbokBOLCD29DOaKZcSdn6HBBZ1gTxFtP5oMfqJRtiZtdI4O/exec';
 const SHEET_ID_PUBLIC  = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc'; // ID du Google Sheet FRI
 // Exemple: 'https://script.google.com/macros/s/AKfycb.../exec'
 // Note: peut aussi etre configure dans le panneau admin sans modifier ce fichier
@@ -1897,7 +1897,9 @@ async function chargerDossierExistant() {
           counted.add(pk);
         }
         const isno = (localReg.responsable.commune || 'isno') === 'isno';
-        const price = isno ? act.isno : act.hc;
+        let price = isno ? act.isno : act.hc;
+      // Réduction femmes TT adultes : -30€
+      if (actId.startsWith('tt-adulte') && m.sexe === 'F') price = Math.max(0, price - 30);
         activitesExistantes.push({ actId, tarif: price, nom: act.name.replace(/\n/g,' — ') });
         totalExistant += price;
         if (!NON_DISCOUNTABLE.includes(actId) && !actId.startsWith('tt-')) countEligibles++;
@@ -1959,7 +1961,9 @@ function calcTotals() {
         if (counted.has(pairKey)) return;
         counted.add(pairKey);
       }
-      const price = isno ? act.isno : act.hc;
+      let price = isno ? act.isno : act.hc;
+      // Réduction femmes TT : -30€ si le membre est de sexe féminin et activité TT adulte
+      if (actId.startsWith('tt-adulte') && m.sexe === 'F') price = Math.max(0, price - 30);
       totalBeforeDiscount += price;
       if (!NON_DISCOUNTABLE.includes(actId) && !actId.startsWith('tt-')) discountableTotal += price;
     });
@@ -3428,36 +3432,32 @@ function renderAdmin() {
         const statutBadge = isPending
           ? `<span style="background:rgba(201,168,76,0.3);color:var(--gold);border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700;display:block;margin-top:4px;">⏳ En attente</span>`
           : `<span style="background:rgba(45,106,79,0.3);color:var(--green-light);border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700;display:block;margin-top:4px;">✅ Payé</span>`;
-        // Documents requis — toujours proposer les 4 cases pour tout dossier en attente
-        // L'admin coche ce qu'il a reçu avant de valider
+        // Documents — uniquement ceux sélectionnés par l'adhérent
         const hasCertif = (reg.members && reg.members.some(m => m.qsResult === 'certificat_requis'))
                        || (reg._rows && reg._rows.some(r => r.qs_sante === 'Certificat requis'));
         const allPassAide = reg._rows ? reg._rows.map(r => r.pass_aide || '').join(' ')
-                          : (reg.responsable ? (reg.responsable.passAide || reg.responsable.pass_aide || '') : '');
-        const hasPassJeunes     = allPassAide.includes('Pass') && (allPassAide.includes('jeune') || allPassAide.includes('Jeune') || allPassAide.includes('76'));
+                          : (reg.responsable
+                            ? [reg.responsable.passJeunes==='oui'?'Pass jeunes':'',
+                               reg.responsable.atoutNormandie==='oui'?'Atout Normandie':'',
+                               reg.responsable.passSport==='oui'?'Pass sport':''].join(' ')
+                            : '');
+        const hasPassJeunes     = allPassAide.toLowerCase().includes('jeune') || allPassAide.includes('76');
         const hasAtoutNormandie = allPassAide.toLowerCase().includes('atout') || allPassAide.toLowerCase().includes('normandie');
         const hasPassSport      = allPassAide.toLowerCase().includes('pass') && allPassAide.toLowerCase().includes('sport');
+        const hasAnyDoc = hasCertif || hasPassJeunes || hasAtoutNormandie || hasPassSport;
         const docId = String(reg.code || reg.id || '').replace(/[^A-Z0-9]/g, '');
 
-        const docsCheckboxes = isPending ? `
+        const docsCheckboxes = (isPending && hasAnyDoc) ? `
           <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:8px;margin-bottom:6px;font-size:11px;">
-            <div style="color:rgba(255,255,255,0.7);margin-bottom:6px;font-weight:600;">📎 Documents reçus :</div>
-            <label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:rgba(255,255,255,${hasCertif ? '1' : '0.5'})">
-              <input type="checkbox" id="doc-certif-${docId}" style="cursor:pointer;width:14px;height:14px">
-              Certificat médical${hasCertif ? ' ⚠️' : ''}
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:rgba(255,255,255,${hasPassJeunes ? '1' : '0.5'})">
-              <input type="checkbox" id="doc-passjeunes-${docId}" style="cursor:pointer;width:14px;height:14px">
-              Pass'jeunes 76${hasPassJeunes ? ' ✓' : ''}
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:rgba(255,255,255,${hasAtoutNormandie ? '1' : '0.5'})">
-              <input type="checkbox" id="doc-atout-${docId}" style="cursor:pointer;width:14px;height:14px">
-              Atout Normandie${hasAtoutNormandie ? ' ✓' : ''}
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:rgba(255,255,255,${hasPassSport ? '1' : '0.5'})">
-              <input type="checkbox" id="doc-passsport-${docId}" style="cursor:pointer;width:14px;height:14px">
-              Pass'sport État${hasPassSport ? ' ✓' : ''}
-            </label>
+            <div style="color:rgba(255,255,255,0.7);margin-bottom:6px;font-weight:600;">📎 Documents à recevoir :</div>
+            ${hasCertif ? `<label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:white;font-weight:600">
+              <input type="checkbox" id="doc-certif-${docId}" style="cursor:pointer;width:14px;height:14px"> ⚠️ Certificat médical</label>` : ''}
+            ${hasPassJeunes ? `<label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:rgba(255,255,255,0.9)">
+              <input type="checkbox" id="doc-passjeunes-${docId}" style="cursor:pointer;width:14px;height:14px"> Pass'jeunes 76</label>` : ''}
+            ${hasAtoutNormandie ? `<label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:rgba(255,255,255,0.9)">
+              <input type="checkbox" id="doc-atout-${docId}" style="cursor:pointer;width:14px;height:14px"> Atout Normandie</label>` : ''}
+            ${hasPassSport ? `<label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:rgba(255,255,255,0.9)">
+              <input type="checkbox" id="doc-passsport-${docId}" style="cursor:pointer;width:14px;height:14px"> Pass'sport État</label>` : ''}
           </div>` : '';
 
         const validateBtn = isPending
