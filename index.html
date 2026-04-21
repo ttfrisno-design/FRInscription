@@ -869,7 +869,7 @@
 // ============================================================
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwTAkPvOvWiLZtdutsV68bWnAH703zryYBIMW5uyKFVGRzoCkzG4KUzXewgiywecVqN/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxOpOlT-AwKCz1el_n0gS3K4jvoOMNUsZw0vmr3HTSAcE4XKlSzrGzBQKj6RP1IKFFA/exec';
 const SHEET_ID_PUBLIC  = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc'; // ID du Google Sheet FRI
 // Exemple: 'https://script.google.com/macros/s/AKfycb.../exec'
 // Note: peut aussi etre configure dans le panneau admin sans modifier ce fichier
@@ -2071,7 +2071,10 @@ function renderSummary() {
           <tr class="total-row"><td><strong>TOTAL À RÉGLER</strong></td><td style="text-align:right"><strong>${t.grandTotal}€</strong></td></tr>
         </tbody>
       </table>
-      ${t.familyActCount >= 3 ? '<p style="font-size:12px;color:var(--green);margin-top:8px;">✅ Remise 15% appliquée (${t.familyActCount} activités éligibles${dossiersExistantsActCount > 0 ? " dont " + dossiersExistantsActCount + " du dossier existant" : ""})</p>' : '<p style="font-size:12px;color:var(--gray);margin-top:8px;">ℹ️ La remise de 15% s\'applique à partir de 3 activités éligibles dans la même famille${dossiersExistantsActCount > 0 ? " (vous en avez déjà " + dossiersExistantsActCount + " dans votre dossier existant)" : ""}.</p>'}
+      ${t.familyActCount >= 3
+          ? '<p style="font-size:12px;color:var(--green);margin-top:8px;">✅ Remise 15% appliquée (' + t.familyActCount + ' activités éligibles' + (dossiersExistantsActCount > 0 ? ' dont ' + dossiersExistantsActCount + ' du dossier existant' : '') + ')</p>'
+          : '<p style="font-size:12px;color:var(--gray);margin-top:8px;">ℹ️ La remise de 15% s\'applique à partir de 3 activités éligibles' + (dossiersExistantsActCount > 0 ? ' (vous en avez déjà ' + dossiersExistantsActCount + ' dans votre dossier existant)' : '') + '.</p>'
+        }
     </div>
     <div class="card">
       <div class="card-title">🏥 Résultats questionnaires santé</div>
@@ -3188,8 +3191,8 @@ function renderSemainierSalle() {
     for (let i = 0; i < slots.length; i++) {
       for (let j = i + 1; j < slots.length; j++) {
         if (overlaps(slots[i], slots[j])) {
-          overlapIds.add(slots[i].id + '_' + day + '_' + slots[i].heure);
-          overlapIds.add(slots[j].id + '_' + day + '_' + slots[j].heure);
+          overlapIds.add(slots[i].id);
+          overlapIds.add(slots[j].id);
         }
       }
     }
@@ -3425,32 +3428,36 @@ function renderAdmin() {
         const statutBadge = isPending
           ? `<span style="background:rgba(201,168,76,0.3);color:var(--gold);border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700;display:block;margin-top:4px;">⏳ En attente</span>`
           : `<span style="background:rgba(45,106,79,0.3);color:var(--green-light);border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700;display:block;margin-top:4px;">✅ Payé</span>`;
-        // Vérifier si des documents sont requis
-        // Fonctionne depuis localStorage (PC adhérent) ET depuis Sheet (autre PC via _rows)
-        const hasCertif = (
-          // Depuis localStorage
-          (reg.members && reg.members.some(m => m.qsResult === 'certificat_requis')) ||
-          // Depuis Sheet (_rows chargés via gviz)
-          (reg._rows && reg._rows.some(r => r.qs_sante === 'Certificat requis'))
-        );
-        // Pass aide : chercher dans _rows (Sheet) ou dans les données locales
-        const passAideVal = (
-          (reg._rows && reg._rows[0] && reg._rows[0].pass_aide) ||
-          (reg.responsable && (reg.responsable.passAide || reg.responsable.pass_aide)) ||
-          ''
-        );
-        const hasPassJeunes     = passAideVal.includes('Pass jeunes') || passAideVal.includes('Passjeunes');
-        const hasAtoutNormandie = passAideVal.includes('Atout Normandie') || passAideVal.includes('Atout');
-        const hasPassSport      = passAideVal.includes('Pass sport') || passAideVal.includes('Passsport');
-        const hasAnyDoc = hasCertif || hasPassJeunes || hasAtoutNormandie || hasPassSport;
+        // Documents requis — toujours proposer les 4 cases pour tout dossier en attente
+        // L'admin coche ce qu'il a reçu avant de valider
+        const hasCertif = (reg.members && reg.members.some(m => m.qsResult === 'certificat_requis'))
+                       || (reg._rows && reg._rows.some(r => r.qs_sante === 'Certificat requis'));
+        const allPassAide = reg._rows ? reg._rows.map(r => r.pass_aide || '').join(' ')
+                          : (reg.responsable ? (reg.responsable.passAide || reg.responsable.pass_aide || '') : '');
+        const hasPassJeunes     = allPassAide.includes('Pass') && (allPassAide.includes('jeune') || allPassAide.includes('Jeune') || allPassAide.includes('76'));
+        const hasAtoutNormandie = allPassAide.toLowerCase().includes('atout') || allPassAide.toLowerCase().includes('normandie');
+        const hasPassSport      = allPassAide.toLowerCase().includes('pass') && allPassAide.toLowerCase().includes('sport');
+        const docId = String(reg.code || reg.id || '').replace(/[^A-Z0-9]/g, '');
 
-        const docsCheckboxes = hasAnyDoc ? `
-          <div style="background:rgba(255,255,255,0.05);border-radius:6px;padding:8px;margin-bottom:6px;font-size:11px;">
-            <div style="color:rgba(255,255,255,0.6);margin-bottom:5px;font-weight:600;">📎 Documents reçus :</div>
-            ${hasCertif        ? `<label style="display:flex;align-items:center;gap:5px;margin:3px 0;cursor:pointer;color:rgba(255,255,255,0.8)"><input type="checkbox" id="doc-certif-${reg.id}" style="cursor:pointer"> Certificat médical</label>` : ''}
-            ${hasPassJeunes    ? `<label style="display:flex;align-items:center;gap:5px;margin:3px 0;cursor:pointer;color:rgba(255,255,255,0.8)"><input type="checkbox" id="doc-passjeunes-${reg.id}" style="cursor:pointer"> Pass'jeunes 76 / Handipass'sport</label>` : ''}
-            ${hasAtoutNormandie? `<label style="display:flex;align-items:center;gap:5px;margin:3px 0;cursor:pointer;color:rgba(255,255,255,0.8)"><input type="checkbox" id="doc-atout-${reg.id}" style="cursor:pointer"> Atout Normandie</label>` : ''}
-            ${hasPassSport     ? `<label style="display:flex;align-items:center;gap:5px;margin:3px 0;cursor:pointer;color:rgba(255,255,255,0.8)"><input type="checkbox" id="doc-passsport-${reg.id}" style="cursor:pointer"> Pass'sport État</label>` : ''}
+        const docsCheckboxes = isPending ? `
+          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:8px;margin-bottom:6px;font-size:11px;">
+            <div style="color:rgba(255,255,255,0.7);margin-bottom:6px;font-weight:600;">📎 Documents reçus :</div>
+            <label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:rgba(255,255,255,${hasCertif ? '1' : '0.5'})">
+              <input type="checkbox" id="doc-certif-${docId}" style="cursor:pointer;width:14px;height:14px">
+              Certificat médical${hasCertif ? ' ⚠️' : ''}
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:rgba(255,255,255,${hasPassJeunes ? '1' : '0.5'})">
+              <input type="checkbox" id="doc-passjeunes-${docId}" style="cursor:pointer;width:14px;height:14px">
+              Pass'jeunes 76${hasPassJeunes ? ' ✓' : ''}
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:rgba(255,255,255,${hasAtoutNormandie ? '1' : '0.5'})">
+              <input type="checkbox" id="doc-atout-${docId}" style="cursor:pointer;width:14px;height:14px">
+              Atout Normandie${hasAtoutNormandie ? ' ✓' : ''}
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;margin:4px 0;cursor:pointer;color:rgba(255,255,255,${hasPassSport ? '1' : '0.5'})">
+              <input type="checkbox" id="doc-passsport-${docId}" style="cursor:pointer;width:14px;height:14px">
+              Pass'sport État${hasPassSport ? ' ✓' : ''}
+            </label>
           </div>` : '';
 
         const validateBtn = isPending
@@ -3488,12 +3495,13 @@ async function validerPaiement(code, regId) {
   const allRegs = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
   const reg  = allRegs.find(r => r.code === code || String(r.id) === String(regId));
   
+  const safeId = String(code || regId || '').replace(/[^A-Z0-9]/g, '');
   const docIds = ['certif','passjeunes','atout','passsport'];
   const unchecked = docIds.filter(d => {
-    const el = document.getElementById('doc-' + d + '-' + (regId || code));
-    return el && !el.checked; // case exists but not checked
+    const el = document.getElementById('doc-' + d + '-' + safeId);
+    return el && !el.checked;
   });
-  const anyDocBox = docIds.some(d => document.getElementById('doc-' + d + '-' + (regId || code)));
+  const anyDocBox = docIds.some(d => document.getElementById('doc-' + d + '-' + safeId));
   
   if (anyDocBox && unchecked.length > 0) {
     if (!confirm('Attention : certains documents ne sont pas encore cochés comme reçus. Valider quand même le paiement ?')) return;
