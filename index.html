@@ -1210,8 +1210,9 @@ async function loadPlaces(force = false) {
   }
 
   try {
-    const id = sheetId.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/) ?
-      sheetId.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)[1] : sheetId;
+    // Extraire l'ID si URL complète collée
+    const urlMatch = sheetId.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    const id = urlMatch ? urlMatch[1] : sheetId;
     const url = 'https://docs.google.com/spreadsheets/d/' + id +
       '/gviz/tq?tqx=out:json&sheet=Places&headers=1&_t=' + now;
     console.log('loadPlaces gviz URL:', url.substring(0, 100));
@@ -3825,7 +3826,21 @@ function exportSingleExcel(id) {
 // ============================================================
 (async function init() {
   // Load places availability before rendering
-  await loadPlaces();
+  // Charger les places avec un léger délai pour laisser le DOM se stabiliser
+  // Puis re-rendre la section active pour mettre à jour les badges de places
+  setTimeout(async () => {
+    await loadPlaces(true);
+    // Rafraîchir l'affichage des activités si on est à l'étape 2
+    if (state.step === 2) {
+      document.querySelectorAll('.places-badge').forEach(el => {
+        const actId = el.closest('[data-act-id]')?.dataset?.actId;
+        if (actId) el.outerHTML = placeBadge(actId);
+      });
+    }
+    // Rafraîchir le semainier complet de la section 2
+    const s2 = document.getElementById('section-2');
+    if (s2 && s2.style.display !== 'none') renderStep2Activities();
+  }, 800);
   addMember();
 })();
 </script>
