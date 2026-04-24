@@ -1940,10 +1940,57 @@ async function chargerDossierExistant() {
 // HELPERS
 // ============================================================
 function isTTActivity(actId) {
-  // Réduction -30€ TT adultes (avec et sans entraînement)
-  // Les IDs site restent lisibles — getPlacesId fait le mapping vers Places
   return actId === 'tt-comp-entrain' || actId === 'tt-comp-entrain-me'
       || actId === 'tt-comp-sans'    || actId === 'tt-comp-sans-me';
+}
+
+// Mapping IDs site → IDs onglet Places (identique à getPlacesId dans Code.gs)
+function siteToPlacesId(actId) {
+  const m = {
+    'body-sculpt-lu':'FITL1730','zumba-lu':'FITL2030','body-sculpt-ma':'FITM10',
+    'circuit-ve':'FITV10','stretching-ve':'FITV11','body-sculpt-cm-ve':'FITV1830',
+    'zumba-sa':'FITS0945','body-sculpt-sa':'FITS1045','stretching-sa':'FITS1145',
+    'yoga-sm-lu':'YOGAL18','meditation-lu':'MEDL1930','yoga-mb-ma':'YOGAM11',
+    'stretching-yoga-je':'YOGAJ1615','yoga-sm-je1':'YOGAJ1835','yoga-sm-je2':'YOGAJ2005',
+    'pilates-lu1':'PILL11','pilates-lu2':'PILL12','pilates-lu3':'PILL14',
+    'pilates-flow-lu':'PILL1830','pilates-flow-ma':'PILM1830',
+    'pilates-me1':'PILME10','pilates-seniors-me':'PILME11',
+    'pilates-je1':'PILJ11','pilates-je2':'PILJ12','pilates-je3':'PILJ1515','pilates-ve':'PILV14',
+    'tt-comp-entrain':'PINGL1945/ME1945','tt-comp-entrain-me':'PINGL1945/ME1945',
+    'tt-comp-sans':'PINGM1930/ME21','tt-comp-sans-me':'PINGM1930/ME21',
+    'ping-bienetre':'PINGJ1530',
+    'sophro-ma':'SOPHM11','sophro-me':'SOPHM1830',
+    'esport-a':'ESPOME1830','esport-j':'ESPOME1830',
+    'marche-nordic':'MNOME/S10',
+    'apa-lu':'APAL15','apa-je':'APAJ14','apa-ve':'APAV1730','yoga-doux':'YOGAM1430',
+    'peinture-lu1':'PEINL1545','peinture-lu2':'PEINL1845',
+    'guitare-a':'GUITJ19','guitare-j':'GUITJ19',
+    'theatre-creation':'THEL2030','theatre-loisirs-a':'THEJ19',
+    'couture-je1':'COUTJ0930','couture-je2':'COUTJ13','couture-je3':'COUTJ1800',
+    'country-init-a':'COUNV1830','country-debu-a':'COUNV1930',
+    'country-novice':'COUNV2030','country-inter':'COUNV2130',
+    'country-init-j':'COUNV1830','country-debu-j':'COUNV1930',
+    'danse-moderne-av1':'JAZJ1845','danse-moderne-av2':'JAZJ2015',
+    'danse-classique-inter-a':'CLASSL1845','danse-classique-pointes-lu':'CLASSL21',
+    'danse-classique-barre':'CLASSJ1215','danse-classique-debu-je':'CLASSJ1315',
+    'danse-classique-pointes-je':'CLASSJ1430',
+    'tt-jeunes-comp':'PINGL18/J17','tt-jeunes-comp-je':'PINGL18/J17',
+    'tt-debu-1':'PINGME1730',
+    'tt-debu-2':'PINGME1830','tt-debu-2-me':'PINGME1830',
+    'baby-gym':'GYMME10','gym-parent-3-5':'GYMME1045','gym-3-5':'GYMME1130',
+    'gym-inter-av1':'GYMME1215','gym-debu-6-8-1':'GYMME1315',
+    'gym-debu-6-8-2':'GYMME1415','gym-inter-av2':'GYMME1515',
+    'danse-moderne-init1':'JAZME1215','danse-moderne-debu12':'JAZME1315',
+    'danse-moderne-debu23':'JAZME1415','danse-moderne-debu4':'JAZME1515',
+    'danse-moderne-inter23':'JAZME1615','danse-moderne-inter45':'JAZME1715',
+    'danse-eveil':'JAZJ1745',
+    'danse-classique-11-13':'CLASSL1745','danse-classique-4-5':'CLASSME0930',
+    'danse-classique-6-7':'CLASSME1015','danse-classique-8-10':'CLASSME11',
+    'peinture-ados':'PEINL1715','peinture-enfants1':'PEINME0930','peinture-enfants2':'PEINME11',
+    'theatre-4e3e':'THEJ19','theatre-cm1cm2':'THEV1630',
+    'theatre-6e5e':'THEV1730','theatre-lycee':'THEV1830'
+  };
+  return m[actId] || actId;
 }
 
 // ============================================================
@@ -2494,7 +2541,7 @@ function buildRows(reg) {
           membre_nom: m.nom || reg.responsable.nom, membre_prenom: m.prenom,
           ddn: m.ddn, sexe: m.sexe,
           activite: nomClean, jour: joursCombi, heure: heuresCombi,
-          lieu: act.lieu || '', animateur: act.animateur, activite_id: actId,
+          lieu: act.lieu || '', animateur: act.animateur, activite_id: siteToPlacesId(actId),
           tarif: price, fnsmr: 15,
           remise: reg.totals && reg.totals.familyActCount >= 3 ? 15 : 0,
           total_famille: reg.totals ? reg.totals.grandTotal : 0,
@@ -2519,7 +2566,7 @@ function buildRows(reg) {
         membre_nom: m.nom || reg.responsable.nom, membre_prenom: m.prenom,
         ddn: m.ddn, sexe: m.sexe,
         activite: nomClean, jour: act.jour, heure: act.heure,
-        lieu: act.lieu || '', animateur: act.animateur, activite_id: actId,
+        lieu: act.lieu || '', animateur: act.animateur, activite_id: siteToPlacesId(actId),
         tarif: price, fnsmr: 15,
         remise: reg.totals && reg.totals.familyActCount >= 3 ? 15 : 0,
         total_famille: reg.totals ? reg.totals.grandTotal : 0,
