@@ -869,7 +869,7 @@
 // ============================================================
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby5eMCTGUzPO1tVdqAPEKYhMX7V2G9zTNE-5rqn50v6jC0_j6SsIVrX6z8hZ5DVirwC/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwiTQV-mFGu8ZlvXQuKB_nVaaeFoL4ltGWCWtqFGILFp3ofJ84jQaWYUCaOhrM2CX9e/exec';
 const SHEET_ID_PUBLIC  = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc'; // ID du Google Sheet FRI
 // Exemple: 'https://script.google.com/macros/s/AKfycb.../exec'
 // Note: peut aussi etre configure dans le panneau admin sans modifier ce fichier
@@ -938,10 +938,10 @@ const ACTIVITIES = {
       tt_adultes: {
         label: "Tennis de table Adultes",
         acts: [
-          { id:"tt-adulte-entrain",    name:"Adultes\nAvec entraînement structuré", lieu:"CM", jour:"Lundi",    heure:"19h45/21h00", isno:160, hc:160, animateur:"Y. LAROCHELLE", linkedWith:"tt-adulte-entrain-me", fftt:70, note:"2 séances : Lu 19h45-21h + Me 19h45-21h" },
-          { id:"tt-adulte-entrain-me", name:"Adultes\nAvec entraînement structuré", lieu:"CM", jour:"Mercredi", heure:"19h45/21h00", isno:160, hc:160, animateur:"Y. LAROCHELLE", linkedWith:"tt-adulte-entrain",    fftt:70, note:"2 séances : Lu 19h45-21h + Me 19h45-21h" },
-          { id:"tt-adulte-sans",       name:"Adultes\nSans entraînement structuré", lieu:"CM", jour:"Mardi",    heure:"19h30/21h30", isno:120, hc:120, animateur:"C. MAURICE", linkedWith:"tt-adulte-sans-me", note:"2 séances : Ma 19h30-21h30 + Me 21h15-22h45" },
-          { id:"tt-adulte-sans-me",    name:"Adultes\nSans entraînement structuré", lieu:"CM", jour:"Mercredi", heure:"21h15/22h45", isno:120, hc:120, animateur:"C. MAURICE", linkedWith:"tt-adulte-sans",    note:"2 séances : Ma 19h30-21h30 + Me 21h15-22h45" },
+          { id:"tt-comp-entrain",    name:"Adultes\nAvec entraînement structuré", lieu:"CM", jour:"Lundi",    heure:"19h45/21h00", isno:160, hc:160, animateur:"Y. LAROCHELLE", linkedWith:"tt-comp-entrain", fftt:70, note:"2 séances : Lu 19h45-21h + Me 19h45-21h" },
+          { id:"tt-comp-entrain", name:"Adultes\nAvec entraînement structuré", lieu:"CM", jour:"Mercredi", heure:"19h45/21h00", isno:160, hc:160, animateur:"Y. LAROCHELLE", linkedWith:"tt-comp-entrain",    fftt:70, note:"2 séances : Lu 19h45-21h + Me 19h45-21h" },
+          { id:"tt-comp-sans",       name:"Adultes\nSans entraînement structuré", lieu:"CM", jour:"Mardi",    heure:"19h30/21h30", isno:120, hc:120, animateur:"C. MAURICE", linkedWith:"tt-comp-sans", note:"2 séances : Ma 19h30-21h30 + Me 21h15-22h45" },
+          { id:"tt-comp-sans",    name:"Adultes\nSans entraînement structuré", lieu:"CM", jour:"Mercredi", heure:"21h15/22h45", isno:120, hc:120, animateur:"C. MAURICE", linkedWith:"tt-comp-sans",    note:"2 séances : Ma 19h30-21h30 + Me 21h15-22h45" },
           { id:"ping-bienetre", name:"Ping bien-être / Pong santé ✨", lieu:"CM", jour:"Jeudi", heure:"15h30/17h00", isno:130, hc:130, animateur:"Y. LAROCHELLE / C. MAURICE" },
         ]
       },
@@ -1005,11 +1005,11 @@ const ACTIVITIES = {
       tt_jeunes: {
         label: "Tennis de table Jeunes",
         acts: [
-          { id:"tt-jeunes-comp-lu", name:"Jeunes Compétition\nAvec entraînement structuré", lieu:"CM", jour:"Lundi",    heure:"18h30/19h45", isno:160, hc:160, animateur:"Y. LAROCHELLE", linkedWith:"tt-jeunes-comp-je", fftt:37, note:"2 séances : Lu 18h30-19h45 + Je 17h-18h30" },
-          { id:"tt-jeunes-comp-je", name:"Jeunes Compétition\nAvec entraînement structuré", lieu:"CM", jour:"Jeudi",    heure:"17h00/18h30", isno:160, hc:160, animateur:"Y. LAROCHELLE", linkedWith:"tt-jeunes-comp-lu", fftt:37, note:"2 séances : Lu 18h30-19h45 + Je 17h-18h30" },
-          { id:"tt-jeunes-debu-me", name:"Jeunes Débutants\nAvec entraînement structuré",   lieu:"CM", jour:"Mercredi", heure:"17h15/18h30", isno:140, hc:140, animateur:"Y. LAROCHELLE", note:"1 séance : Me 17h15-18h30" },
-          { id:"tt-jeunes-conf-lu", name:"Jeunes Confirmés\nAvec entraînement structuré",    lieu:"CM", jour:"Lundi",    heure:"17h15/18h30", isno:160, hc:160, animateur:"Y. LAROCHELLE", linkedWith:"tt-jeunes-conf-me", fftt:37, note:"2 séances : Lu 17h15-18h30 + Me 18h30-19h45" },
-          { id:"tt-jeunes-conf-me", name:"Jeunes Confirmés\nAvec entraînement structuré",    lieu:"CM", jour:"Mercredi", heure:"18h30/19h45", isno:160, hc:160, animateur:"Y. LAROCHELLE", linkedWith:"tt-jeunes-conf-lu", fftt:37, note:"2 séances : Lu 17h15-18h30 + Me 18h30-19h45" },
+          { id:"tt-jeunes-comp", name:"Jeunes Compétition\nAvec entraînement structuré", lieu:"CM", jour:"Lundi",    heure:"18h30/19h45", isno:160, hc:160, animateur:"Y. LAROCHELLE", linkedWith:"tt-jeunes-comp", fftt:37, note:"2 séances : Lu 18h30-19h45 + Je 17h-18h30" },
+          { id:"tt-jeunes-comp", name:"Jeunes Compétition\nAvec entraînement structuré", lieu:"CM", jour:"Jeudi",    heure:"17h00/18h30", isno:160, hc:160, animateur:"Y. LAROCHELLE", linkedWith:"tt-jeunes-comp", fftt:37, note:"2 séances : Lu 18h30-19h45 + Je 17h-18h30" },
+          { id:"tt-debu-1", name:"Jeunes Débutants\nAvec entraînement structuré",   lieu:"CM", jour:"Mercredi", heure:"17h15/18h30", isno:140, hc:140, animateur:"Y. LAROCHELLE", note:"1 séance : Me 17h15-18h30" },
+          { id:"tt-debu-2", name:"Jeunes Confirmés\nAvec entraînement structuré",    lieu:"CM", jour:"Lundi",    heure:"17h15/18h30", isno:160, hc:160, animateur:"Y. LAROCHELLE", linkedWith:"tt-debu-2", fftt:37, note:"2 séances : Lu 17h15-18h30 + Me 18h30-19h45" },
+          { id:"tt-debu-2", name:"Jeunes Confirmés\nAvec entraînement structuré",    lieu:"CM", jour:"Mercredi", heure:"18h30/19h45", isno:160, hc:160, animateur:"Y. LAROCHELLE", linkedWith:"tt-debu-2", fftt:37, note:"2 séances : Lu 17h15-18h30 + Me 18h30-19h45" },
         ]
       },
       gym: {
@@ -1027,14 +1027,14 @@ const ACTIVITIES = {
       esport_j: {
         label: "E-Sport (Ados +14ans)",
         acts: [
-          { id:"esport-j", name:"E-Sport ✨", lieu:"", jour:"Mercredi", heure:"18h30/20h30", isno:180, hc:210, animateur:"J. DUBUSC" },
+          { id:"esport-a", name:"E-Sport ✨", lieu:"", jour:"Mercredi", heure:"18h30/20h30", isno:180, hc:210, animateur:"J. DUBUSC" },
         ]
       },
       culture_jeunes: {
         label: "Activités culturelles Jeunes",
         acts: [
-          { id:"country-init-j", name:"Country Initiation ✨ (ados)", lieu:"MB", jour:"Vendredi", heure:"18h30/19h30", isno:125, hc:155, animateur:"B. DECOUX" },
-          { id:"country-debu-j", name:"Country Débutants ✨ (ados)", lieu:"MB", jour:"Vendredi", heure:"19h30/20h30", isno:125, hc:155, animateur:"B. DECOUX" },
+          { id:"country-init-a", name:"Country Initiation ✨ (ados)", lieu:"MB", jour:"Vendredi", heure:"18h30/19h30", isno:125, hc:155, animateur:"B. DECOUX" },
+          { id:"country-debu-a", name:"Country Débutants ✨ (ados)", lieu:"MB", jour:"Vendredi", heure:"19h30/20h30", isno:125, hc:155, animateur:"B. DECOUX" },
           { id:"danse-moderne-init1", name:"Danse Moderne Initiation 1&2 (6-7 ans / 2018-2019)", lieu:"MB", jour:"Mercredi", heure:"12h15/13h15", isno:145, hc:175, animateur:"F. CHARROIS" },
           { id:"danse-moderne-debu12", name:"Danse Moderne Débutants 1&2 (8-9 ans / 2016-2017)", lieu:"MB", jour:"Mercredi", heure:"13h15/14h15", isno:145, hc:175, animateur:"F. CHARROIS" },
           { id:"danse-moderne-debu23", name:"Danse Moderne Débutants 2&3 (10-11 ans / 2014-2015)", lieu:"MB", jour:"Mercredi", heure:"14h15/15h15", isno:145, hc:175, animateur:"F. CHARROIS" },
@@ -1046,11 +1046,11 @@ const ACTIVITIES = {
           { id:"danse-classique-4-5", name:"Danse Classique 4-5 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"09h30/10h15", isno:140, hc:170, animateur:"M. RABAEY" },
           { id:"danse-classique-6-7", name:"Danse Classique 6-7 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"10h15/11h00", isno:140, hc:170, animateur:"M. RABAEY" },
           { id:"danse-classique-8-10", name:"Danse Classique 8-10 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"11h00/12h00", isno:185, hc:215, animateur:"M. RABAEY" },
-          { id:"guitare-j", name:"Atelier Guitare - Chant (ados)", lieu:"RPA", jour:"Jeudi", heure:"19h00/20h30", isno:180, hc:215, animateur:"R. GENTY" },
+          { id:"guitare-a", name:"Atelier Guitare - Chant (ados)", lieu:"RPA", jour:"Jeudi", heure:"19h00/20h30", isno:180, hc:215, animateur:"R. GENTY" },
           { id:"peinture-ados", name:"Atelier Peinture Ados (collégiens)", lieu:"PSF", jour:"Lundi", heure:"17h15/18h45", isno:240, hc:280, animateur:"E. COMELET" },
           { id:"peinture-enfants1", name:"Atelier Peinture Enfants/Ados (≥6 ans)", lieu:"PSF", jour:"Mercredi", heure:"09h30/11h00", isno:240, hc:280, animateur:"E. COMELET" },
           { id:"peinture-enfants2", name:"Atelier Peinture Enfants/Ados (≥6 ans)", lieu:"PSF", jour:"Mercredi", heure:"11h00/12h30", isno:240, hc:280, animateur:"E. COMELET" },
-          { id:"theatre-4e3e", name:"Théâtre Collégiens (4e et 3e)", lieu:"GSF", jour:"Jeudi", heure:"18h00/19h00", isno:130, hc:160, animateur:"V. DUBOS" },
+          { id:"theatre-loisirs-a", name:"Théâtre Collégiens (4e et 3e)", lieu:"GSF", jour:"Jeudi", heure:"18h00/19h00", isno:130, hc:160, animateur:"V. DUBOS" },
           { id:"theatre-cm1cm2", name:"Théâtre Primaires (CM1 et CM2)", lieu:"GSF", jour:"Vendredi", heure:"16h30/17h30", isno:130, hc:160, animateur:"V. DUBOS" },
           { id:"theatre-6e5e", name:"Théâtre Collégiens (6e et 5e)", lieu:"GSF", jour:"Vendredi", heure:"17h30/18h30", isno:130, hc:160, animateur:"V. DUBOS" },
           { id:"theatre-lycee", name:"Théâtre Lycéens", lieu:"GSF", jour:"Vendredi", heure:"18h30/19h30", isno:130, hc:160, animateur:"V. DUBOS" },
@@ -1940,8 +1940,10 @@ async function chargerDossierExistant() {
 // HELPERS
 // ============================================================
 function isTTActivity(actId) {
-  // Réduction -30€ uniquement pour TT adultes (pas jeunes, pas ping bien-être)
-  return actId.startsWith('tt-adulte') || actId.startsWith('tt-loisirs');
+  // Réduction -30€ TT adultes (avec et sans entraînement)
+  // Les IDs site restent lisibles — getPlacesId fait le mapping vers Places
+  return actId === 'tt-comp-entrain' || actId === 'tt-comp-entrain-me'
+      || actId === 'tt-comp-sans'    || actId === 'tt-comp-sans-me';
 }
 
 // ============================================================
