@@ -1403,6 +1403,7 @@ function semainierHtml(memberId) {
         📅 Choisissez vos activités dans le semainier
       </div>
       <div class="semainier-tabs" id="sem-tabs-${memberId}">${tabsHtml}</div>
+      <div id="sem-merged-${memberId}" style="display:none"></div>
       <div id="sem-grids-${memberId}">
         ${gridsHtml}
       </div>
@@ -1604,32 +1605,87 @@ function slotHtml(act, memberId, color, isno) {
 const _activeCats = {};
 
 function switchSemTab(memberId, catKey) {
-  if (!_activeCats[memberId]) _activeCats[memberId] = new Set();
+  if (!_activeCats[memberId]) _activeCats[memberId] = new Set([catKey]);
   const cats = _activeCats[memberId];
 
-  // Toggle this category
   if (cats.has(catKey)) {
     cats.delete(catKey);
-    // Always keep at least one active
-    if (cats.size === 0) cats.add(catKey);
+    if (cats.size === 0) cats.add(catKey); // toujours au moins 1
   } else {
     cats.add(catKey);
   }
 
-  // Update tab styles
+  // Styles des onglets
   document.querySelectorAll(`[data-sem-tab="${memberId}"]`).forEach(t => {
-    const isActive = cats.has(t.dataset.cat);
-    t.classList.toggle('active', isActive);
-    t.classList.toggle('multi-active', isActive && cats.size > 1);
+    const on = cats.has(t.dataset.cat);
+    t.classList.toggle('active', on);
+    t.classList.toggle('multi-active', on && cats.size > 1);
   });
 
-  // Show/hide grids
-  const gridsEl = document.getElementById(`sem-grids-${memberId}`);
-  gridsEl.querySelectorAll('.sem-grid-wrap').forEach(g => {
-    const gridCat = g.id.replace(`sem-grid-${memberId}-`, '');
-    g.style.display = cats.has(gridCat) ? '' : 'none';
-  });
+  const singleDiv = document.getElementById(`sem-grids-${memberId}`);
+  const mergedDiv = document.getElementById(`sem-merged-${memberId}`);
+
+  if (cats.size === 1) {
+    // Une seule catégorie — afficher la grille pré-construite
+    mergedDiv.style.display = 'none';
+    singleDiv.style.display = '';
+    singleDiv.querySelectorAll('.sem-grid-wrap').forEach(g => {
+      const gridCat = g.id.replace(`sem-grid-${memberId}-`, '');
+      g.style.display = cats.has(gridCat) ? '' : 'none';
+    });
+  } else {
+    // Plusieurs catégories — fusionner dans une seule grille
+    singleDiv.style.display = 'none';
+    mergedDiv.style.display = '';
+    mergedDiv.innerHTML = buildMergedGrid(memberId, [...cats]);
+  }
 }
+
+// Construire une grille fusionnée pour plusieurs catégories
+function buildMergedGrid(memberId, catKeys) {
+  const isno  = (state.responsable.commune || 'isno') === 'isno';
+  const allTabs = buildCategoryTabs();
+
+  // Collecter toutes les activités des catégories sélectionnées
+  const byDay = {};
+  DAYS.forEach(d => byDay[d] = []);
+
+  catKeys.forEach(catKey => {
+    const tab = allTabs.find(t => t.key === catKey);
+    if (!tab) return;
+    const color = catColor(catKey);
+    tab.acts.forEach(act => {
+      DAYS.forEach(d => {
+        if (act.jour.includes(d)) byDay[d].push({ act, color });
+      });
+    });
+  });
+
+  // Trier par heure dans chaque jour
+  DAYS.forEach(d => byDay[d].sort((a, b) => parseTime(a.act.heure.split('/')[0]) - parseTime(b.act.heure.split('/')[0])));
+
+  const hasContent = DAYS.some(d => byDay[d].length > 0);
+  if (!hasContent) return '<p style="color:var(--gray);font-size:13px;padding:16px">Aucune activité pour ces catégories.</p>';
+
+  // Colonnes : jours qui ont des activités
+  const activeDays = DAYS.filter(d => byDay[d].length > 0);
+
+  // Construire une grille par colonnes de jours
+  const cols = activeDays.map(day => {
+    const slots = byDay[day].map(({ act, color }) => slotHtml(act, memberId, color, isno)).join('');
+    return `<td style="vertical-align:top;padding:4px 2px"><div class="sem-cell">${slots}</div></td>`;
+  }).join('');
+
+  const headers = activeDays.map(d => `<th>${d}</th>`).join('');
+
+  return `<div class="semainier-wrap">
+    <table class="semainier">
+      <thead><tr>${headers}</tr></thead>
+      <tbody><tr>${cols}</tr></tbody>
+    </table>
+  </div>`;
+}
+
 
 function toggleSlot(memberId, actId) {
   const m = state.members.find(m => m.id === memberId);
