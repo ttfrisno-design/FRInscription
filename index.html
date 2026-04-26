@@ -353,6 +353,16 @@
     width:100%; border-collapse:collapse; min-width:560px;
     font-size:12px;
   }
+  .sem-tab.multi-active {
+    background: var(--green);
+    color: white;
+    border-color: var(--green);
+    opacity: 1;
+    font-weight: 700;
+  }
+  .sem-tab.multi-active + .sem-tab.multi-active::before {
+    content: '';
+  }
   .semainier th {
     background:var(--dark); color:white; padding:10px 8px;
     font-weight:700; font-size:11px; text-transform:uppercase;
@@ -1376,9 +1386,10 @@ function semainierHtml(memberId) {
   const tabs = buildCategoryTabs();
   const firstKey = tabs[0].key;
 
-  const tabsHtml = tabs.map((t, i) =>
-    `<button class="sem-tab${i===0?' active':''}" data-sem-tab="${memberId}" data-cat="${t.key}" onclick="switchSemTab(${memberId},'${t.key}')">${t.label}</button>`
-  ).join('');
+  const tabsHtml = `<div style="font-size:11px;color:var(--gray);margin-bottom:6px;">💡 Cliquez sur une ou plusieurs catégories pour afficher les créneaux</div>`
+    + tabs.map((t, i) =>
+      `<button class="sem-tab${i===0?' active':''}" data-sem-tab="${memberId}" data-cat="${t.key}" onclick="switchSemTab(${memberId},'${t.key}')">${t.label}</button>`
+    ).join('');
 
   const gridsHtml = tabs.map((t, i) =>
     `<div class="sem-grid-wrap" id="sem-grid-${memberId}-${t.key}" style="${i===0?'':'display:none'}">
@@ -1390,15 +1401,6 @@ function semainierHtml(memberId) {
     <div style="margin-top:20px">
       <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:var(--dark);">
         📅 Choisissez vos activités dans le semainier
-      </div>
-      <div style="margin-bottom:10px;padding:9px 13px;background:#f0f7f3;border-radius:8px;font-size:11px;color:#444;line-height:2;border:1px solid #d8f3dc;">
-        <div>🏟 <strong>Complexe Sportif du Cheval Rouge</strong> (Rte de Neufchâtel) &nbsp;—&nbsp;
-          <strong>MB</strong> salle Maurice Béjart &nbsp;·&nbsp; <strong>CM</strong> salle Claude Monet</div>
-        <div>🏛 <strong>Salle des fêtes</strong> (place Cramilly) &nbsp;—&nbsp;
-          <strong>PSF</strong> Petite Salle &nbsp;·&nbsp; <strong>GSF</strong> Grande Salle &nbsp;·&nbsp;
-          <strong>Ext.</strong> Parking de la salle des fêtes</div>
-        <div>🏠 <strong>RPA</strong> Maison pour personnes âgées « Le Colombier » (rue des Primevères) &nbsp;·&nbsp;
-          🏫 <strong>SM</strong> Salle de Motricité — École Maternelle Jules Verne</div>
       </div>
       <div class="semainier-tabs" id="sem-tabs-${memberId}">${tabsHtml}</div>
       <div id="sem-grids-${memberId}">
@@ -1598,15 +1600,34 @@ function slotHtml(act, memberId, color, isno) {
   </div>`;
 }
 
+// Active categories per member: memberId → Set of catKeys
+const _activeCats = {};
+
 function switchSemTab(memberId, catKey) {
-  // Switch tabs
+  if (!_activeCats[memberId]) _activeCats[memberId] = new Set();
+  const cats = _activeCats[memberId];
+
+  // Toggle this category
+  if (cats.has(catKey)) {
+    cats.delete(catKey);
+    // Always keep at least one active
+    if (cats.size === 0) cats.add(catKey);
+  } else {
+    cats.add(catKey);
+  }
+
+  // Update tab styles
   document.querySelectorAll(`[data-sem-tab="${memberId}"]`).forEach(t => {
-    t.classList.toggle('active', t.dataset.cat === catKey);
+    const isActive = cats.has(t.dataset.cat);
+    t.classList.toggle('active', isActive);
+    t.classList.toggle('multi-active', isActive && cats.size > 1);
   });
+
   // Show/hide grids
   const gridsEl = document.getElementById(`sem-grids-${memberId}`);
   gridsEl.querySelectorAll('.sem-grid-wrap').forEach(g => {
-    g.style.display = g.id === `sem-grid-${memberId}-${catKey}` ? '' : 'none';
+    const gridCat = g.id.replace(`sem-grid-${memberId}-`, '');
+    g.style.display = cats.has(gridCat) ? '' : 'none';
   });
 }
 
