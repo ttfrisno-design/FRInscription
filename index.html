@@ -896,7 +896,7 @@
 // ============================================================
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz6t-U-YrP-c5Mb0e2UhFYj_iWzfsSb7Nkh0kTlzlC2umTVE6GlKVpfLCeFuKVRZ0zB/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby5wWmfB5RqSvpAOwsjzzLXyzpxZVxcN83hLeOcdL-bH83N7y8u5JEXI1SykvIzTee3/exec';
 const SHEET_ID_PUBLIC  = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc'; // ID du Google Sheet FRI
 // Exemple: 'https://script.google.com/macros/s/AKfycb.../exec'
 // Note: peut aussi etre configure dans le panneau admin sans modifier ce fichier
@@ -2383,7 +2383,7 @@ function saveDossier() {
           </div>
         </div>
 
-        ${showTroisCheques ? buildTroisChequesHtml(totalAmount, ch1, ch2, ch3) : ''}
+        ${buildChequesHtml(totalAmount, ch1, ch2, ch3, showTroisCheques)}
 
         <div style="background:white;border:1px solid #e8c84a;border-radius:8px;padding:14px 16px;margin-bottom:16px;">
           <div style="font-size:13px;font-weight:700;color:#856404;margin-bottom:6px;">⚠️ Important</div>
@@ -2414,47 +2414,70 @@ function saveDossier() {
   }
 }
 
-function buildTroisChequesHtml(total, ch1, ch2, ch3) {
-  const rows = [
-    { n:1, label:'1er chèque — 40%', montant: ch1 },
-    { n:2, label:'2e chèque — 30%',  montant: ch2 },
-    { n:3, label:'3e chèque — reste', montant: ch3 }
-  ].map(c =>
-    '<div style="background:white;border:1px solid #4a90d9;border-radius:8px;padding:14px;margin-bottom:10px;">'
-    + '<div style="font-weight:700;color:#1a5276;margin-bottom:10px;font-size:13px;">Chèque n°' + c.n + ' — ' + c.label + '</div>'
+function buildChequeRow(n, label, montant, readonly) {
+  return '<div style="background:white;border:1px solid #4a90d9;border-radius:8px;padding:14px;margin-bottom:10px;">'
+    + (label ? '<div style="font-weight:700;color:#1a5276;margin-bottom:10px;font-size:13px;">' + label + '</div>' : '')
     + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">'
     + '<div><label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px;">Banque</label>'
-    + '<input type="text" id="ch' + c.n + '-banque" placeholder="Ex: Crédit Agricole" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>'
+    + '<input type="text" id="ch' + n + '-banque" placeholder="Ex: Crédit Agricole" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>'
     + '<div><label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px;">N° chèque</label>'
-    + '<input type="text" id="ch' + c.n + '-numero" placeholder="Ex: 1234567" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>'
-    + '<div><label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px;">Montant</label>'
-    + '<input type="number" id="ch' + c.n + '-montant" value="' + c.montant + '" readonly style="width:100%;padding:8px;border:1px solid #4a90d9;border-radius:6px;font-size:13px;font-weight:700;color:#1a5276;background:#f0f7fb;box-sizing:border-box"></div>'
-    + '</div></div>'
-  ).join('');
+    + '<input type="text" id="ch' + n + '-numero" placeholder="Ex: 1234567" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>'
+    + '<div><label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px;">Montant (€)</label>'
+    + '<input type="number" id="ch' + n + '-montant" value="' + montant + '"' + (readonly ? ' readonly' : '')
+    + ' style="width:100%;padding:8px;border:1px solid #4a90d9;border-radius:6px;font-size:13px;font-weight:700;color:#1a5276;background:' + (readonly ? '#f0f7fb' : 'white') + ';box-sizing:border-box"></div>'
+    + '</div></div>';
+}
 
-  return '<div style="background:#e8f4f8;border:2px solid #4a90d9;border-radius:10px;padding:14px 16px;margin-bottom:16px;">'
-    + '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:700;color:#1a5276;">'
-    + '<input type="checkbox" id="cb-trois-cheques" onchange="toggleTroisCheques(' + total + ',' + ch1 + ',' + ch2 + ',' + ch3 + ')" style="width:18px;height:18px;cursor:pointer;accent-color:#4a90d9;">'
-    + ' 💳 Régler en <strong>3 chèques</strong> (montant supérieur à 260€)</label>'
-    + '<div style="font-size:12px;color:#2471a3;margin-top:6px;margin-left:28px;">'
-    + '1er chèque : ' + ch1 + '€ (40%) &nbsp;·&nbsp; 2e : ' + ch2 + '€ (30%) &nbsp;·&nbsp; 3e : ' + ch3 + '€ (reste)</div>'
-    + '</div>'
-    + '<div id="trois-cheques-form" style="display:none;margin-bottom:16px;">' + rows + '</div>';
+function buildChequesHtml(total, ch1, ch2, ch3, showTroisOption) {
+  // Formulaire 1 chèque — toujours visible
+  var html = '<div style="background:#e8f4f8;border:2px solid #4a90d9;border-radius:10px;padding:14px 16px;margin-bottom:16px;">'
+    + '<div style="font-weight:700;color:#1a5276;margin-bottom:10px;font-size:14px;">📝 Informations du chèque</div>'
+    + buildChequeRow(1, '', total, false)
+    + '</div>';
+
+  // Option 3 chèques — seulement si montant > 260€
+  if (showTroisOption) {
+    html += '<div style="background:#f0f4f8;border:1px solid #4a90d9;border-radius:8px;padding:10px 14px;margin-bottom:16px;">'
+      + '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:700;color:#1a5276;">'
+      + '<input type="checkbox" id="cb-trois-cheques" onchange="toggleTroisCheques(' + total + ',' + ch1 + ',' + ch2 + ',' + ch3 + ')" style="width:18px;height:18px;cursor:pointer;accent-color:#4a90d9;">'
+      + ' Régler en <strong>3 chèques échelonnés</strong></label>'
+      + '<div style="font-size:12px;color:#2471a3;margin-top:4px;margin-left:28px;">'
+      + '1er : ' + ch1 + '€ (40%) &nbsp;·&nbsp; 2e : ' + ch2 + '€ (30%) &nbsp;·&nbsp; 3e : ' + ch3 + '€ (reste)</div>'
+      + '</div>'
+      + '<div id="trois-cheques-form" style="display:none;margin-bottom:16px;">'
+      + buildChequeRow(1, '1er chèque — 40%', ch1, true)
+      + buildChequeRow(2, '2e chèque — 30%',  ch2, true)
+      + buildChequeRow(3, '3e chèque — reste', ch3, true)
+      + '</div>';
+  }
+  return html;
 }
 
 function toggleTroisCheques(total, ch1, ch2, ch3) {
-  const cb = document.getElementById('cb-trois-cheques');
+  const cb   = document.getElementById('cb-trois-cheques');
   const form = document.getElementById('trois-cheques-form');
-  if (!form) return;
-  form.style.display = cb.checked ? '' : 'none';
-  // Sauvegarder le choix dans le state
+  // Le 1er bloc (chèque unique) — à masquer quand 3 chèques sont actifs
+  const ch1Single = document.getElementById('ch1-banque');
+  const singleBox = ch1Single ? ch1Single.closest('[style*="margin-bottom"]') : null;
+
   state.troisCheques = cb.checked;
+
   if (cb.checked) {
-    state.cheques = [
-      { montant: ch1 }, { montant: ch2 }, { montant: ch3 }
-    ];
+    if (form) form.style.display = '';
+    // Masquer le formulaire 1 chèque
+    if (singleBox) singleBox.style.display = 'none';
+    state.cheques = [{ montant: ch1 }, { montant: ch2 }, { montant: ch3 }];
+    // Réinitialiser le chèque 1 avec le bon montant
+    const m1 = document.getElementById('ch1-montant');
+    if (m1) m1.value = ch1;
   } else {
+    if (form) form.style.display = 'none';
+    // Réafficher le formulaire 1 chèque
+    if (singleBox) singleBox.style.display = '';
     state.cheques = null;
+    // Remettre le montant total dans ch1
+    const m1 = document.getElementById('ch1-montant');
+    if (m1) m1.value = total;
   }
 }
 
@@ -3022,7 +3045,9 @@ async function sendToGoogleSheets(reg) {
     const payloadObj = {
       action: 'addRegistration',
       rows: rows,
-      status: reg.status === 'pending_manual' ? 'pending' : 'paid'
+      status: reg.status === 'pending_manual' ? 'pending' : 'paid',
+      // Inclure les données des 3 chèques si applicable
+      cheques: (reg.cheques && reg.cheques.length > 0) ? reg.cheques : undefined
     };
     const payloadSize = JSON.stringify(payloadObj).length;
     
