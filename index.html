@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Foyer Rural d'Isneauville — Inscriptions 2025/2026</title>
+<title>Foyer Rural d'Isneauville — Inscriptions 2026/2027</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -807,7 +807,7 @@
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.1)">
       <div>
         <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--white);">🗂 Administration</div>
-        <div style="font-size:12px;color:var(--green-light);margin-top:2px;">Foyer Rural d'Isneauville — Saison 2025/2026</div>
+        <div style="font-size:12px;color:var(--green-light);margin-top:2px;">Foyer Rural d'Isneauville — Saison 2026/2027</div>
       </div>
       <div style="display:flex;gap:10px;align-items:center">
         <span style="font-size:12px;color:rgba(255,255,255,0.5)" id="admin-logged-as"></span>
@@ -896,7 +896,7 @@
 // ============================================================
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyjyE-sD4o-KXAXecm-m-Rw-jFqHos7QWRt3B1KXpgtLtZc0qPgvJu1oghnz6ZknwxP/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz6t-U-YrP-c5Mb0e2UhFYj_iWzfsSb7Nkh0kTlzlC2umTVE6GlKVpfLCeFuKVRZ0zB/exec';
 const SHEET_ID_PUBLIC  = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc'; // ID du Google Sheet FRI
 // Exemple: 'https://script.google.com/macros/s/AKfycb.../exec'
 // Note: peut aussi etre configure dans le panneau admin sans modifier ce fichier
@@ -2357,12 +2357,19 @@ function saveDossier() {
     document.getElementById('card-step-c').style.display = 'none';
 
   } else {
-    // Other payment mode: show info message, hide step C
     const modeLabel = {
-      cheque: 'ch\u00e8que \u00e0 l\'ordre du FRI',
+      cheque: 'chèque à l\'ordre du FRI',
       especes: 'espèces',
       ancv: 'coupon sport / ANCV'
     }[modePaiement] || modePaiement;
+
+    const totalAmount = calcTotals().grandTotal || 0;
+    const showTroisCheques = modePaiement === 'cheque' && totalAmount > 260;
+
+    // Calculer les montants des 3 chèques
+    const ch1 = showTroisCheques ? Math.round(totalAmount * 0.40) : 0;
+    const ch2 = showTroisCheques ? Math.round(totalAmount * 0.30) : 0;
+    const ch3 = showTroisCheques ? totalAmount - ch1 - ch2 : 0;
 
     document.getElementById('step-b-title').textContent = 'Règlement par ' + modeLabel;
     document.getElementById('step-b-content').innerHTML = `
@@ -2375,6 +2382,8 @@ function saveDossier() {
             <div style="font-size:18px;font-weight:800;color:var(--green);margin-top:2px;">${modeLabel}</div>
           </div>
         </div>
+
+        ${showTroisCheques ? buildTroisChequesHtml(totalAmount, ch1, ch2, ch3) : ''}
 
         <div style="background:white;border:1px solid #e8c84a;border-radius:8px;padding:14px 16px;margin-bottom:16px;">
           <div style="font-size:13px;font-weight:700;color:#856404;margin-bottom:6px;">⚠️ Important</div>
@@ -2401,8 +2410,51 @@ function saveDossier() {
         </button>
       </div>`;
 
-    // Hide step C (not needed for non-helloasso)
     document.getElementById('card-step-c').style.display = 'none';
+  }
+}
+
+function buildTroisChequesHtml(total, ch1, ch2, ch3) {
+  const rows = [
+    { n:1, label:'1er chèque — 40%', montant: ch1 },
+    { n:2, label:'2e chèque — 30%',  montant: ch2 },
+    { n:3, label:'3e chèque — reste', montant: ch3 }
+  ].map(c =>
+    '<div style="background:white;border:1px solid #4a90d9;border-radius:8px;padding:14px;margin-bottom:10px;">'
+    + '<div style="font-weight:700;color:#1a5276;margin-bottom:10px;font-size:13px;">Chèque n°' + c.n + ' — ' + c.label + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">'
+    + '<div><label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px;">Banque</label>'
+    + '<input type="text" id="ch' + c.n + '-banque" placeholder="Ex: Crédit Agricole" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>'
+    + '<div><label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px;">N° chèque</label>'
+    + '<input type="text" id="ch' + c.n + '-numero" placeholder="Ex: 1234567" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;box-sizing:border-box"></div>'
+    + '<div><label style="font-size:12px;color:var(--gray);display:block;margin-bottom:4px;">Montant</label>'
+    + '<input type="number" id="ch' + c.n + '-montant" value="' + c.montant + '" readonly style="width:100%;padding:8px;border:1px solid #4a90d9;border-radius:6px;font-size:13px;font-weight:700;color:#1a5276;background:#f0f7fb;box-sizing:border-box"></div>'
+    + '</div></div>'
+  ).join('');
+
+  return '<div style="background:#e8f4f8;border:2px solid #4a90d9;border-radius:10px;padding:14px 16px;margin-bottom:16px;">'
+    + '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:700;color:#1a5276;">'
+    + '<input type="checkbox" id="cb-trois-cheques" onchange="toggleTroisCheques(' + total + ',' + ch1 + ',' + ch2 + ',' + ch3 + ')" style="width:18px;height:18px;cursor:pointer;accent-color:#4a90d9;">'
+    + ' 💳 Régler en <strong>3 chèques</strong> (montant supérieur à 260€)</label>'
+    + '<div style="font-size:12px;color:#2471a3;margin-top:6px;margin-left:28px;">'
+    + '1er chèque : ' + ch1 + '€ (40%) &nbsp;·&nbsp; 2e : ' + ch2 + '€ (30%) &nbsp;·&nbsp; 3e : ' + ch3 + '€ (reste)</div>'
+    + '</div>'
+    + '<div id="trois-cheques-form" style="display:none;margin-bottom:16px;">' + rows + '</div>';
+}
+
+function toggleTroisCheques(total, ch1, ch2, ch3) {
+  const cb = document.getElementById('cb-trois-cheques');
+  const form = document.getElementById('trois-cheques-form');
+  if (!form) return;
+  form.style.display = cb.checked ? '' : 'none';
+  // Sauvegarder le choix dans le state
+  state.troisCheques = cb.checked;
+  if (cb.checked) {
+    state.cheques = [
+      { montant: ch1 }, { montant: ch2 }, { montant: ch3 }
+    ];
+  } else {
+    state.cheques = null;
   }
 }
 
@@ -3147,7 +3199,7 @@ function doExport(regs, filename) {
 
   // Summary sheet
   const totalsData = [
-    ['RÉCAPITULATIF DES INSCRIPTIONS — FOYER RURAL D\'ISNEAUVILLE — SAISON 2025/2026'],
+    ['RÉCAPITULATIF DES INSCRIPTIONS — FOYER RURAL D\'ISNEAUVILLE — SAISON 2026/2027'],
     [],
     ['Date export', new Date().toLocaleDateString('fr-FR')],
     ['Nombre d\'inscriptions', regs.length],
