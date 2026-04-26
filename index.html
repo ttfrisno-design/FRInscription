@@ -581,6 +581,9 @@
           <option value="oui">Oui — joindre justificatif + code</option>
         </select>
       </div>
+      <div style="margin-top:4px;margin-bottom:12px;padding:10px 14px;background:#fff8e1;border:1px solid #e8c84a;border-radius:8px;font-size:13px;color:#856404;line-height:1.6;">
+        ⚠️ <strong>Note :</strong> Prévoir un chèque de caution du montant des aides en attendant la validation de celles-ci.
+      </div>
       <div class="field">
         <label>Mode de règlement</label>
         <select id="mode-paiement" onchange="autosave()">
@@ -839,6 +842,16 @@
         <div>
           <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--white);">📅 Semainier par salle</div>
           <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px;">Visualisation des créneaux — détection des chevauchements</div>
+      <div style="margin-top:10px;padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:11px;color:rgba(255,255,255,0.55);line-height:1.9;">
+        <strong style="color:rgba(255,255,255,0.7);">Légende des salles :</strong><br>
+        <span style="color:rgba(255,255,255,0.8)"><strong>CM</strong></span> Claude Monet &nbsp;·&nbsp;
+        <span style="color:rgba(255,255,255,0.8)"><strong>MB</strong></span> Maurice Béjart &nbsp;·&nbsp;
+        <span style="color:rgba(255,255,255,0.8)"><strong>GSF</strong></span> Grande Salle des Fêtes &nbsp;·&nbsp;
+        <span style="color:rgba(255,255,255,0.8)"><strong>PSF</strong></span> Petite Salle des Fêtes<br>
+        <span style="color:rgba(255,255,255,0.8)"><strong>SM</strong></span> Salle de Motricité &nbsp;·&nbsp;
+        <span style="color:rgba(255,255,255,0.8)"><strong>RPA</strong></span> Résidence personnes âgées &nbsp;·&nbsp;
+        <span style="color:rgba(255,255,255,0.8)"><strong>LA</strong></span> Local Ados
+      </div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select id="salle-select" onchange="renderSemainierSalle()"
@@ -869,7 +882,7 @@
 // ============================================================
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzzaoTbehq1z-dC61SoDU_pV04j5Sgh6_qwGb22DwehZ3B18uDWdKIIUirAu39cbLt3/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxCDKaGQlMONkeEigWTDiJE3TZxnSddMOwYNNRthIKOFZds_RBgbs5b3-NDp7nawqCS/exec';
 const SHEET_ID_PUBLIC  = '13fMDuTGVDs7AeEYDVvu47dCFLLY0Wn8jHD7BalKsmEc'; // ID du Google Sheet FRI
 // Exemple: 'https://script.google.com/macros/s/AKfycb.../exec'
 // Note: peut aussi etre configure dans le panneau admin sans modifier ce fichier
@@ -1529,11 +1542,11 @@ function slotHtml(act, memberId, color, isno) {
     placesLabel = `<div class="sem-slot-places" style="color:#2d6a4f">🟢 ${placeInfo.available} places</div>`;
   }
 
-  const selectedStyle = isSelected
-    ? 'border-color:var(--dark)!important;box-shadow:0 0 0 2px var(--dark);'
-    : linkedSelected
-      ? 'border-color:var(--green)!important;box-shadow:0 0 0 2px var(--green-light);opacity:0.85;'
-      : '';
+  // Les deux créneaux liés reçoivent le même encadrement noir quand la paire est sélectionnée
+  const isInSelectedPair = isSelected || linkedSelected;
+  const selectedStyle = isInSelectedPair
+    ? 'border-color:var(--dark)!important;box-shadow:0 0 0 3px var(--dark);'
+    : '';
 
   // Price display: linked slots show tariff on both but note it's included
   let priceHtml = '';
@@ -1559,7 +1572,7 @@ function slotHtml(act, memberId, color, isno) {
     ? `<div style="font-size:9px;color:${color.fg};opacity:0.65;margin-top:2px">🔗 2e séance : ${(linkedSelected||isSelected)?'✔ sélectionnée':'à sélectionner'}</div>`
     : '';
 
-  return `<div class="sem-slot${isFull?' slot-full':''}${isSelected?' selected':''}"
+  return `<div class="sem-slot${isFull?' slot-full':''}${isInSelectedPair?' selected':''}"
     id="slot-${memberId}-${act.id}"
     data-member="${memberId}" data-act="${act.id}"
     style="background:${slotBg};border-color:${slotBorder};${selectedStyle}"
@@ -1940,8 +1953,10 @@ async function chargerDossierExistant() {
 // HELPERS
 // ============================================================
 function isTTActivity(actId) {
-  return actId === 'tt-comp-entrain' || actId === 'tt-comp-entrain-me'
-      || actId === 'tt-comp-sans'    || actId === 'tt-comp-sans-me';
+  // Réduction -30€ femmes : TT adultes avec/sans entraînement + Ping bien-être/Loisirs
+  return actId === 'tt-comp-entrain'    || actId === 'tt-comp-entrain-me'
+      || actId === 'tt-comp-sans'       || actId === 'tt-comp-sans-me'
+      || actId === 'ping-bienetre'      || actId === 'tt-loisirs-a';
 }
 
 // Mapping IDs site → IDs onglet Places (identique à getPlacesId dans Code.gs)
