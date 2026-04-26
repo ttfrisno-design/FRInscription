@@ -2508,6 +2508,34 @@ async function confirmDossierSansPaiement(code) {
   localStorage.setItem('fri_registrations', JSON.stringify(existing));
   state.registrations = existing;
 
+  // ── Lire les infos chèques depuis le formulaire AVANT de changer de page ──
+  if (reg.responsable.modePaiement === 'cheque' || reg.responsable.modePaiement === 'cheque3') {
+    const isTroisCheques = state.troisCheques && document.getElementById('cb-trois-cheques')?.checked;
+    if (isTroisCheques) {
+      // 3 chèques
+      reg.troisCheques = true;
+      reg.responsable.modePaiement = 'cheque3';
+      reg.cheques = [1,2,3].map(n => ({
+        numero:    n,
+        montant:   Number(document.getElementById('ch'+n+'-montant')?.value || 0),
+        banque:    (document.getElementById('ch'+n+'-banque')?.value  || '').trim(),
+        numCheque: (document.getElementById('ch'+n+'-numero')?.value  || '').trim()
+      }));
+    } else {
+      // 1 chèque
+      reg.cheques = [{
+        numero:    1,
+        montant:   Number(document.getElementById('ch1-montant')?.value || calcTotals().grandTotal || 0),
+        banque:    (document.getElementById('ch1-banque')?.value  || '').trim(),
+        numCheque: (document.getElementById('ch1-numero')?.value  || '').trim()
+      }];
+    }
+    // Mettre à jour le localStorage avec les infos chèques
+    const regsArr = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
+    const ridx = regsArr.findIndex(r => r.code === code || r.id === reg.id);
+    if (ridx >= 0) { regsArr[ridx] = reg; localStorage.setItem('fri_registrations', JSON.stringify(regsArr)); }
+  }
+
   // Send to Google Sheets (admin will see status "En attente paiement")
   goStep(6);
   const modeLabelFinal = {
