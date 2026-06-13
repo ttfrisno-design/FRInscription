@@ -1150,7 +1150,7 @@ function calcCountryForfait(membre, isno) {
 // ============================================================
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzKtQ37rT-TXNIObe-Ps86sstG0UV4IpJyn-emucrrNFq-8C0KNdyx5jWi4KS8yR48/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwZgC7rKY_VXaE4kE7ZDafewgD18B_PFKJkT4448mzbukec0e6Hc6soPoyysNCy_T-A/exec';
 
 
 // ══════════════════════════════════════════════════════════════
@@ -8226,11 +8226,59 @@ async function selectionnerActiviteAjout(code, actId) {
   document.getElementById('btn-valider-ajout').addEventListener('click', async () => {
     mc.remove();
     modal.remove();
-    await confirmerAjoutActivite(code, actId, membreIdx, prixApresRemise, isFull, estRegle, existingActCount);
+    if (!isFull && estRegle) {
+      // Dossier deja regle + inscription immediate -> modale paiement
+      ouvrirModalPaiementAjout(code, actId, membreIdx, prixApresRemise, existingActCount);
+    } else {
+      await confirmerAjoutActivite(code, actId, membreIdx, prixApresRemise, isFull, false, existingActCount, '');
+    }
   });
 }
 
-async function confirmerAjoutActivite(code, actId, membreIdx, prixFinal, enListeAttente, estRegle, existingActCount) {
+function ouvrirModalPaiementAjout(code, actId, membreIdx, montant, existingActCount) {
+  document.getElementById('modal-pay-ajout')?.remove();
+  const act = getActById(actId);
+  const actNom = act ? act.name.replace(/\n/g,' \u2014 ') : actId;
+  const mc = document.createElement('div');
+  mc.id = 'modal-pay-ajout';
+  mc.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  mc.innerHTML = '<div style="background:#1a2e22;border-radius:14px;max-width:440px;width:100%;border:1px solid rgba(201,168,76,0.4);">'
+    + '<div style="background:rgba(201,168,76,0.15);padding:16px 20px;border-radius:14px 14px 0 0;display:flex;justify-content:space-between;align-items:center;">'
+    + '<div style="font-weight:700;font-size:15px;color:var(--gold);">&#x1F4B3; R\u00e8glement activit\u00e9 ajout\u00e9e</div>'
+    + '<button onclick="document.getElementById(\'modal-pay-ajout\').remove()" style="background:rgba(255,255,255,0.1);border:none;border-radius:50%;width:28px;height:28px;color:white;font-size:16px;cursor:pointer;">&times;</button>'
+    + '</div>'
+    + '<div style="padding:20px;">'
+    + '<div style="font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:16px;">'
+    + 'Activit\u00e9\u00a0: <strong style="color:#ffab40">' + actNom + '</strong>'
+    + '<br>Montant\u00a0: <strong style="color:#52b788">' + montant.toFixed(2) + '\u00a0\u20ac</strong>'
+    + (existingActCount >= 2 ? '<br><small style="color:rgba(255,255,255,0.4);">Remise 15% appliqu\u00e9e (3e activit\u00e9 \u00e9ligible)</small>' : '')
+    + '</div>'
+    + '<div style="margin-bottom:12px;">'
+    + '<label style="font-size:12px;color:rgba(255,255,255,0.6);display:block;margin-bottom:6px;">Mode de paiement</label>'
+    + '<select id="ajout-mode-pay" style="width:100%;background:#0d1f14;color:white;border:1px solid rgba(45,106,79,0.5);border-radius:7px;padding:8px 12px;font-size:13px;">'
+    + '<option value="cheque">Ch\u00e8que</option>'
+    + '<option value="especes">Esp\u00e8ces</option>'
+    + '<option value="helloasso">HelloAsso</option>'
+    + '</select></div>'
+    + '<div style="margin-bottom:16px;">'
+    + '<label style="font-size:12px;color:rgba(255,255,255,0.6);display:block;margin-bottom:6px;">Montant r\u00e9gl\u00e9 (\u20ac)</label>'
+    + '<input id="ajout-montant-pay" type="number" step="0.01" value="' + montant.toFixed(2) + '" style="width:100%;background:#0d1f14;color:white;border:1px solid rgba(45,106,79,0.5);border-radius:7px;padding:8px 12px;font-size:14px;font-weight:700;box-sizing:border-box;">'
+    + '</div>'
+    + '<div style="display:flex;gap:10px;">'
+    + '<button onclick="document.getElementById(\'modal-pay-ajout\').remove()" style="flex:1;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);border:none;border-radius:8px;padding:10px;font-size:13px;cursor:pointer;">Annuler</button>'
+    + '<button id="btn-confirm-ajout-pay" style="flex:2;background:var(--gold);color:var(--dark);border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">\u2705 Valider le r\u00e8glement</button>'
+    + '</div></div></div>';
+  document.body.appendChild(mc);
+  mc.addEventListener('click', e => { if (e.target === mc) mc.remove(); });
+  document.getElementById('btn-confirm-ajout-pay').addEventListener('click', async function() {
+    const mode    = document.getElementById('ajout-mode-pay')?.value || 'cheque';
+    const montantPay = parseFloat(document.getElementById('ajout-montant-pay')?.value) || montant;
+    mc.remove();
+    await confirmerAjoutActivite(code, actId, membreIdx, montantPay, false, true, existingActCount, mode);
+  });
+}
+
+async function confirmerAjoutActivite(code, actId, membreIdx, prixFinal, enListeAttente, estRegle, existingActCount, modePaiement) {
   restoreStateApresAjout();
   const allRegs = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
   const regIdx  = allRegs.findIndex(r => r.code === code || String(r.id) === String(code));
@@ -8300,7 +8348,8 @@ async function confirmerAjoutActivite(code, actId, membreIdx, prixFinal, enListe
     estRegle:          estRegle === true || estRegle === 'true',
     statutInscription: enListeAttente ? 'Liste attente' : '',
     existingActCount:  existingActCount || 0,
-    ffttPrice:         0
+    ffttPrice:         0,
+    modePaiement:      modePaiement || 'cheque'
   };
 
   console.log('[FRI] Payload GAS:', JSON.stringify(payload).substring(0, 200));
