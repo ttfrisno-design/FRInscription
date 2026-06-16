@@ -556,6 +556,23 @@
     ℹ️ Ces informations sont celles du responsable légal. Vous pourrez ajouter d'autres membres de votre famille à l'étape suivante.
   </div>
 
+  <!-- Recherche adhérent année précédente -->
+  <div class="card" style="background:rgba(201,168,76,0.08);border:1.5px solid rgba(201,168,76,0.35);margin-bottom:14px;">
+    <div class="card-title"><span class="icon">🔍</span> Déjà adhérent FRI ? Retrouvez vos informations</div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+      <div class="field" style="flex:1;min-width:180px;">
+        <label>4 premiers chiffres de votre téléphone <small style="color:#888">(sans le 0)</small></label>
+        <input type="tel" id="adherent-search-tel" placeholder="ex: 6123 pour 06 12 3x..." maxlength="8" inputmode="numeric"
+               oninput="rechercherAdherentFRI(this.value)"
+               style="font-size:16px;letter-spacing:2px;">
+      </div>
+      <button type="button" onclick="rechercherAdherentFRI(document.getElementById('adherent-search-tel').value)" class="btn btn-secondary" style="height:44px;white-space:nowrap;">
+        🔍 Rechercher
+      </button>
+    </div>
+    <div id="adherent-search-results" style="margin-top:10px;"></div>
+  </div>
+
   <div class="card">
     <div class="card-title"><span class="icon">📋</span> Coordonnées</div>
     <div class="form-grid ville-tarif-grid" style="align-items:end;">
@@ -9132,6 +9149,82 @@ async function validerFormulaireCheques(code, total, showTrois) {
     });
   }
 })();
+
+
+// Recherche adhérent FRI année précédente par téléphone
+let _adherentSearchTimer = null;
+async function rechercherAdherentFRI(telPartiel) {
+  const clean = (telPartiel||'').replace(/[^0-9]/g,'');
+  const resultsDiv = document.getElementById('adherent-search-results');
+  if (!resultsDiv) return;
+  if (clean.length < 4) {
+    resultsDiv.innerHTML = clean.length > 0
+      ? '<span style="font-size:12px;color:#888;">Saisir au moins 4 chiffres...</span>' : '';
+    return;
+  }
+  clearTimeout(_adherentSearchTimer);
+  _adherentSearchTimer = setTimeout(async () => {
+    resultsDiv.innerHTML = '<span style="font-size:12px;color:#888;">\u23f3 Recherche...</span>';
+    const url = getAppsScriptUrl();
+    if (!url) { resultsDiv.innerHTML = ''; return; }
+    try {
+      const res = await callAppsScriptFetch(url, { action: 'rechercherAdherent', tel: clean });
+      const data = (res && res.data) ? res.data : res;
+      if (!data || !data.adherents || data.adherents.length === 0) {
+        resultsDiv.innerHTML = '<span style="font-size:12px;color:#888;">Aucun r\u00e9sultat pour ces chiffres.</span>';
+        return;
+      }
+      let html = '<div style="display:flex;flex-direction:column;gap:6px;">';
+      data.adherents.forEach((a, i) => {
+        const nom = ((a.prenom||'') + ' ' + (a.nom||'')).trim();
+        const tel = a.tel1 || '';
+        const ville = ((a.cp||'') + ' ' + (a.ville||'')).trim();
+        html += '<button type="button" onclick="remplirFormulaireAdherent(' + i + ')"'
+          + ' data-idx="' + i + '"'
+          + ' style="text-align:left;background:rgba(45,106,79,0.12);border:1px solid rgba(45,106,79,0.3);border-radius:8px;padding:10px 14px;cursor:pointer;transition:background 0.2s;"'
+          + ' onmouseover="this.style.background=&quot;rgba(45,106,79,0.25)&quot;" onmouseout="this.style.background=&quot;rgba(45,106,79,0.12)&quot;">'
+          + '<span style="font-weight:700;font-size:14px;color:#1b5e20;">\u2714\ufe0f ' + nom + '</span>'
+          + '<br><span style="font-size:12px;color:#555;">' + tel
+          + (ville ? ' \u2014 ' + ville : '') + '</span>'
+          + '</button>';
+      });
+      html += '</div>';
+      // Stocker les adherents pour remplirFormulaireAdherent
+      window._adherentSearchData = data.adherents;
+      resultsDiv.innerHTML = html;
+    } catch(e) {
+      resultsDiv.innerHTML = '<span style="font-size:12px;color:#c00;">\u26a0\ufe0f Erreur: ' + e.message + '</span>';
+    }
+  }, 400);
+}
+
+function remplirFormulaireAdherent(idx) {
+  const a = (window._adherentSearchData || [])[idx];
+  if (!a) return;
+  // Remplir le formulaire responsable
+  function set(id, val) {
+    const el = document.getElementById(id);
+    if (el && val) { el.value = val; el.dispatchEvent(new Event('input')); }
+  }
+  set('rl-nom',     (a.nom||'').toUpperCase());
+  set('rl-prenom',  a.prenom||'');
+  set('rl-adresse', a.adresse||'');
+  set('rl-cp',      a.cp||'');
+  set('rl-ville',   (a.ville||'').toUpperCase());
+  set('rl-tel1',    a.tel1||'');
+  set('rl-tel2',    a.tel2||'');
+  set('rl-email1',  a.email1||'');
+  set('rl-email2',  a.email2||'');
+  // D\u00e9tecter la commune automatiquement
+  setTimeout(detectCommune, 100);
+  autosave();
+  // Feedback visuel
+  const resultsDiv = document.getElementById('adherent-search-results');
+  if (resultsDiv) resultsDiv.innerHTML = '<div style="background:#d8f3dc;border:1px solid #52b788;border-radius:8px;padding:10px 14px;font-size:13px;color:#1b5e20;font-weight:600;">'
+    + '\u2705 Formulaire pr\u00e9-rempli avec les informations de ' + (a.prenom||'') + ' ' + (a.nom||'')
+    + '<br><small style="font-weight:400;color:#555;">V\u00e9rifiez et modifiez si n\u00e9cessaire.</small></div>';
+  document.getElementById('adherent-search-tel').value = '';
+}
 
 </script>
 </body>
