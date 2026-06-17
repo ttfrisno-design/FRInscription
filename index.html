@@ -1981,7 +1981,9 @@ function detectCommune() {
   const cpRaw    = (document.getElementById('rl-cp')?.value || '').trim();
   const ville = villeRaw.toLowerCase().replace(/[àâäéèêëîïôöùûüç]/g, function(c){return{à:'a',â:'a',ä:'a',é:'e',è:'e',ê:'e',ë:'e',î:'i',ï:'i',ô:'o',ö:'o',ù:'u',û:'u',ü:'u',ç:'c'}[c]||c;});
   const cp    = cpRaw.trim();
-  const isno = ['isneauville', '76230'].some(v => ville.includes(v)) || cp === '76230';
+  // Tarif Isneauville uniquement si la VILLE contient 'isneauville'
+  // Le CP 76230 ne suffit pas (autres communes ont le meme CP)
+  const isno = ville.includes('isneauville');
   const badge = document.getElementById('commune-badge');
   const input = document.getElementById('rl-commune');
   if (badge && input) {
