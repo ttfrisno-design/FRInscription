@@ -561,8 +561,8 @@
     <div class="card-title"><span class="icon">🔍</span> Déjà adhérent FRI ? Retrouvez vos informations</div>
     <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
       <div class="field" style="flex:1;min-width:180px;">
-        <label>4 premiers chiffres de votre téléphone <small style="color:#888">(sans le 0)</small></label>
-        <input type="tel" id="adherent-search-tel" placeholder="ex: 6123 pour 06 12 3x..." maxlength="8" inputmode="numeric"
+        <label>6 premiers chiffres de votre téléphone <small style="color:#888">(avec ou sans le 0)</small></label>
+        <input type="tel" id="adherent-search-tel" placeholder="ex: 612345 pour 06 12 34..." maxlength="10" inputmode="numeric"
                oninput="rechercherAdherentFRI(this.value)"
                style="font-size:16px;letter-spacing:2px;">
       </div>
@@ -9169,9 +9169,9 @@ async function rechercherAdherentFRI(telPartiel) {
   const clean = (telPartiel||'').replace(/[^0-9]/g,'');
   const resultsDiv = document.getElementById('adherent-search-results');
   if (!resultsDiv) return;
-  if (clean.length < 4) {
+  if (clean.length < 6) {
     resultsDiv.innerHTML = clean.length > 0
-      ? '<span style="font-size:12px;color:#888;">Saisir au moins 4 chiffres...</span>' : '';
+      ? '<span style="font-size:12px;color:#888;">' + clean.length + '/6 chiffres saisis...</span>' : '';
     return;
   }
   clearTimeout(_adherentSearchTimer);
