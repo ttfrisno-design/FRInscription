@@ -4808,6 +4808,53 @@ function buildChequesHtml(total, ch1, ch2, ch3, showTroisOption) {
   return html;
 }
 
+
+function syncCheque2et3DepuisCheque1() {
+  const banque = (document.getElementById('ch1t-banque')?.value || '').trim();
+  const numRaw = (document.getElementById('ch1t-numero')?.value || '').trim();
+  const num    = parseInt(numRaw) || 0;
+
+  // Reporter la banque dans chèque 2 et 3
+  const b2 = document.getElementById('ch2t-banque');
+  const b3 = document.getElementById('ch3t-banque');
+  if (b2 && banque) b2.value = banque;
+  if (b3 && banque) b3.value = banque;
+
+  // Incrémenter le numéro : +1 pour chèque 2, +2 pour chèque 3
+  const n2 = document.getElementById('ch2t-numero');
+  const n3 = document.getElementById('ch3t-numero');
+  if (n2 && num) n2.value = String(num + 1);
+  if (n3 && num) n3.value = String(num + 2);
+}
+
+function initSyncTroisCheques() {
+  // Pré-remplir depuis le chèque 1 simple si déjà rempli
+  const banque1 = (document.getElementById('ch1-banque')?.value || '').trim();
+  const num1    = (document.getElementById('ch1-numero')?.value || '').trim();
+  if (banque1) {
+    const b1t = document.getElementById('ch1t-banque');
+    if (b1t && !b1t.value) b1t.value = banque1;
+  }
+  if (num1) {
+    const n1t = document.getElementById('ch1t-numero');
+    if (n1t && !n1t.value) n1t.value = num1;
+  }
+  // Lancer la sync initiale
+  syncCheque2et3DepuisCheque1();
+
+  // Attacher les listeners sur les champs du chèque 1 (form 3 chèques)
+  const banqueEl = document.getElementById('ch1t-banque');
+  const numEl    = document.getElementById('ch1t-numero');
+  if (banqueEl) {
+    banqueEl.removeEventListener('input', syncCheque2et3DepuisCheque1);
+    banqueEl.addEventListener('input', syncCheque2et3DepuisCheque1);
+  }
+  if (numEl) {
+    numEl.removeEventListener('input', syncCheque2et3DepuisCheque1);
+    numEl.addEventListener('input', syncCheque2et3DepuisCheque1);
+  }
+}
+
 function toggleTroisCheques(total, ch1, ch2, ch3) {
   const cb   = document.getElementById('cb-trois-cheques');
   const form = document.getElementById('trois-cheques-form');
@@ -4825,6 +4872,8 @@ function toggleTroisCheques(total, ch1, ch2, ch3) {
     // Réinitialiser le chèque 1 avec le bon montant
     const m1t = document.getElementById('ch1t-montant');
     if (m1t) m1t.value = ch1;
+    // Reporter banque et incrementer num depuis chèque 1 simple vers 2 et 3
+    setTimeout(initSyncTroisCheques, 50);
   } else {
     if (form) form.style.display = 'none';
     if (singleBox) singleBox.style.display = '';
