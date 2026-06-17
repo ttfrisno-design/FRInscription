@@ -2330,20 +2330,26 @@ function buildGrid(memberId, tabDef) {
 }
 
 function buildTimeGrid(memberId, tabDef, color, isno, byDay, times) {
-  // Build a proper time-grid table
+  // Exclure les jours sans aucune activite
+  const activeDays = DAYS.filter(d => byDay[d] && byDay[d].length > 0);
+  const activeDayShorts = activeDays.map(d => DAY_SHORT[DAYS.indexOf(d)]);
+
   const rows = times.map(time => {
-    const cells = DAYS.map(day => {
+    // Sauter les lignes horaires sans activite sur un jour actif
+    const hasActInRow = activeDays.some(day =>
+      byDay[day].some(a => a.heure.split('/')[0].trim() === time));
+    if (!hasActInRow) return '';
+
+    const cells = activeDays.map(day => {
       const acts = byDay[day].filter(a => a.heure.split('/')[0].trim() === time);
       if (!acts.length) return '<td><div class="sem-cell"></div></td>';
       const slots = acts.map(act => slotHtml(act, memberId, color, isno)).join('');
       return `<td><div class="sem-cell">${slots}</div></td>`;
     }).join('');
 
-    // Time label
     const endTime = (() => {
-      // find any act with this start to get end time
-      for (const acts of Object.values(byDay)) {
-        const a = acts.find(a => a.heure.split('/')[0].trim() === time);
+      for (const d of activeDays) {
+        const a = byDay[d].find(a => a.heure.split('/')[0].trim() === time);
         if (a) return a.heure.split('/')[1]?.trim() || '';
       }
       return '';
@@ -2355,10 +2361,7 @@ function buildTimeGrid(memberId, tabDef, color, isno, byDay, times) {
     </tr>`;
   }).join('');
 
-  const daysHeaders = DAYS.map((d,i) => {
-    const hasActs = byDay[d].length > 0;
-    return `<th style="${hasActs?'':'opacity:0.35'}">${DAY_SHORT[i]}</th>`;
-  }).join('');
+  const daysHeaders = activeDayShorts.map(d => `<th>${d}</th>`).join('');
 
   return `<div class="semainier-wrap">
     <table class="semainier">
