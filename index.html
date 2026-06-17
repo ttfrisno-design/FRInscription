@@ -4271,17 +4271,62 @@ function repondreNonATout(memberId) {
   updateQS(memberId);
 }
 
+function afficherPopupCertificatMedical(question) {
+  var existing = document.getElementById('modal-certif-medical');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'modal-certif-medical';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.15s ease;';
+  modal.innerHTML = '<div style="background:white;border-radius:16px;max-width:480px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.35);overflow:hidden;">'
+    + '<div style="background:#c62828;padding:20px 24px;text-align:center;">'
+    + '<div style="font-size:38px;margin-bottom:6px;">🏥</div>'
+    + '<div style="color:white;font-weight:800;font-size:17px;line-height:1.3;">Certificat médical requis</div>'
+    + '<div style="color:rgba(255,255,255,0.85);font-size:13px;margin-top:4px;">Vous avez répondu OUI à une question</div>'
+    + '</div>'
+    + '<div style="padding:20px 24px;">'
+    + (question ? '<div style="background:#fff3f3;border:1.5px solid #ef9a9a;border-radius:10px;padding:12px 16px;font-size:13px;color:#c62828;margin-bottom:14px;line-height:1.5;">'
+        + '<strong>Question concernée :</strong><br>' + question + '</div>' : '')
+    + '<p style="font-size:14px;color:#444;margin:0 0 14px;line-height:1.7;text-align:center;">'
+    + 'Une réponse <strong>OUI</strong> au questionnaire santé impose de fournir un '
+    + '<strong>certificat médical d’aptitude à la pratique sportive</strong>'
+    + ' daté de moins d’un an, délivré par votre médecin.'
+    + '</p>'
+    + '<div style="background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:12px 16px;font-size:13px;color:#e65100;margin-bottom:16px;">'
+    + '📋 <strong>Que faire ?</strong><br>'
+    + '1. Consultez votre médecin et obtenez le certificat.<br>'
+    + '2. Apportez-le lors de votre 1ᵊʳé séance ou envoyez-le à l’association.<br>'
+    + '3. Votre inscription ne sera finalisée qu’à réception du certificat.'
+    + '</div>'
+    + '</div>'
+    + '<div style="padding:0 24px 22px;display:flex;gap:10px;">'
+    + '<button id="btn-certif-ok" style="flex:1;padding:13px;background:#c62828;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">'
+    + 'Compris, je consulterai mon médecin'
+    + '</button>'
+    + '</div></div>';
+  document.body.appendChild(modal);
+  document.getElementById('btn-certif-ok').addEventListener('click', function() { modal.remove(); });
+  modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+  setTimeout(function() { var b = document.getElementById('btn-certif-ok'); if (b) b.focus(); }, 50);
+}
+
 function updateQS(memberId) {
   const m = state.members.find(m => m.id === memberId);
   const age = getAge(m.ddn);
   const questions = age < 18 ? QS_MINEURS : QS_ADULTS;
   let allAnswered = true, hasOui = false;
+  let newOuiQuestion = null;
   questions.forEach((q, qi) => {
     const checked = document.querySelector(`input[name="qs-${memberId}-${qi}"]:checked`);
     if (!checked) { allAnswered = false; return; }
+    const wasOui = m.qs[qi] === 'oui';
     m.qs[qi] = checked.value;
-    if (checked.value === 'oui') hasOui = true;
+    if (checked.value === 'oui') {
+      hasOui = true;
+      if (!wasOui) newOuiQuestion = q; // nouvelle réponse oui
+    }
   });
+  // Ouvrir popup si une nouvelle réponse OUI vient d'être cochée
+  if (newOuiQuestion) afficherPopupCertificatMedical(newOuiQuestion);
   const res = document.getElementById(`qs-result-${memberId}`);
   if (!allAnswered) {
     res.className = 'qs-result qs-pending';
