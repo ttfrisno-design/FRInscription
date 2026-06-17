@@ -578,11 +578,11 @@
     <div class="form-grid ville-tarif-grid" style="align-items:end;">
       <div class="field">
         <label>Nom <span class="req">*</span></label>
-        <input type="text" id="rl-nom" placeholder="DUPONT" oninput="autosave()">
+        <input type="text" id="rl-nom" placeholder="DUPONT" oninput="autosave();syncMembre1DepuisResponsable()">
       </div>
       <div class="field">
         <label>Prénom <span class="req">*</span></label>
-        <input type="text" id="rl-prenom" placeholder="Marie" oninput="autosave()">
+        <input type="text" id="rl-prenom" placeholder="Marie" oninput="autosave();syncMembre1DepuisResponsable()">
       </div>
       <div class="field">
         <label>Adresse <span class="req">*</span></label>
@@ -1543,7 +1543,19 @@ function goStep(n) {
   state.step = n;
   window.scrollTo({top:0, behavior:'smooth'});
   if (n === 1) setTimeout(detectCommune, 300); // détecter autofill navigateur
-  if (n === 2) loadPlaces().catch(e => console.warn('loadPlaces step2 KO:', e));
+  if (n === 2) {
+    loadPlaces().catch(e => console.warn('loadPlaces step2 KO:', e));
+    // Preremplir le membre 1 (id=0) avec les infos du responsable legal si champs vides
+    const _m0 = state.members[0];
+    if (_m0) {
+      const _rNom    = document.getElementById('rl-nom')?.value.trim().toUpperCase() || '';
+      const _rPrenom = document.getElementById('rl-prenom')?.value.trim() || '';
+      // DDN non disponible dans le formulaire responsable (saisie directe dans le membre)
+      if (!_m0.nom    && _rNom)    { _m0.nom    = _rNom;    const el = document.getElementById('m-'+_m0.id+'-nom');    if(el){el.value=_rNom;} }
+      if (!_m0.prenom && _rPrenom) { _m0.prenom = _rPrenom; const el = document.getElementById('m-'+_m0.id+'-prenom'); if(el){el.value=_rPrenom;} }
+      renderMembers();
+    }
+  }
   if (n === 3) renderHealth();
   if (n === 4) {
     try {
@@ -9198,6 +9210,21 @@ async function rechercherAdherentFRI(telPartiel) {
   }, 400);
 }
 
+function syncMembre1DepuisResponsable() {
+  const m0 = state.members ? state.members[0] : null;
+  if (!m0) return;
+  const nom    = (document.getElementById('rl-nom')?.value || '').trim().toUpperCase();
+  const prenom = (document.getElementById('rl-prenom')?.value || '').trim();
+  // Mettre a jour le state
+  if (nom)    m0.nom    = nom;
+  if (prenom) m0.prenom = prenom;
+  // Mettre a jour les inputs DOM du membre 1 s'ils existent
+  const elNom    = document.getElementById('m-'+m0.id+'-nom');
+  const elPrenom = document.getElementById('m-'+m0.id+'-prenom');
+  if (elNom    && nom    && !elNom.value)    { elNom.value    = nom;    elNom.dispatchEvent(new Event('input')); }
+  if (elPrenom && prenom && !elPrenom.value) { elPrenom.value = prenom; elPrenom.dispatchEvent(new Event('input')); }
+}
+
 function remplirFormulaireAdherent(idx) {
   const a = (window._adherentSearchData || [])[idx];
   if (!a) return;
@@ -9215,6 +9242,36 @@ function remplirFormulaireAdherent(idx) {
   set('rl-tel2',    a.tel2||'');
   set('rl-email1',  a.email1||'');
   set('rl-email2',  a.email2||'');
+  // Pre-remplir membre 0 (responsable legal = membre 1) avec nom, prenom, DDN
+  var _m0auto = state.members[0];
+  if (_m0auto) {
+    // Toujours pre-remplir nom et prenom
+    _m0auto.nom    = (a.nom||'').toUpperCase();
+    _m0auto.prenom = a.prenom||'';
+    // DDN : convertir dd/mm/yyyy en yyyy-mm-dd si besoin
+    if (a.ddn) {
+      var ddnRaw = String(a.ddn).trim();
+      var ddnFmt = ddnRaw;
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(ddnRaw)) {
+        var p = ddnRaw.split('/'); ddnFmt = p[2]+'-'+p[1]+'-'+p[0];
+      } else if (/^\d{2}\/\d{2}\/\d{2}$/.test(ddnRaw)) {
+        var p2 = ddnRaw.split('/'); ddnFmt = '20'+p2[2]+'-'+p2[1]+'-'+p2[0];
+      }
+      _m0auto.ddn = ddnFmt;
+    }
+    // Forcer re-render pour afficher les valeurs dans les inputs DOM
+    renderMembers();
+    // Puis mettre a jour les inputs directement (apres render)
+    setTimeout(function() {
+      var idM = _m0auto.id;
+      var elNom    = document.getElementById('m-'+idM+'-nom');
+      var elPrenom = document.getElementById('m-'+idM+'-prenom');
+      var elDdn    = document.getElementById('m-'+idM+'-ddn');
+      if (elNom)    { elNom.value    = _m0auto.nom;    elNom.dispatchEvent(new Event('input')); }
+      if (elPrenom) { elPrenom.value = _m0auto.prenom; elPrenom.dispatchEvent(new Event('input')); }
+      if (elDdn && _m0auto.ddn) { elDdn.value = _m0auto.ddn; elDdn.dispatchEvent(new Event('input')); }
+    }, 50);
+  }
   // D\u00e9tecter la commune automatiquement
   setTimeout(detectCommune, 100);
   autosave();
