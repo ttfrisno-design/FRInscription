@@ -1159,6 +1159,11 @@
 function calcCountryForfait(membre, isno) {
   const CFIDS = ['country-init-a','country-debu-a','country-novice','country-inter','country-debu-j'];
   const sel = (membre.activities || []).filter(id => CFIDS.includes(id));
+  // Initiation incompatible avec Novices et Intermediaires (trop grande difference de niveau)
+  const hasInit   = sel.includes('country-init-a') || sel.includes('country-init-j');
+  const hasNovice = sel.includes('country-novice');
+  const hasInter  = sel.includes('country-inter');
+  if (hasInit && (hasNovice || hasInter)) return { forfait: false, ids: [], incompatible: true };
   if (sel.length >= 2) return { forfait: true, prix: isno ? 190 : 220, ids: sel };
   return { forfait: false, ids: [] };
 }
@@ -2566,6 +2571,38 @@ function buildMergedGrid(memberId, catKeys) {
 
 
 
+function afficherIncompatibiliteCountry(act, addingInit) {
+  var existing = document.getElementById('modal-country-incompat');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'modal-country-incompat';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.15s ease;';
+  modal.innerHTML = '<div style="background:white;border-radius:16px;max-width:460px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.35);overflow:hidden;">'
+    + '<div style="background:#e65100;padding:20px 24px;text-align:center;">'
+    + '<div style="font-size:36px;margin-bottom:6px;">⛔️</div>'
+    + '<div style="color:white;font-weight:800;font-size:17px;line-height:1.3;">Combinaison non autorisée</div>'
+    + '<div style="color:rgba(255,255,255,0.9);font-size:13px;margin-top:4px;">Différence de niveau trop importante</div>'
+    + '</div>'
+    + '<div style="padding:20px 24px;">'
+    + '<p style="font-size:14px;color:#555;margin:0 0 14px;line-height:1.7;text-align:center;">'
+    + (addingInit
+        ? 'Le créneau <strong>Initiation</strong> ne peut pas être combiné avec les créneaux <strong>Novices</strong> ou <strong>Intermédiaires</strong>.'
+        : 'Les créneaux <strong>Novices</strong> et <strong>Intermédiaires</strong> ne peuvent pas être combinés avec le créneau <strong>Initiation</strong>.')
+    + '</p>'
+    + '<div style="background:#fff3e0;border:1.5px solid #ffb74d;border-radius:10px;padding:12px 16px;font-size:13px;color:#e65100;text-align:center;">'
+    + '💡 Combinaisons autorisées : <strong>Initiation + Débutants</strong><br>ou <strong>Débutants + Novices + Intermédiaires</strong>'
+    + '</div>'
+    + '</div>'
+    + '<div style="padding:0 24px 22px;">'
+    + '<button id="btn-incompat-ok" style="width:100%;padding:13px;background:#1a2e22;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">'
+    + 'Compris — je choisis une autre combinaison'
+    + '</button></div></div>';
+  document.body.appendChild(modal);
+  document.getElementById('btn-incompat-ok').addEventListener('click', function() { modal.remove(); });
+  modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+  setTimeout(function() { var b = document.getElementById('btn-incompat-ok'); if (b) b.focus(); }, 50);
+}
+
 function afficherMessagesCountry(memberId) {
   const m = state.members.find(m => m.id === memberId);
   if (!m) return;
@@ -2589,9 +2626,17 @@ function afficherMessagesCountry(memberId) {
     const brut = nb * (isno ? 125 : 155);
     msgs.push({
       color: '#2d6a4f', bg: '#d8f3dc', border: '#52b788', icon: '🎉',
-      titre: 'Forfait Country — ' + nb + ' séance' + (nb > 1 ? 's' : ''),
-      texte: 'Tarif forfait�: <strong>' + prix + '�\u20ac</strong> au lieu de ' + brut + '�\u20ac.<br>'
-           + 'Le premier créneau est facturé ' + prix + '�\u20ac, les suivants sont <strong>inclus</strong>.',
+      titre: 'Forfait Country — ' + (function() {
+        var _noms = cForf.ids.map(function(id) {
+          return { 'country-init-a':'Initiation','country-debu-a':'Débutants',
+                   'country-novice':'Novices','country-inter':'Intermédiaires',
+                   'country-init-j':'Initiation','country-debu-j':'Débutants' }[id] || id;
+        });
+        return _noms.length <= 1 ? _noms[0] || ''
+          : _noms.slice(0,-1).join(', ') + ' et ' + _noms[_noms.length-1];
+      })(),
+      texte: 'Tarif forfait : <strong>' + prix + ' €</strong> au lieu de ' + brut + ' €.<br>'
+           + 'Le premier créneau est facturé ' + prix + ' €, les suivants sont <strong>inclus</strong>.',
       btn: 'Super, compris�!'
     });
   } else if (selected.length === 1 && COUNTRY_IDS.some(id => selected.includes(id))) {
@@ -2599,8 +2644,8 @@ function afficherMessagesCountry(memberId) {
     const brut1 = isno ? 125 : 155;
     msgs.push({
       color: '#1565c0', bg: '#e3f2fd', border: '#90caf9', icon: '💡',
-      titre: 'Astuce�\u2014 Forfait Country disponible',
-      texte: 'Ajoutez un 2\u1d49 créneau Country (Initiation, Débutants ou Novices) pour bénéficier du forfait�: <strong>' + prix2 + '�\u20ac</strong> au lieu de ' + (brut1 * 2) + '�\u20ac.',
+      titre: 'Astuce — Forfait Country disponible',
+      texte: 'Ajoutez un 2ᵉ créneau Country (Initiation, Débutants ou Novices) pour bénéficier du forfait : <strong>' + prix2 + ' €</strong> au lieu de ' + (brut1 * 2) + ' €.',
       btn: 'Compris'
     });
   }
@@ -2608,11 +2653,11 @@ function afficherMessagesCountry(memberId) {
   // Avertissement Initiation + Novices
   if (hasInit && hasNovice) {
     msgs.push({
-      color: '#e65100', bg: '#fff8e1', border: '#ffca28', icon: '\u26a0\ufe0f',
-      titre: 'Attention \u2014 niveau Novices',
+      color: '#e65100', bg: '#fff8e1', border: '#ffca28', icon: '⚠️',
+      titre: 'Attention — niveau Novices',
       texte: 'Le créneau <strong>Novices</strong> est destiné aux danseurs ayant déjà une première expérience en country.<br>'
            + 'Il peut être difficile à suivre en débutant en <strong>Initiation</strong> la mêtre année.',
-      btn: 'J\u2019ai compris, je continue'
+      btn: 'J’ai compris, je continue'
     });
   }
 
@@ -2696,6 +2741,17 @@ function toggleSlot(memberId, actId) {
     const conflict = detecterChevauchement(m, primaryId, primaryLink);
     if (conflict) {
       afficherConflitHoraire(primaryAct, conflict);
+      return;
+    }
+    // ── Incompatibilité country : Initiation + Novices/Intermédiaires interdit ──
+    var _INIT_IDS   = ['country-init-a','country-init-j'];
+    var _NOVICE_IDS = ['country-novice','country-inter'];
+    var _addingInit   = _INIT_IDS.includes(primaryId);
+    var _addingNovice = _NOVICE_IDS.includes(primaryId);
+    var _hasInit   = m.activities.some(function(a){ return _INIT_IDS.includes(a); });
+    var _hasNovice = m.activities.some(function(a){ return _NOVICE_IDS.includes(a); });
+    if ((_addingInit && _hasNovice) || (_addingNovice && _hasInit)) {
+      afficherIncompatibiliteCountry(primaryAct, _addingInit);
       return;
     }
     // Select this pair (both slots)
