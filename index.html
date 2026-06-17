@@ -1157,7 +1157,7 @@
 // ── Forfait country ≥2 créneaux (hors Initiation) ──
 // Déclarée en tête pour être disponible partout (calcTotals, buildRows, renderSummary)
 function calcCountryForfait(membre, isno) {
-  const CFIDS = ['country-debu-a','country-novice','country-inter','country-debu-j'];
+  const CFIDS = ['country-init-a','country-debu-a','country-novice','country-inter','country-debu-j'];
   const sel = (membre.activities || []).filter(id => CFIDS.includes(id));
   if (sel.length >= 2) return { forfait: true, prix: isno ? 190 : 220, ids: sel };
   return { forfait: false, ids: [] };
@@ -1442,7 +1442,7 @@ const ACTIVITIES = {
           { id:"couture-je1", name:"Couture (machine requise)", lieu:"PSF", jour:"Jeudi", heure:"09h30/12h00", isno:340, hc:380, animateur:"A. STEFANI" },
           { id:"couture-je2", name:"Couture (machine requise)", lieu:"PSF", jour:"Jeudi", heure:"13h00/15h30", isno:340, hc:380, animateur:"A. STEFANI" },
           { id:"couture-je3", name:"Couture (machine requise)", lieu:"PSF", jour:"Jeudi", heure:"18h00/20h30", isno:340, hc:380, animateur:"A. STEFANI" },
-          { id:"country-init-a", name:"Country Initiation ✨", lieu:"MB", jour:"Vendredi", heure:"18h30/19h30", isno:125, hc:155, animateur:"B. DECOUX", note:"Non éligible remise 15%" },
+          { id:"country-init-a", name:"Country Initiation ✨", lieu:"MB", jour:"Vendredi", heure:"18h30/19h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€" },
           { id:"country-debu-a", name:"Country Débutants ✨", lieu:"MB", jour:"Vendredi", heure:"19h30/20h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€" },
           { id:"country-novice", name:"Country Novices ✨", lieu:"MB", jour:"Vendredi", heure:"20h30/21h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€" },
           { id:"country-inter", name:"Country Intermédiaires ✨", lieu:"MB", jour:"Vendredi", heure:"21h30/22h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€" },
@@ -2565,6 +2565,105 @@ function buildMergedGrid(memberId, catKeys) {
 }
 
 
+
+function afficherMessagesCountry(memberId) {
+  const m = state.members.find(m => m.id === memberId);
+  if (!m) return;
+
+  const COUNTRY_IDS = ['country-init-a','country-debu-a','country-novice','country-inter',
+                       'country-debu-j','country-init-j'];
+  const isno = ((state.responsable && state.responsable.commune) || 'isno') === 'isno';
+  const selected = (m.activities || []).filter(id => COUNTRY_IDS.includes(id));
+
+  const cForf = calcCountryForfait(m, isno);
+  const hasInit   = selected.includes('country-init-a') || selected.includes('country-init-j');
+  const hasNovice = selected.includes('country-novice');
+
+  // Messages à afficher dans l'ordre
+  const msgs = [];
+
+  // Forfait
+  if (cForf.forfait && selected.length >= 2) {
+    const nb   = cForf.ids.length;
+    const prix = isno ? 190 : 220;
+    const brut = nb * (isno ? 125 : 155);
+    msgs.push({
+      color: '#2d6a4f', bg: '#d8f3dc', border: '#52b788', icon: '🎉',
+      titre: 'Forfait Country — ' + nb + ' séance' + (nb > 1 ? 's' : ''),
+      texte: 'Tarif forfait�: <strong>' + prix + '�\u20ac</strong> au lieu de ' + brut + '�\u20ac.<br>'
+           + 'Le premier créneau est facturé ' + prix + '�\u20ac, les suivants sont <strong>inclus</strong>.',
+      btn: 'Super, compris�!'
+    });
+  } else if (selected.length === 1 && COUNTRY_IDS.some(id => selected.includes(id))) {
+    const prix2 = isno ? 190 : 220;
+    const brut1 = isno ? 125 : 155;
+    msgs.push({
+      color: '#1565c0', bg: '#e3f2fd', border: '#90caf9', icon: '💡',
+      titre: 'Astuce�\u2014 Forfait Country disponible',
+      texte: 'Ajoutez un 2\u1d49 créneau Country (Initiation, Débutants ou Novices) pour bénéficier du forfait�: <strong>' + prix2 + '�\u20ac</strong> au lieu de ' + (brut1 * 2) + '�\u20ac.',
+      btn: 'Compris'
+    });
+  }
+
+  // Avertissement Initiation + Novices
+  if (hasInit && hasNovice) {
+    msgs.push({
+      color: '#e65100', bg: '#fff8e1', border: '#ffca28', icon: '\u26a0\ufe0f',
+      titre: 'Attention \u2014 niveau Novices',
+      texte: 'Le créneau <strong>Novices</strong> est destiné aux danseurs ayant déjà une première expérience en country.<br>'
+           + 'Il peut être difficile à suivre en débutant en <strong>Initiation</strong> la mêtre année.',
+      btn: 'J\u2019ai compris, je continue'
+    });
+  }
+
+  if (!msgs.length) return;
+
+  // Afficher les popups en cascade (une par une)
+  function showNext(idx) {
+    if (idx >= msgs.length) return;
+    const msg = msgs[idx];
+
+    const existing = document.getElementById('modal-country-msg');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-country-msg';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.15s ease;';
+    modal.innerHTML =
+      '<div style="background:white;border-radius:16px;max-width:440px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.35);overflow:hidden;">'
+      + '<div style="background:' + msg.bg + ';border-bottom:2px solid ' + msg.border + ';padding:20px 24px;text-align:center;">'
+      + '<div style="font-size:36px;margin-bottom:6px;">' + msg.icon + '</div>'
+      + '<div style="color:' + msg.color + ';font-weight:800;font-size:17px;line-height:1.3;">' + msg.titre + '</div>'
+      + '</div>'
+      + '<div style="padding:20px 24px;">'
+      + '<p style="font-size:14px;color:#555;margin:0 0 16px;line-height:1.7;text-align:center;">' + msg.texte + '</p>'
+      + '</div>'
+      + '<div style="padding:0 24px 22px;">'
+      + '<button id="btn-country-msg-ok" style="width:100%;padding:13px;background:' + msg.color + ';color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">'
+      + msg.btn
+      + '</button>'
+      + '</div>'
+      + '</div>';
+
+    document.body.appendChild(modal);
+
+    document.getElementById('btn-country-msg-ok').addEventListener('click', function() {
+      modal.remove();
+      showNext(idx + 1);
+    });
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) { modal.remove(); showNext(idx + 1); }
+    });
+    setTimeout(function() {
+      const btn = document.getElementById('btn-country-msg-ok');
+      if (btn) btn.focus();
+    }, 50);
+  }
+
+  showNext(0);
+}
+
+
 function toggleSlot(memberId, actId) {
   const m = state.members.find(m => m.id === memberId);
   if (!m) return;
@@ -2608,6 +2707,7 @@ function toggleSlot(memberId, actId) {
   updateMemberTotal(memberId);
   updateSelectedBadge(memberId);
   refreshFfttBlocks();
+  afficherMessagesCountry(memberId);
 }
 
 // ── Détection de chevauchement horaire ──────────────────────
@@ -4186,7 +4286,7 @@ async function chargerDossierExistant() {
   }
 
   // Construire la liste des activités existantes
-  const NON_DISCOUNTABLE = ['marche-nordic','country-init-a','country-init-j'];
+  const NON_DISCOUNTABLE = ['marche-nordic','country-init-j'];
   activitesExistantes = [];
   let totalExistant = 0;
   let countEligibles = 0;
@@ -4332,7 +4432,7 @@ function calcTotals() {
   let totalActivities = 0;
   let totalFNSMR = state.members.length * 15;
 
-  const NON_DISCOUNTABLE = ['marche-nordic','country-init-a','country-init-j'];
+  const NON_DISCOUNTABLE = ['marche-nordic','country-init-j'];
   const allMemberActivities = state.members.flatMap(m => m.activities);
   totalActivities = new Set(allMemberActivities).size;
 
@@ -4439,7 +4539,7 @@ function buildRows(reg) {
         // Appliquer remise 15% si éligible — tarif = montant réellement réglé
         const aRemise15 = reg.totals && reg.totals.familyActCount >= 3;
         const NON_REMISABLE = ['marche-nordic','country-init-a','country-init-j'];
-        const isCountryForfaitLinked = cFl.forfait && ['country-debu-a','country-novice','country-inter','country-debu-j'].includes(actId);
+        const isCountryForfaitLinked = cFl.forfait && ['country-init-a','country-debu-a','country-novice','country-inter','country-debu-j'].includes(actId);
         const estElig = !_isWaiting && aRemise15 && !isCountryForfaitLinked && !NON_REMISABLE.includes(actId) && (!actId.startsWith('tt-') || isno) && (!actId.startsWith('ping') || isno);
         const tarifBrut = price;
         if (estElig) price = Math.round(price * 0.85 * 100) / 100;
@@ -4458,7 +4558,7 @@ function buildRows(reg) {
           tarif: price,
           tarif_brut: tarifBrut,
           statut_inscription: _isWaiting ? 'Liste attente' : '',
-          note_tarif: (cFl.forfait && ['country-debu-a','country-novice','country-inter','country-debu-j'].includes(actId))
+          note_tarif: (cFl.forfait && ['country-init-a','country-debu-a','country-novice','country-inter','country-debu-j'].includes(actId))
             ? (cFl.ids[0] === actId ? 'Forfait country ' + cFl.ids.length + ' séances' : 'Inclus forfait') : '',
           fnsmr: (function(){
             // FNSMR 0 si activité en attente ET le membre a d'autres activités payantes
@@ -4513,7 +4613,7 @@ function buildRows(reg) {
       if (cFl2.forfait && CFIDSl2.includes(actId)) price = (cFl2.ids[0] === actId) ? cFl2.prix : 0;
       const aRemise15b = reg.totals && reg.totals.familyActCount >= 3;
       const NON_REMISABLE2 = ['marche-nordic','country-init-a','country-init-j'];
-      const isCountryForfait2 = cFl2.forfait && ['country-debu-a','country-novice','country-inter','country-debu-j'].includes(actId);
+      const isCountryForfait2 = cFl2.forfait && ['country-init-a','country-debu-a','country-novice','country-inter','country-debu-j'].includes(actId);
       const estElig2 = !_isWaiting2 && aRemise15b && !isCountryForfait2 && !NON_REMISABLE2.includes(actId) && (!actId.startsWith('tt-') || isno) && (!actId.startsWith('ping') || isno);
       const tarifBrut2 = price; // après forfait country
       if (estElig2) price = Math.round(price * 0.85 * 100) / 100;
@@ -4531,7 +4631,7 @@ function buildRows(reg) {
         tarif: price,
         tarif_brut: tarifBrut2,
         statut_inscription: _isWaiting2 ? 'Liste attente' : '',
-        note_tarif: (cFl2.forfait && ['country-debu-a','country-novice','country-inter','country-debu-j'].includes(actId))
+        note_tarif: (cFl2.forfait && ['country-init-a','country-debu-a','country-novice','country-inter','country-debu-j'].includes(actId))
           ? (cFl2.ids[0] === actId ? 'Forfait country ' + cFl2.ids.length + ' séances' : 'Inclus forfait') : '',
         fnsmr: (function(){
             if (!_isWaiting2) return 15;
