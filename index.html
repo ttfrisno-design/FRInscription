@@ -6126,11 +6126,10 @@ function callAppsScriptJsonp(url, payload) {
       }, 8000);
       var s = document.createElement('script');
       s.src = url + '?' + params.toString();
+      // onerror = redirect 302 GAS = requête reçue, le callback arrivera après
       s.onerror = function() {
-        clearTimeout(timer);
+        // Ne pas résoudre ici — laisser le timer attendre le callback
         try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e){}
-        delete window[cbName];
-        resolve({ ok: false, data: { adherents: [] } });
       };
       document.head.appendChild(s);
     });
