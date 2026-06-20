@@ -1449,20 +1449,36 @@ const ACTIVITIES = {
           { id:"couture-je3", name:"Couture (machine requise)", lieu:"PSF", jour:"Jeudi", heure:"18h00/20h30", isno:340, hc:380, animateur:"A. STEFANI" },
         ]
       },
-      danses_adultes: {
+      danses: {
         label: "Danses",
         acts: [
+          // — Country (adultes & ados) —
           { id:"country-init-a", name:"Country Initiation ✨", lieu:"MB", jour:"Vendredi", heure:"18h30/19h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€" },
           { id:"country-debu-a", name:"Country Débutants ✨", lieu:"MB", jour:"Vendredi", heure:"19h30/20h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€" },
           { id:"country-novice", name:"Country Novices ✨", lieu:"MB", jour:"Vendredi", heure:"20h30/21h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€" },
           { id:"country-inter", name:"Country Intermédiaires ✨", lieu:"MB", jour:"Vendredi", heure:"21h30/22h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€" },
+          // — Danse Moderne Adultes —
           { id:"danse-moderne-av1", name:"Danse Moderne Avancés 1 (≥18 ans)", lieu:"CM", jour:"Jeudi", heure:"18h45/20h15", isno:165, hc:195, animateur:"F. CHARROIS" },
           { id:"danse-moderne-av2", name:"Danse Moderne Avancés 2", lieu:"CM", jour:"Jeudi", heure:"20h15/21h45", isno:165, hc:195, animateur:"F. CHARROIS" },
+          // — Danse Classique Adultes —
           { id:"danse-classique-inter-a", name:"Danse Classique Inter Ados/Adultes ✨", lieu:"GSF", jour:"Lundi", heure:"18h45/20h00", isno:205, hc:235, animateur:"M. RABAEY" },
           { id:"danse-classique-pointes-lu", name:"Danse Classique Pointes ✨", lieu:"GSF", jour:"Lundi", heure:"20h00/20h20", isno:50, hc:70, animateur:"M. RABAEY" },
           { id:"danse-classique-barre", name:"Danse Classique Barre à terre ✨", lieu:"GSF", jour:"Jeudi", heure:"12h15/13h15", isno:185, hc:215, animateur:"M. RABAEY" },
           { id:"danse-classique-debu-je", name:"Danse Classique Débutants/Inters ✨", lieu:"GSF", jour:"Jeudi", heure:"13h15/14h30", isno:205, hc:235, animateur:"M. RABAEY" },
           { id:"danse-classique-pointes-je", name:"Danse Classique Pointes ✨", lieu:"GSF", jour:"Jeudi", heure:"14h30/14h50", isno:50, hc:70, animateur:"M. RABAEY" },
+          // — Danse Moderne Jeunes —
+          { id:"danse-moderne-init1", name:"Danse Moderne Initiation 1&2 (6-7 ans / 2018-2019)", lieu:"MB", jour:"Mercredi", heure:"12h15/13h15", isno:145, hc:175, animateur:"F. CHARROIS" },
+          { id:"danse-moderne-debu12", name:"Danse Moderne Débutants 1&2 (8-9 ans / 2016-2017)", lieu:"MB", jour:"Mercredi", heure:"13h15/14h15", isno:145, hc:175, animateur:"F. CHARROIS" },
+          { id:"danse-moderne-debu23", name:"Danse Moderne Débutants 2&3 (10-11 ans / 2014-2015)", lieu:"MB", jour:"Mercredi", heure:"14h15/15h15", isno:145, hc:175, animateur:"F. CHARROIS" },
+          { id:"danse-moderne-debu4", name:"Danse Moderne Déb.4/Inter.1 (12 ans / 2013)", lieu:"MB", jour:"Mercredi", heure:"15h15/16h15", isno:145, hc:175, animateur:"F. CHARROIS" },
+          { id:"danse-moderne-inter23", name:"Danse Moderne Inter 2&3 (13-14 ans / 2011-2012)", lieu:"MB", jour:"Mercredi", heure:"16h15/17h15", isno:145, hc:175, animateur:"F. CHARROIS" },
+          { id:"danse-moderne-inter45", name:"Danse Moderne Inter 4&5 (15-17 ans / 2008-2010)", lieu:"MB", jour:"Mercredi", heure:"17h15/18h30", isno:150, hc:180, animateur:"F. CHARROIS" },
+          { id:"danse-eveil", name:"Danse Moderne Éveil Petits (4-5 ans / 2020-2021)", lieu:"MB", jour:"Jeudi", heure:"17h45/18h30", isno:115, hc:145, animateur:"F. CHARROIS" },
+          // — Danse Classique Jeunes —
+          { id:"danse-classique-11-13", name:"Danse Classique 11-13 ans ✨", lieu:"GSF", jour:"Lundi", heure:"17h45/18h45", isno:185, hc:215, animateur:"M. RABAEY" },
+          { id:"danse-classique-4-5", name:"Danse Classique 4-5 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"09h30/10h15", isno:140, hc:170, animateur:"M. RABAEY" },
+          { id:"danse-classique-6-7", name:"Danse Classique 6-7 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"10h15/11h00", isno:140, hc:170, animateur:"M. RABAEY" },
+          { id:"danse-classique-8-10", name:"Danse Classique 8-10 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"11h00/12h00", isno:185, hc:215, animateur:"M. RABAEY" },
         ]
       }
     }
@@ -1506,27 +1522,9 @@ const ACTIVITIES = {
           { id:"theatre-6e5e", name:"Théâtre Collégiens (6e et 5e)", lieu:"GSF", jour:"Vendredi", heure:"17h30/18h30", isno:130, hc:160, animateur:"V. DUBOS" },
           { id:"theatre-lycee", name:"Théâtre Lycéens", lieu:"GSF", jour:"Vendredi", heure:"18h30/19h30", isno:130, hc:160, animateur:"V. DUBOS" },
         ]
-      },
-      danses_jeunes: {
-        label: "Danses",
-        acts: [
-          { id:"country-init-a", name:"Country Initiation ✨ (ados)", lieu:"MB", jour:"Vendredi", heure:"18h30/19h30", isno:125, hc:155, animateur:"B. DECOUX" },
-          { id:"country-debu-a", name:"Country Débutants ✨ (ados)", lieu:"MB", jour:"Vendredi", heure:"19h30/20h30", isno:125, hc:155, animateur:"B. DECOUX" },
-          { id:"danse-moderne-init1", name:"Danse Moderne Initiation 1&2 (6-7 ans / 2018-2019)", lieu:"MB", jour:"Mercredi", heure:"12h15/13h15", isno:145, hc:175, animateur:"F. CHARROIS" },
-          { id:"danse-moderne-debu12", name:"Danse Moderne Débutants 1&2 (8-9 ans / 2016-2017)", lieu:"MB", jour:"Mercredi", heure:"13h15/14h15", isno:145, hc:175, animateur:"F. CHARROIS" },
-          { id:"danse-moderne-debu23", name:"Danse Moderne Débutants 2&3 (10-11 ans / 2014-2015)", lieu:"MB", jour:"Mercredi", heure:"14h15/15h15", isno:145, hc:175, animateur:"F. CHARROIS" },
-          { id:"danse-moderne-debu4", name:"Danse Moderne Déb.4/Inter.1 (12 ans / 2013)", lieu:"MB", jour:"Mercredi", heure:"15h15/16h15", isno:145, hc:175, animateur:"F. CHARROIS" },
-          { id:"danse-moderne-inter23", name:"Danse Moderne Inter 2&3 (13-14 ans / 2011-2012)", lieu:"MB", jour:"Mercredi", heure:"16h15/17h15", isno:145, hc:175, animateur:"F. CHARROIS" },
-          { id:"danse-moderne-inter45", name:"Danse Moderne Inter 4&5 (15-17 ans / 2008-2010)", lieu:"MB", jour:"Mercredi", heure:"17h15/18h30", isno:150, hc:180, animateur:"F. CHARROIS" },
-          { id:"danse-eveil", name:"Danse Moderne Éveil Petits (4-5 ans / 2020-2021)", lieu:"MB", jour:"Jeudi", heure:"17h45/18h30", isno:115, hc:145, animateur:"F. CHARROIS" },
-          { id:"danse-classique-11-13", name:"Danse Classique 11-13 ans ✨", lieu:"GSF", jour:"Lundi", heure:"17h45/18h45", isno:185, hc:215, animateur:"M. RABAEY" },
-          { id:"danse-classique-4-5", name:"Danse Classique 4-5 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"09h30/10h15", isno:140, hc:170, animateur:"M. RABAEY" },
-          { id:"danse-classique-6-7", name:"Danse Classique 6-7 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"10h15/11h00", isno:140, hc:170, animateur:"M. RABAEY" },
-          { id:"danse-classique-8-10", name:"Danse Classique 8-10 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"11h00/12h00", isno:185, hc:215, animateur:"M. RABAEY" },
-        ]
       }
     }
-  }
+    }
   }
 };
 
@@ -2246,9 +2244,12 @@ const CAT_COLORS = {
 
   marche:         '#e0f2f1:#00695c',
   sport_sante:    '#f1f8e9:#558b2f',
-  culture_adultes:'#fff9c4:#827717',
-  culture_jeunes: '#fbe9e7:#bf360c',
-  gym:            '#e8f5e9:#1b5e20',
+  culture_adultes: '#fff9c4:#827717',
+  culture_jeunes:  '#fbe9e7:#bf360c',
+  ateliers_adultes:'#fff9c4:#827717',
+  danses:          '#fce4ec:#880e4f',
+  ateliers_jeunes: '#fbe9e7:#bf360c',
+  gym:             '#e8f5e9:#1b5e20',
 };
 
 function catColor(catKey) {
@@ -2268,7 +2269,17 @@ function buildCategoryTabs() {
   const tabs = [];
   for (const [secKey, section] of Object.entries(ACTIVITIES)) {
     for (const [catKey, cat] of Object.entries(section.cats)) {
-      tabs.push({ key: catKey, label: cat.label, secKey, acts: cat.acts });
+      if (cat.acts) {
+        // Catégorie simple avec des activités directes
+        tabs.push({ key: catKey, label: cat.label, secKey, acts: cat.acts });
+      } else {
+        // Catégorie conteneur (ex: culture_jeunes) avec des sous-catégories
+        for (const [subKey, subCat] of Object.entries(cat)) {
+          if (subCat && subCat.acts) {
+            tabs.push({ key: subKey, label: subCat.label, secKey, acts: subCat.acts });
+          }
+        }
+      }
     }
   }
   return tabs;
