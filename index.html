@@ -1403,14 +1403,22 @@ const ACTIVITIES = {
           { id:"pilates-ve", name:"Pilates", lieu:"MB", jour:"Vendredi", heure:"14h00/15h00", isno:125, hc:155, animateur:"A. PEREAU" },
         ]
       },
-      tt_adultes: {
-        label: "Tennis de table Adultes",
+      tt: {
+        label: "Tennis de table",
         acts: [
+          // — Adultes —
           { id:"tt-comp-entrain",    name:"Tennis de table\nadultes compétiteurs", lieu:"CM", jour:"Lundi",    heure:"20h00/21h15", isno:150, hc:150, animateur:"Y. LAROCHELLE", linkedWith:"tt-comp-entrain-me", fftt:70, note:"2 séances : Lu 20h15-21h30 + Me 19h45-21h" },
           { id:"tt-comp-entrain-me", name:"Tennis de table\nadultes compétiteurs", lieu:"CM", jour:"Mercredi", heure:"19h45/21h00", isno:150, hc:150, animateur:"Y. LAROCHELLE", linkedWith:"tt-comp-entrain",    fftt:70, note:"2 séances : Lu 20h15-21h30 + Me 19h45-21h" },
           { id:"tt-comp-sans",       name:"Tennis de table\nlibre", lieu:"CM", jour:"Mardi",    heure:"19h30/21h30", isno:120, hc:120, animateur:"C. MAURICE\nX.TRUSSART", fftt:70, linkedWith:"tt-comp-sans-me", note:"2 séances : Ma 19h30-21h30 + Me 21h15-22h45" },
           { id:"tt-comp-sans-me",    name:"Tennis de table\nlibre", lieu:"CM", jour:"Mercredi", heure:"21h00/22h30", isno:120, hc:120, animateur:"C. MAURICE\nX.TRUSSART", fftt:70, linkedWith:"tt-comp-sans",    note:"2 séances : Ma 19h30-21h30 + Me 21h15-22h45" },
-          ]
+          // — Jeunes —
+          { id:"tt-jeunes-comp",    name:"Tennis de table\nJeunes Compétiteurs", lieu:"CM", jour:"Lundi",    heure:"18h45/20h00", isno:150, hc:150, animateur:"Y. LAROCHELLE", linkedWith:"tt-jeunes-comp-je", fftt:37, note:"2 séances : Lu 19h00-20h15 + Je 17h-18h30" },
+          { id:"tt-jeunes-comp-je", name:"Tennis de table\nJeunes Compétiteurs", lieu:"CM", jour:"Jeudi",    heure:"17h00/18h30", isno:150, hc:150, animateur:"Y. LAROCHELLE", linkedWith:"tt-jeunes-comp",    fftt:37, note:"2 séances : Lu 19h00-20h15 + Je 17h-18h30" },
+          { id:"tt-debu-1",          name:"Tennis de table\nJeunes Débutants",   lieu:"CM", jour:"Mercredi", heure:"17h15/18h30", isno:130, hc:130, animateur:"Y. LAROCHELLE", note:"1 séance : Me 17h15-18h30" },
+          { id:"tt-debu-2",    name:"Tennis de table\nJeunes Confirmés", lieu:"CM", jour:"Lundi",    heure:"17h45/18h45", isno:150, hc:150, animateur:"Y. LAROCHELLE", linkedWith:"tt-debu-2-me", fftt:37, note:"2 séances : Lu 17h45-19h00 + Me 18h30-19h45" },
+          { id:"tt-debu-2-me", name:"Tennis de table\nJeunes Confirmés", lieu:"CM", jour:"Mercredi", heure:"18h30/19h45", isno:150, hc:150, animateur:"Y. LAROCHELLE", linkedWith:"tt-debu-2",    fftt:37, note:"2 séances : Lu 17h45-19h00 + Me 18h30-19h45" },
+          { id:"ping-bienetre",      name:"Ping bien-être / Pong santé ✨", lieu:"CM", jour:"Jeudi", heure:"15h30/17h00", isno:130, hc:130, animateur:"C. MAURICE" },
+        ]
       },
       sophrologie: {
         label: "Sophrologie",
@@ -1486,16 +1494,6 @@ const ACTIVITIES = {
   jeunes: {
     label: "Activités Jeunes",
     cats: {
-      tt_jeunes: {
-        label: "Tennis de table Jeunes",
-        acts: [
-          { id:"tt-jeunes-comp",    name:"Tennis de table\nJeunes Compétiteurs", lieu:"CM", jour:"Lundi",    heure:"18h45/20h00", isno:150, hc:150, animateur:"Y. LAROCHELLE", linkedWith:"tt-jeunes-comp-je", fftt:37, note:"2 séances : Lu 19h00-20h15 + Je 17h-18h30" },
-          { id:"tt-jeunes-comp-je", name:"Tennis de table\nJeunes Compétiteurs", lieu:"CM", jour:"Jeudi",    heure:"17h00/18h30", isno:150, hc:150, animateur:"Y. LAROCHELLE", linkedWith:"tt-jeunes-comp",    fftt:37, note:"2 séances : Lu 19h00-20h15 + Je 17h-18h30" },
-          { id:"tt-debu-1", name:"Tennis de table\nJeunes Débutants",   lieu:"CM", jour:"Mercredi", heure:"17h15/18h30", isno:130, hc:130, animateur:"Y. LAROCHELLE", note:"1 séance : Me 17h15-18h30" },
-          { id:"tt-debu-2",    name:"Tennis de table\nJeunes Confirmés", lieu:"CM", jour:"Lundi",    heure:"17h45/18h45", isno:150, hc:150, animateur:"Y. LAROCHELLE", linkedWith:"tt-debu-2-me", fftt:37, note:"2 séances : Lu 17h45-19h00 + Me 18h30-19h45" },
-          { id:"tt-debu-2-me", name:"Tennis de table\nJeunes Confirmés", lieu:"CM", jour:"Mercredi", heure:"18h30/19h45", isno:150, hc:150, animateur:"Y. LAROCHELLE", linkedWith:"tt-debu-2",    fftt:37, note:"2 séances : Lu 17h45-19h00 + Me 18h30-19h45" },
-        ]
-      },
       gym: {
         label: "Gym Enfants",
         acts: [
@@ -2238,8 +2236,7 @@ const CAT_COLORS = {
   fitness:        '#e8f5e9:#2d6a4f',
   yoga:           '#e3f2fd:#1565c0',
   pilates:        '#f3e5f5:#6a1b9a',
-  tt_adultes:     '#fff3e0:#e65100',
-  tt_jeunes:      '#fff8e1:#f57f17',
+  tt:             '#fff3e0:#e65100',
   sophrologie:    '#fce4ec:#880e4f',
 
   marche:         '#e0f2f1:#00695c',
@@ -4478,7 +4475,7 @@ function isTTActivity(actId) {
   // Réduction -30€ femmes : TT adultes avec/sans entraînement + Ping bien-être/Loisirs
   return actId === 'tt-comp-entrain'    || actId === 'tt-comp-entrain-me'
       || actId === 'tt-comp-sans'       || actId === 'tt-comp-sans-me'
-      || actId === 'ping-bienetre'      || actId === 'tt-loisirs-a';
+      || actId === 'ping-bienetre';
 }
 
 // Mapping IDs site → IDs onglet Places (identique à getPlacesId dans Code.gs)
@@ -6050,7 +6047,7 @@ function showConfirmError(msg) {
 
 // Legacy — kept for URL param compatibility (unused now)
 
-const READ_ACTIONS = ['getDossiers', 'ping', 'getPlaces', 'getPlacesRestantes'];
+const READ_ACTIONS = ['getDossiers', 'ping', 'getPlaces', 'getPlacesRestantes', 'rechercherAdherent'];
 
 async function callAppsScript(payload) {
   const url = getAppsScriptUrl();
@@ -6095,6 +6092,28 @@ function callAppsScriptJsonp(url, payload) {
   }
   if (payload.action === 'ping') {
     return callAppsScriptFetch(url, payload).then(r => ({ ok: true })).catch(() => ({ ok: false }));
+  }
+  // rechercherAdherent : vrai fetch GET avec les paramètres en query string
+  if (payload.action === 'rechercherAdherent') {
+    return (async function() {
+      try {
+        const params = new URLSearchParams({
+          action:   'rechercherAdherent',
+          tel:      payload.tel || '',
+          _token:   FRI_SECRET_TOKEN,
+          _t:       Date.now()
+        });
+        const res = await fetch(url + '?' + params.toString(), { redirect: 'follow' });
+        const text = await res.text();
+        // GAS renvoie parfois du JSON direct ou du JSONP
+        const clean = text.replace(/^[^{[]*/, '').replace(/[^}\]]*$/, '');
+        const data = JSON.parse(clean);
+        return { ok: true, data };
+      } catch(e) {
+        console.warn('[FRI] rechercherAdherent fetch KO:', e);
+        return { ok: false, data: { adherents: [] } };
+      }
+    })();
   }
   return callAppsScriptFetch(url, payload);
 }
@@ -9487,10 +9506,8 @@ async function rechercherAdherentFRI(telPartiel) {
   clearTimeout(_adherentSearchTimer);
   _adherentSearchTimer = setTimeout(async () => {
     resultsDiv.innerHTML = '<span style="font-size:12px;color:#888;">\u23f3 Recherche...</span>';
-    const url = getAppsScriptUrl();
-    if (!url) { resultsDiv.innerHTML = ''; return; }
     try {
-      const res = await callAppsScriptFetch(url, { action: 'rechercherAdherent', tel: clean });
+      const res = await callAppsScript({ action: 'rechercherAdherent', tel: clean });
       const data = (res && res.data) ? res.data : res;
       if (!data || !data.adherents || data.adherents.length === 0) {
         resultsDiv.innerHTML = '<span style="font-size:12px;color:#888;">Aucun r\u00e9sultat pour ces chiffres.</span>';
