@@ -2047,7 +2047,16 @@ function getAllActs() {
   const acts = [];
   for (const section of Object.values(ACTIVITIES)) {
     for (const cat of Object.values(section.cats)) {
-      for (const a of cat.acts) acts.push(a);
+      if (cat.acts) {
+        for (const a of cat.acts) acts.push(a);
+      } else {
+        // Catégorie conteneur (ex: culture_jeunes) — itérer les sous-catégories
+        for (const subCat of Object.values(cat)) {
+          if (subCat && subCat.acts) {
+            for (const a of subCat.acts) acts.push(a);
+          }
+        }
+      }
     }
   }
   return acts;
@@ -6093,27 +6102,38 @@ function callAppsScriptJsonp(url, payload) {
   if (payload.action === 'ping') {
     return callAppsScriptFetch(url, payload).then(r => ({ ok: true })).catch(() => ({ ok: false }));
   }
-  // rechercherAdherent : vrai fetch GET avec les paramètres en query string
+  // rechercherAdherent : JSONP avec callback (GAS fait un redirect 302 qui bloque fetch)
   if (payload.action === 'rechercherAdherent') {
-    return (async function() {
-      try {
-        const params = new URLSearchParams({
-          action:   'rechercherAdherent',
-          tel:      payload.tel || '',
-          _token:   FRI_SECRET_TOKEN,
-          _t:       Date.now()
-        });
-        const res = await fetch(url + '?' + params.toString(), { redirect: 'follow' });
-        const text = await res.text();
-        // GAS renvoie parfois du JSON direct ou du JSONP
-        const clean = text.replace(/^[^{[]*/, '').replace(/[^}\]]*$/, '');
-        const data = JSON.parse(clean);
-        return { ok: true, data };
-      } catch(e) {
-        console.warn('[FRI] rechercherAdherent fetch KO:', e);
-        return { ok: false, data: { adherents: [] } };
-      }
-    })();
+    return new Promise(function(resolve) {
+      var cbName = '_friAd_' + Date.now();
+      var params = new URLSearchParams({
+        action:   'rechercherAdherent',
+        tel:      payload.tel || '',
+        _token:   FRI_SECRET_TOKEN,
+        callback: cbName,
+        _t:       Date.now()
+      });
+      window[cbName] = function(data) {
+        clearTimeout(timer);
+        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e){}
+        delete window[cbName];
+        resolve({ ok: true, data: data });
+      };
+      var timer = setTimeout(function() {
+        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e){}
+        delete window[cbName];
+        resolve({ ok: false, data: { adherents: [] } });
+      }, 8000);
+      var s = document.createElement('script');
+      s.src = url + '?' + params.toString();
+      s.onerror = function() {
+        clearTimeout(timer);
+        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e){}
+        delete window[cbName];
+        resolve({ ok: false, data: { adherents: [] } });
+      };
+      document.head.appendChild(s);
+    });
   }
   return callAppsScriptFetch(url, payload);
 }
