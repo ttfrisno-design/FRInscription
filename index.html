@@ -2689,7 +2689,7 @@ function afficherIncompatibiliteCountry(act, addingInit) {
   setTimeout(function() { var b = document.getElementById('btn-incompat-ok'); if (b) b.focus(); }, 50);
 }
 
-function afficherMessagesCountry(memberId) {
+function afficherMessagesCountry(memberId, triggerId) {
   const m = state.members.find(m => m.id === memberId);
   if (!m) return;
 
@@ -2697,6 +2697,10 @@ function afficherMessagesCountry(memberId) {
                        'country-debu-j','country-init-j'];
   const isno = ((state.responsable && state.responsable.commune) || 'isno') === 'isno';
   const selected = (m.activities || []).filter(id => COUNTRY_IDS.includes(id));
+
+  // Ne déclencher les popups country que si le clic concernait un créneau country
+  const triggerIsCountry = triggerId && COUNTRY_IDS.includes(triggerId);
+  if (!triggerIsCountry) return;
 
   const cForf = calcCountryForfait(m, isno);
   const hasInit   = selected.includes('country-init-a') || selected.includes('country-init-j');
@@ -2849,7 +2853,7 @@ function toggleSlot(memberId, actId) {
   updateMemberTotal(memberId);
   updateSelectedBadge(memberId);
   refreshFfttBlocks();
-  afficherMessagesCountry(memberId);
+  afficherMessagesCountry(memberId, primaryId);
 }
 
 // ── Détection de chevauchement horaire ──────────────────────
@@ -4872,7 +4876,6 @@ function renderSummary() {
   const isno = state.responsable.commune === 'isno';
   const t = calcTotals();
   const r = state.responsable;
-  console.log('[FRI] renderSummary — membres:', state.members.length, state.members.map(m => ({id:m.id, nom:m.nom, prenom:m.prenom, acts:m.activities})));
 
   let membersHtml = state.members.map(m => {
     const counted = new Set();
@@ -6371,7 +6374,6 @@ async function callAppsScriptFetch(url, payload) {
   return new Promise((resolve) => {
     const cbName = '_friW_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
     const payloadStr = JSON.stringify(payload);
-    console.log('[FRI] JSONP payload size:', payloadStr.length, 'action:', action);
 
     const params = new URLSearchParams();
     params.set('payload',  payloadStr);
@@ -6391,7 +6393,6 @@ async function callAppsScriptFetch(url, payload) {
       if (done) return;
       done = true;
       cleanup();
-      console.log('[FRI] JSONP réponse:', action, data);
       resolve({ ok: true, data });
     };
 
@@ -6405,13 +6406,18 @@ async function callAppsScriptFetch(url, payload) {
 
     const s = document.createElement('script');
     s.src = fullUrl;
+    // Actions attendant des données : ne pas résoudre sur onerror
+    const DATA_ACTIONS = ['getPlacesRestantes','getDossiers','getLicenceFFTT',
+                          'rechercherLicencieFFTT','verifierCodeAvoir'];
     s.onerror = () => {
       if (done) return;
+      if (DATA_ACTIONS.includes(action)) {
+        // onerror = redirect 302 normal — le callback va arriver, on attend le timeout
+        return;
+      }
       done = true;
       clearTimeout(t);
       cleanup();
-      // onerror sur une balise script = redirect 302 Apps Script = requête reçue et traitée
-      console.log('[FRI] JSONP script onerror (normal redirect):', action);
       resolve({ ok: true });
     };
     document.head.appendChild(s);
