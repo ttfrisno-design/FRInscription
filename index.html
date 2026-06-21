@@ -6406,6 +6406,11 @@ async function lireSheetPublic() {
 
 // Envoi vers Apps Script via fetch no-cors
 async function callAppsScriptFetch(url, payload) {
+  // Renouveler le token si besoin
+  if (payload.action !== 'getToken' && payload.action !== 'ping') {
+    await initDynamicToken();
+    if (payload._token !== undefined) payload._token = FRI_SECRET_TOKEN;
+  }
   const action = payload.action || '';
   payload._token = payload._token || FRI_SECRET_TOKEN;
 
