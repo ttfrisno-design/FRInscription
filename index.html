@@ -2482,8 +2482,45 @@ function slotHtml(act, memberId, color, isno) {
 
   const isMarcheNordic = act.id === 'marche-nordic';
   const zoomAttrs = isMarcheNordic
-    ? `onmouseenter="this.style.transform='scale(3)';this.style.zIndex='999';this.style.boxShadow='0 8px 32px rgba(0,0,0,0.35)';this.style.position='relative';"
-       onmouseleave="this.style.transform='';this.style.zIndex='';this.style.boxShadow='';this.style.position='';"` 
+    ? `onmouseenter="
+        var el=this;
+        el.style.transform='scale(3)';
+        el.style.zIndex='9999';
+        el.style.boxShadow='0 8px 32px rgba(0,0,0,0.35)';
+        el.style.position='relative';
+        var p=el.parentNode;
+        while(p&&p!==document.body){
+          var ov=getComputedStyle(p).overflow;
+          var ovx=getComputedStyle(p).overflowX;
+          var ovy=getComputedStyle(p).overflowY;
+          if(ov==='hidden'||ovx==='hidden'||ovy==='hidden'||ov==='auto'||ov==='scroll'||ovx==='auto'||ovy==='auto'){
+            p.dataset.savedOverflow=p.style.overflow;
+            p.dataset.savedOverflowX=p.style.overflowX;
+            p.dataset.savedOverflowY=p.style.overflowY;
+            p.style.overflow='visible';
+            p.style.overflowX='visible';
+            p.style.overflowY='visible';
+          }
+          p=p.parentNode;
+        }"
+       onmouseleave="
+        var el=this;
+        el.style.transform='';
+        el.style.zIndex='';
+        el.style.boxShadow='';
+        el.style.position='';
+        var p=el.parentNode;
+        while(p&&p!==document.body){
+          if(p.dataset.savedOverflow!==undefined){
+            p.style.overflow=p.dataset.savedOverflow;
+            p.style.overflowX=p.dataset.savedOverflowX||'';
+            p.style.overflowY=p.dataset.savedOverflowY||'';
+            delete p.dataset.savedOverflow;
+            delete p.dataset.savedOverflowX;
+            delete p.dataset.savedOverflowY;
+          }
+          p=p.parentNode;
+        }"` 
     : '';
   return `<div class="sem-slot${isFull?' slot-full':''}${isInSelectedPair?' selected':''}"
     id="slot-${memberId}-${act.id}"
