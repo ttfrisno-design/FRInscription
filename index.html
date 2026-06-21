@@ -6409,6 +6409,13 @@ async function callAppsScriptFetch(url, payload) {
   // Renouveler le token si besoin
   if (payload.action !== 'getToken' && payload.action !== 'ping') {
     await initDynamicToken();
+    // Si token toujours vide, retry jusqu'a 5s
+    if (!FRI_SECRET_TOKEN) {
+      for (var _r = 0; _r < 5 && !FRI_SECRET_TOKEN; _r++) {
+        await new Promise(r => setTimeout(r, 1000));
+        await initDynamicToken();
+      }
+    }
     if (payload._token !== undefined) payload._token = FRI_SECRET_TOKEN;
   }
   const action = payload.action || '';
@@ -9143,8 +9150,8 @@ function exportSingleExcel(id) {
 // INIT
 // ============================================================
 (async function init() {
-  // Récupérer le token dynamique en parallèle du reste
-  initDynamicToken();
+  // Recuperer le token dynamique avant tout
+  await initDynamicToken();
   // Load places availability before rendering
   // Charger les places avec un léger délai pour laisser le DOM se stabiliser
   // Puis re-rendre la section active pour mettre à jour les badges de places
