@@ -368,8 +368,8 @@
   /* SEMAINIER */
   .semainier-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
   .sem-tab {
-    padding:6px 14px; border-radius:20px; border:1.5px solid var(--border);
-    background:var(--white); cursor:pointer; font-size:12px; font-weight:600;
+    padding:4px 8px; border-radius:20px; border:1.5px solid var(--border);
+    background:var(--white); cursor:pointer; font-size:13px; font-weight:600;
     font-family:'DM Sans',sans-serif; transition:all 0.15s; color:var(--dark);
     white-space:nowrap;
   }
@@ -1364,47 +1364,8 @@ const ACTIVITIES = {
   adultes: {
     label: "Activités Adultes",
     cats: {
-      fitness: {
-        label: "Fitness & Remise en forme (>16 ans)",
-        acts: [
-          { id:"body-sculpt-lu", name:"Body Sculpt", lieu:"MB", jour:"Lundi", heure:"17h30/18h30", isno:125, hc:155, animateur:"N. DUBOT" },
-          { id:"zumba-lu", name:"Circuit training adapté", lieu:"MB", jour:"Lundi", heure:"19h30/20h30", isno:125, hc:155, animateur:"B. CARRERE" },
-          { id:"body-sculpt-ma", name:"Body Sculpt", lieu:"MB", jour:"Mardi", heure:"10h00/11h00", isno:125, hc:155, animateur:"V. SEMBLAT" },
-          { id:"circuit-ve", name:"Circuit training adapté", lieu:"MB", jour:"Vendredi", heure:"10h00/11h00", isno:125, hc:155, animateur:"V. SEMBLAT" },
-          { id:"stretching-ve", name:"Stretching", lieu:"MB", jour:"Vendredi", heure:"11h00/12h00", isno:125, hc:155, animateur:"V. SEMBLAT" },
-          { id:"body-sculpt-cm-ve", name:"Body Sculpt", lieu:"CM", jour:"Vendredi", heure:"18h30/19h30", isno:125, hc:155, animateur:"V. SEMBLAT" },
-          { id:"zumba-sa", name:"Zumba", lieu:"CM", jour:"Samedi", heure:"09h45/10h45", isno:125, hc:155, animateur:"V. SEMBLAT" },
-          { id:"body-sculpt-sa", name:"Body Sculpt", lieu:"CM", jour:"Samedi", heure:"10h45/11h45", isno:125, hc:155, animateur:"V. SEMBLAT" },
-         ]
-      },
-      yoga: {
-        label: "Yoga & Méditation",
-        acts: [
-          { id:"yoga-sm-lu", name:"Yoga", lieu:"SM", jour:"Lundi", heure:"18h00/19h30", isno:150, hc:180, animateur:"M-H. CORLAIX" },
-          { id:"meditation-lu", name:"Méditation (20 séances)", lieu:"SM", jour:"Lundi", heure:"19h30/20h30", isno:75, hc:100, animateur:"M-H. CORLAIX" },
-          { id:"yoga-mb-ma", name:"Yoga", lieu:"MB", jour:"Mardi", heure:"11h00/12h30", isno:150, hc:180, animateur:"S. WALLET" },
-          { id:"yoga-sm-je1", name:"Yoga", lieu:"SM", jour:"Jeudi", heure:"18h35/20h05", isno:150, hc:180, animateur:"S. DUMONT" },
-          { id:"yoga-sm-je2", name:"Yoga", lieu:"SM", jour:"Jeudi", heure:"20h05/21h35", isno:150, hc:180, animateur:"S. DUMONT" },
-        ]
-      },
-      pilates: {
-        label: "Pilates",
-        acts: [
-          { id:"pilates-lu1", name:"Pilates", lieu:"MB", jour:"Lundi", heure:"11h00/12h00", isno:125, hc:155, animateur:"A. PEREAU" },
-          { id:"pilates-lu2", name:"Pilates", lieu:"MB", jour:"Lundi", heure:"12h00/13h00", isno:125, hc:155, animateur:"A. PEREAU" },
-          { id:"pilates-lu3", name:"Pilates", lieu:"MB", jour:"Lundi", heure:"14h00/15h00", isno:125, hc:155, animateur:"V. SEMBLAT" },
-          { id:"pilates-flow-lu", name:"Pilates Flow ✨", lieu:"MB", jour:"Lundi", heure:"18h30/19h30", isno:125, hc:155, animateur:"B. CARRERE" },
-          { id:"pilates-flow-ma", name:"Pilates Flow", lieu:"CM", jour:"Mardi", heure:"18h30/19h30", isno:125, hc:155, animateur:"B. CARRERE" },
-          { id:"pilates-me1", name:"Pilates", lieu:"MB", jour:"Mercredi", heure:"10h00/11h00", isno:125, hc:155, animateur:"B. CARRERE" },
-          { id:"pilates-seniors-me", name:"Pilates Séniors", lieu:"MB", jour:"Mercredi", heure:"11h00/12h00", isno:125, hc:155, animateur:"B. CARRERE" },
-          { id:"pilates-je1", name:"Pilates ✨", lieu:"MB", jour:"Jeudi", heure:"11h00/12h00", isno:125, hc:155, animateur:"A. PEREAU" },
-          { id:"pilates-je2", name:"Pilates", lieu:"MB", jour:"Jeudi", heure:"12h00/13h00", isno:125, hc:155, animateur:"A. PEREAU" },
-          { id:"pilates-je3", name:"Pilates", lieu:"MB", jour:"Jeudi", heure:"15h15/16h15", isno:125, hc:155, animateur:"V. SEMBLAT" },
-          { id:"pilates-ve", name:"Pilates", lieu:"MB", jour:"Vendredi", heure:"14h00/15h00", isno:125, hc:155, animateur:"A. PEREAU" },
-        ]
-      },
       tt: {
-        label: "Tennis de table",
+        icon: "🏓", label: "Tennis de table",
         acts: [
           // — Adultes —
           { id:"tt-comp-entrain",    name:"Tennis de table\nadultes compétiteurs", lieu:"CM", jour:"Lundi",    heure:"20h00/21h15", isno:150, hc:150, animateur:"Y. LAROCHELLE", linkedWith:"tt-comp-entrain-me", fftt:70, note:"2 séances : Lu 20h15-21h30 + Me 19h45-21h", color:"#c5cae9:#1a237e" },
@@ -1420,22 +1381,14 @@ const ACTIVITIES = {
           { id:"ping-bienetre",      name:"Ping bien-être / Pong santé ✨", lieu:"CM", jour:"Jeudi", heure:"15h30/17h00", isno:130, hc:130, animateur:"C. MAURICE", color:"#e1bee7:#4a148c" },
         ]
       },
-      sophrologie: {
-        label: "Sophrologie",
-        acts: [
-          { id:"sophro-ma", name:"Sophrologie Ados/Adultes", lieu:"PSF", jour:"Mardi", heure:"11h00/12h30", isno:190, hc:210, animateur:"P. MORLOT" },
-          { id:"sophro-me", name:"Sophrologie Ados/Adultes", lieu:"PSF", jour:"Mercredi", heure:"18h30/20h00", isno:190, hc:210, animateur:"P. MORLOT" },
-        ]
-      },
-
       marche: {
-        label: "Marche Nordique",
+        icon: "🥾", label: "Marche Nordique",
         acts: [
           { id:"marche-nordic", name:"Marche Nordique", lieu:"Ext.", jour:"Mercredi et/ou Samedi", heure:"10h00/12h00", isno:40, hc:40, animateur:"D. PICARD", note:"Forfait — non éligible remise 15%" },
         ]
       },
       sport_sante: {
-        label: "Sport Santé — APA",
+        icon: "❤️", label: "Sport Santé",
         acts: [
           { id:"apa-lu", name:"Sport Santé / APA", lieu:"MB", jour:"Lundi", heure:"15h00/16h00", isno:125, hc:155, animateur:"V. SEMBLAT" },
           { id:"apa-je", name:"Sport Santé / APA", lieu:"MB", jour:"Jeudi", heure:"14h00/15h00", isno:125, hc:155, animateur:"V. SEMBLAT" },
@@ -1444,58 +1397,122 @@ const ACTIVITIES = {
           { id:"ping-bienetre", name:"Ping bien-être / Pong santé ✨", lieu:"CM", jour:"Jeudi", heure:"15h30/17h00", isno:130, hc:130, animateur:"C. MAURICE" },
         ]
       },
-      ateliers: {
-        label: "Ateliers",
+      fitness: {
+        icon: "💪", label: "Fitness",
         acts: [
-          // — Adultes —
-          { id:"peinture-lu1", color:"#fffde7:#f57f17", name:"Atelier Peinture\nAdos-Adultes", lieu:"PSF", jour:"Lundi", heure:"15h15/16h45", isno:320, hc:360, animateur:"E. COMELET" },
-          { id:"peinture-lu2", color:"#fffde7:#f57f17", name:"Atelier Peinture\nAdos-Adultes", lieu:"PSF", jour:"Lundi", heure:"18h45/20h15", isno:320, hc:360, animateur:"E. COMELET" },
-          { id:"guitare-a", color:"#e8f5e9:#1b5e20", name:"Atelier Guitare / Chant", lieu:"RPA", jour:"Jeudi", heure:"19h00/20h30", isno:180, hc:215, animateur:"R. GENTY" },
-          { id:"theatre-creation", color:"#f3e5f5:#6a1b9a", name:"Théâtre Adultes — recherche & création", lieu:"GSF", jour:"Lundi", heure:"20h30/22h30", isno:230, hc:260, animateur:"J. PICQUET" },
-          { id:"theatre-loisirs-a", color:"#f3e5f5:#6a1b9a", name:"Théâtre Adultes — loisirs", lieu:"GSF", jour:"Jeudi", heure:"19h00/20h30", isno:180, hc:210, animateur:"V. DUBOS" },
-          { id:"couture-je1", color:"#fce4ec:#880e4f", name:"Couture (machine requise)", lieu:"PSF", jour:"Jeudi", heure:"09h30/12h00", isno:340, hc:380, animateur:"A. STEFANI" },
-          { id:"couture-je2", color:"#fce4ec:#880e4f", name:"Couture (machine requise)", lieu:"PSF", jour:"Jeudi", heure:"13h00/15h30", isno:340, hc:380, animateur:"A. STEFANI" },
-          { id:"couture-je3", color:"#fce4ec:#880e4f", name:"Couture (machine requise)", lieu:"PSF", jour:"Jeudi", heure:"18h00/20h30", isno:340, hc:380, animateur:"A. STEFANI" },
-          // — Enfants & Ados —
-          { id:"peinture-ados", color:"#fffde7:#f57f17", name:"Atelier Peinture Ados (collégiens)", lieu:"PSF", jour:"Lundi", heure:"17h15/18h45", isno:320, hc:360, animateur:"E. COMELET" },
-          { id:"peinture-enfants1", color:"#fffde7:#f57f17", name:"Atelier Peinture Enfants/Ados (≥6 ans)", lieu:"PSF", jour:"Mercredi", heure:"09h30/11h00", isno:320, hc:360, animateur:"E. COMELET" },
-          { id:"peinture-enfants2", color:"#fffde7:#f57f17", name:"Atelier Peinture Enfants/Ados (≥6 ans)", lieu:"PSF", jour:"Mercredi", heure:"11h00/12h30", isno:320, hc:360, animateur:"E. COMELET" },
-          { id:"theatre-4e3e", color:"#f3e5f5:#6a1b9a", name:"Théâtre Collégiens (4e et 3e)", lieu:"GSF", jour:"Jeudi", heure:"18h00/19h00", isno:130, hc:160, animateur:"V. DUBOS" },
-          { id:"theatre-cm1cm2", color:"#f3e5f5:#6a1b9a", name:"Théâtre Primaires (CM1 et CM2)", lieu:"GSF", jour:"Vendredi", heure:"16h30/17h30", isno:130, hc:160, animateur:"V. DUBOS" },
-          { id:"theatre-6e5e", color:"#f3e5f5:#6a1b9a", name:"Théâtre Collégiens (6e et 5e)", lieu:"GSF", jour:"Vendredi", heure:"17h30/18h30", isno:130, hc:160, animateur:"V. DUBOS" },
-          { id:"theatre-lycee", color:"#f3e5f5:#6a1b9a", name:"Théâtre Lycéens", lieu:"GSF", jour:"Vendredi", heure:"18h30/19h30", isno:130, hc:160, animateur:"V. DUBOS" },
+          { id:"body-sculpt-lu", name:"Body Sculpt", lieu:"MB", jour:"Lundi", heure:"17h30/18h30", isno:125, hc:155, animateur:"N. DUBOT" },
+          { id:"zumba-lu", name:"Circuit training adapté", lieu:"MB", jour:"Lundi", heure:"19h30/20h30", isno:125, hc:155, animateur:"B. CARRERE" },
+          { id:"body-sculpt-ma", name:"Body Sculpt", lieu:"MB", jour:"Mardi", heure:"10h00/11h00", isno:125, hc:155, animateur:"V. SEMBLAT" },
+          { id:"circuit-ve", name:"Circuit training adapté", lieu:"MB", jour:"Vendredi", heure:"10h00/11h00", isno:125, hc:155, animateur:"V. SEMBLAT" },
+          { id:"stretching-ve", name:"Stretching", lieu:"MB", jour:"Vendredi", heure:"11h00/12h00", isno:125, hc:155, animateur:"V. SEMBLAT" },
+          { id:"body-sculpt-cm-ve", name:"Body Sculpt", lieu:"CM", jour:"Vendredi", heure:"18h30/19h30", isno:125, hc:155, animateur:"V. SEMBLAT" },
+          { id:"zumba-sa", name:"Zumba", lieu:"CM", jour:"Samedi", heure:"09h45/10h45", isno:125, hc:155, animateur:"V. SEMBLAT" },
+          { id:"body-sculpt-sa", name:"Body Sculpt", lieu:"CM", jour:"Samedi", heure:"10h45/11h45", isno:125, hc:155, animateur:"V. SEMBLAT" },
+         ]
+      },
+      yoga: {
+        icon: "🧘", label: "Yoga",
+        acts: [
+          { id:"yoga-sm-lu", name:"Yoga", lieu:"SM", jour:"Lundi", heure:"18h00/19h30", isno:150, hc:180, animateur:"M-H. CORLAIX" },
+          { id:"meditation-lu", name:"Méditation (20 séances)", lieu:"SM", jour:"Lundi", heure:"19h30/20h30", isno:75, hc:100, animateur:"M-H. CORLAIX" },
+          { id:"yoga-mb-ma", name:"Yoga", lieu:"MB", jour:"Mardi", heure:"11h00/12h30", isno:150, hc:180, animateur:"S. WALLET" },
+          { id:"yoga-sm-je1", name:"Yoga", lieu:"SM", jour:"Jeudi", heure:"18h35/20h05", isno:150, hc:180, animateur:"S. DUMONT" },
+          { id:"yoga-sm-je2", name:"Yoga", lieu:"SM", jour:"Jeudi", heure:"20h05/21h35", isno:150, hc:180, animateur:"S. DUMONT" },
         ]
       },
-      danses: {
-        label: "Danses",
+      pilates: {
+        icon: "🤸", label: "Pilates",
         acts: [
-          // — Country (adultes & ados) —
-          { id:"country-init-a", color:"#e0f7fa:#006064", name:"Danse en ligne (Country) Initiation ✨", lieu:"MB", jour:"Vendredi", heure:"18h30/19h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€" },
-          { id:"country-debu-a", color:"#e0f7fa:#006064", name:"Danse en ligne (Country) Débutants ✨", lieu:"MB", jour:"Vendredi", heure:"19h30/20h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€" },
-          { id:"country-novice", color:"#e0f7fa:#006064", name:"Danse en ligne (Country) Novices ✨", lieu:"MB", jour:"Vendredi", heure:"20h30/21h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€" },
-          { id:"country-inter", color:"#e0f7fa:#006064", name:"Danse en ligne (Country) Intermédiaires ✨", lieu:"MB", jour:"Vendredi", heure:"21h30/22h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€" },
-          // — Danse Moderne Adultes —
-          { id:"danse-moderne-av1", color:"#fce4ec:#880e4f", name:"Danse Moderne Avancés 1 (≥18 ans)", lieu:"CM", jour:"Jeudi", heure:"18h45/20h15", isno:165, hc:195, animateur:"F. CHARROIS" },
-          { id:"danse-moderne-av2", color:"#fce4ec:#880e4f", name:"Danse Moderne Avancés 2", lieu:"CM", jour:"Jeudi", heure:"20h15/21h45", isno:165, hc:195, animateur:"F. CHARROIS" },
-          // — Danse Classique Adultes —
-          { id:"danse-classique-inter-a", color:"#fff8e1:#e65100", name:"Danse Classique Inter Ados/Adultes ✨", lieu:"GSF", jour:"Lundi", heure:"18h45/20h00", isno:205, hc:235, animateur:"M. RABAEY" },
-          { id:"danse-classique-pointes-lu", color:"#fff8e1:#e65100", name:"Danse Classique Pointes ✨", lieu:"GSF", jour:"Lundi", heure:"20h00/20h20", isno:50, hc:70, animateur:"M. RABAEY" },
-          { id:"danse-classique-barre", color:"#fff8e1:#e65100", name:"Danse Classique Barre à terre ✨", lieu:"GSF", jour:"Jeudi", heure:"12h15/13h15", isno:185, hc:215, animateur:"M. RABAEY" },
-          { id:"danse-classique-debu-je", color:"#fff8e1:#e65100", name:"Danse Classique Débutants/Inters ✨", lieu:"GSF", jour:"Jeudi", heure:"13h15/14h30", isno:205, hc:235, animateur:"M. RABAEY" },
-          { id:"danse-classique-pointes-je", color:"#fff8e1:#e65100", name:"Danse Classique Pointes ✨", lieu:"GSF", jour:"Jeudi", heure:"14h30/14h50", isno:50, hc:70, animateur:"M. RABAEY" },
-          // — Danse Moderne Jeunes —
-          { id:"danse-moderne-init1", color:"#fce4ec:#880e4f", name:"Danse Moderne Initiation 1&2 (6-7 ans / 2018-2019)", lieu:"MB", jour:"Mercredi", heure:"12h15/13h15", isno:145, hc:175, animateur:"F. CHARROIS" },
-          { id:"danse-moderne-debu12", color:"#fce4ec:#880e4f", name:"Danse Moderne Débutants 1&2 (8-9 ans / 2016-2017)", lieu:"MB", jour:"Mercredi", heure:"13h15/14h15", isno:145, hc:175, animateur:"F. CHARROIS" },
-          { id:"danse-moderne-debu23", color:"#fce4ec:#880e4f", name:"Danse Moderne Débutants 2&3 (10-11 ans / 2014-2015)", lieu:"MB", jour:"Mercredi", heure:"14h15/15h15", isno:145, hc:175, animateur:"F. CHARROIS" },
-          { id:"danse-moderne-debu4", color:"#fce4ec:#880e4f", name:"Danse Moderne Déb.4/Inter.1 (12 ans / 2013)", lieu:"MB", jour:"Mercredi", heure:"15h15/16h15", isno:145, hc:175, animateur:"F. CHARROIS" },
-          { id:"danse-moderne-inter23", color:"#fce4ec:#880e4f", name:"Danse Moderne Inter 2&3 (13-14 ans / 2011-2012)", lieu:"MB", jour:"Mercredi", heure:"16h15/17h15", isno:145, hc:175, animateur:"F. CHARROIS" },
-          { id:"danse-moderne-inter45", color:"#fce4ec:#880e4f", name:"Danse Moderne Inter 4&5 (15-17 ans / 2008-2010)", lieu:"MB", jour:"Mercredi", heure:"17h15/18h30", isno:150, hc:180, animateur:"F. CHARROIS" },
-          { id:"danse-eveil", color:"#fce4ec:#880e4f", name:"Danse Moderne Éveil Petits (4-5 ans / 2020-2021)", lieu:"MB", jour:"Jeudi", heure:"17h45/18h30", isno:115, hc:145, animateur:"F. CHARROIS" },
-          // — Danse Classique Jeunes —
-          { id:"danse-classique-11-13", color:"#fff8e1:#e65100", name:"Danse Classique 11-13 ans ✨", lieu:"GSF", jour:"Lundi", heure:"17h45/18h45", isno:185, hc:215, animateur:"M. RABAEY" },
-          { id:"danse-classique-4-5", color:"#fff8e1:#e65100", name:"Danse Classique 4-5 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"09h30/10h15", isno:140, hc:170, animateur:"M. RABAEY" },
-          { id:"danse-classique-6-7", color:"#fff8e1:#e65100", name:"Danse Classique 6-7 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"10h15/11h00", isno:140, hc:170, animateur:"M. RABAEY" },
-          { id:"danse-classique-8-10", color:"#fff8e1:#e65100", name:"Danse Classique 8-10 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"11h00/12h00", isno:185, hc:215, animateur:"M. RABAEY" },
+          { id:"pilates-lu1", name:"Pilates", lieu:"MB", jour:"Lundi", heure:"11h00/12h00", isno:125, hc:155, animateur:"A. PEREAU" },
+          { id:"pilates-lu2", name:"Pilates", lieu:"MB", jour:"Lundi", heure:"12h00/13h00", isno:125, hc:155, animateur:"A. PEREAU" },
+          { id:"pilates-lu3", name:"Pilates", lieu:"MB", jour:"Lundi", heure:"14h00/15h00", isno:125, hc:155, animateur:"V. SEMBLAT" },
+          { id:"pilates-flow-lu", name:"Pilates Flow ✨", lieu:"MB", jour:"Lundi", heure:"18h30/19h30", isno:125, hc:155, animateur:"B. CARRERE" },
+          { id:"pilates-flow-ma", name:"Pilates Flow", lieu:"CM", jour:"Mardi", heure:"18h30/19h30", isno:125, hc:155, animateur:"B. CARRERE" },
+          { id:"pilates-me1", name:"Pilates", lieu:"MB", jour:"Mercredi", heure:"10h00/11h00", isno:125, hc:155, animateur:"B. CARRERE" },
+          { id:"pilates-seniors-me", name:"Pilates Séniors", lieu:"MB", jour:"Mercredi", heure:"11h00/12h00", isno:125, hc:155, animateur:"B. CARRERE" },
+          { id:"pilates-je1", name:"Pilates ✨", lieu:"MB", jour:"Jeudi", heure:"11h00/12h00", isno:125, hc:155, animateur:"A. PEREAU" },
+          { id:"pilates-je2", name:"Pilates", lieu:"MB", jour:"Jeudi", heure:"12h00/13h00", isno:125, hc:155, animateur:"A. PEREAU" },
+          { id:"pilates-je3", name:"Pilates", lieu:"MB", jour:"Jeudi", heure:"15h15/16h15", isno:125, hc:155, animateur:"V. SEMBLAT" },
+          { id:"pilates-ve", name:"Pilates", lieu:"MB", jour:"Vendredi", heure:"14h00/15h00", isno:125, hc:155, animateur:"A. PEREAU" },
+        ]
+      },
+      sophrologie: {
+        icon: "🌿", label: "Sophrologie",
+        acts: [
+          { id:"sophro-ma", name:"Sophrologie Ados/Adultes", lieu:"PSF", jour:"Mardi", heure:"11h00/12h30", isno:190, hc:210, animateur:"P. MORLOT" },
+          { id:"sophro-me", name:"Sophrologie Ados/Adultes", lieu:"PSF", jour:"Mercredi", heure:"18h30/20h00", isno:190, hc:210, animateur:"P. MORLOT" },
+        ]
+      },
+      couture: {
+        icon: "🪡", label: "Couture",
+        acts: [
+          { id:"couture-je1", name:"Couture (machine requise)", lieu:"PSF", jour:"Jeudi", heure:"09h30/12h00", isno:340, hc:380, animateur:"A. STEFANI", color:"#fce4ec:#880e4f" },
+          { id:"couture-je2", name:"Couture (machine requise)", lieu:"PSF", jour:"Jeudi", heure:"13h00/15h30", isno:340, hc:380, animateur:"A. STEFANI", color:"#fce4ec:#880e4f" },
+          { id:"couture-je3", name:"Couture (machine requise)", lieu:"PSF", jour:"Jeudi", heure:"18h00/20h30", isno:340, hc:380, animateur:"A. STEFANI", color:"#fce4ec:#880e4f" },
+        ]
+      },
+      peinture: {
+        icon: "🎨", label: "Peinture",
+        acts: [
+          { id:"peinture-lu1", name:"Atelier Peinture\nAdos-Adultes", lieu:"PSF", jour:"Lundi", heure:"15h15/16h45", isno:320, hc:360, animateur:"E. COMELET", color:"#fffde7:#f57f17" },
+          { id:"peinture-lu2", name:"Atelier Peinture\nAdos-Adultes", lieu:"PSF", jour:"Lundi", heure:"18h45/20h15", isno:320, hc:360, animateur:"E. COMELET", color:"#fffde7:#f57f17" },
+          { id:"peinture-ados", name:"Atelier Peinture Ados (collégiens)", lieu:"PSF", jour:"Lundi", heure:"17h15/18h45", isno:320, hc:360, animateur:"E. COMELET", color:"#fffde7:#f57f17" },
+          { id:"peinture-enfants1", name:"Atelier Peinture Enfants/Ados (≥6 ans)", lieu:"PSF", jour:"Mercredi", heure:"09h30/11h00", isno:320, hc:360, animateur:"E. COMELET", color:"#fffde7:#f57f17" },
+          { id:"peinture-enfants2", name:"Atelier Peinture Enfants/Ados (≥6 ans)", lieu:"PSF", jour:"Mercredi", heure:"11h00/12h30", isno:320, hc:360, animateur:"E. COMELET", color:"#fffde7:#f57f17" },
+        ]
+      },
+      theatre: {
+        icon: "🎭", label: "Théâtre",
+        acts: [
+          { id:"theatre-creation", name:"Théâtre Adultes — recherche & création", lieu:"GSF", jour:"Lundi", heure:"20h30/22h30", isno:230, hc:260, animateur:"J. PICQUET", color:"#f3e5f5:#6a1b9a" },
+          { id:"theatre-loisirs-a", name:"Théâtre Adultes — loisirs", lieu:"GSF", jour:"Jeudi", heure:"19h00/20h30", isno:180, hc:210, animateur:"V. DUBOS", color:"#f3e5f5:#6a1b9a" },
+          { id:"theatre-4e3e", name:"Théâtre Collégiens (4e et 3e)", lieu:"GSF", jour:"Jeudi", heure:"18h00/19h00", isno:130, hc:160, animateur:"V. DUBOS", color:"#f3e5f5:#6a1b9a" },
+          { id:"theatre-cm1cm2", name:"Théâtre Primaires (CM1 et CM2)", lieu:"GSF", jour:"Vendredi", heure:"16h30/17h30", isno:130, hc:160, animateur:"V. DUBOS", color:"#f3e5f5:#6a1b9a" },
+          { id:"theatre-6e5e", name:"Théâtre Collégiens (6e et 5e)", lieu:"GSF", jour:"Vendredi", heure:"17h30/18h30", isno:130, hc:160, animateur:"V. DUBOS", color:"#f3e5f5:#6a1b9a" },
+          { id:"theatre-lycee", name:"Théâtre Lycéens", lieu:"GSF", jour:"Vendredi", heure:"18h30/19h30", isno:130, hc:160, animateur:"V. DUBOS", color:"#f3e5f5:#6a1b9a" },
+        ]
+      },
+      guitare: {
+        icon: "🎸", label: "Guitare Chant",
+        acts: [
+          { id:"guitare-a", name:"Atelier Guitare / Chant", lieu:"RPA", jour:"Jeudi", heure:"19h00/20h30", isno:180, hc:215, animateur:"R. GENTY", color:"#e8f5e9:#1b5e20" },
+        ]
+      },
+      modern_jazz: {
+        icon: "💃", label: "Modern Jazz",
+        acts: [
+          { id:"danse-eveil", name:"Danse Moderne Éveil Petits (4-5 ans / 2020-2021)", lieu:"MB", jour:"Jeudi", heure:"17h45/18h30", isno:115, hc:145, animateur:"F. CHARROIS", color:"#fce4ec:#880e4f" },
+          { id:"danse-moderne-init1", name:"Danse Moderne Initiation 1&2 (6-7 ans / 2018-2019)", lieu:"MB", jour:"Mercredi", heure:"12h15/13h15", isno:145, hc:175, animateur:"F. CHARROIS", color:"#fce4ec:#880e4f" },
+          { id:"danse-moderne-debu12", name:"Danse Moderne Débutants 1&2 (8-9 ans / 2016-2017)", lieu:"MB", jour:"Mercredi", heure:"13h15/14h15", isno:145, hc:175, animateur:"F. CHARROIS", color:"#fce4ec:#880e4f" },
+          { id:"danse-moderne-debu23", name:"Danse Moderne Débutants 2&3 (10-11 ans / 2014-2015)", lieu:"MB", jour:"Mercredi", heure:"14h15/15h15", isno:145, hc:175, animateur:"F. CHARROIS", color:"#fce4ec:#880e4f" },
+          { id:"danse-moderne-debu4", name:"Danse Moderne Déb.4/Inter.1 (12 ans / 2013)", lieu:"MB", jour:"Mercredi", heure:"15h15/16h15", isno:145, hc:175, animateur:"F. CHARROIS", color:"#fce4ec:#880e4f" },
+          { id:"danse-moderne-inter23", name:"Danse Moderne Inter 2&3 (13-14 ans / 2011-2012)", lieu:"MB", jour:"Mercredi", heure:"16h15/17h15", isno:145, hc:175, animateur:"F. CHARROIS", color:"#fce4ec:#880e4f" },
+          { id:"danse-moderne-inter45", name:"Danse Moderne Inter 4&5 (15-17 ans / 2008-2010)", lieu:"MB", jour:"Mercredi", heure:"17h15/18h30", isno:150, hc:180, animateur:"F. CHARROIS", color:"#fce4ec:#880e4f" },
+          { id:"danse-moderne-av1", name:"Danse Moderne Avancés 1 (≥18 ans)", lieu:"CM", jour:"Jeudi", heure:"18h45/20h15", isno:165, hc:195, animateur:"F. CHARROIS", color:"#fce4ec:#880e4f" },
+          { id:"danse-moderne-av2", name:"Danse Moderne Avancés 2", lieu:"CM", jour:"Jeudi", heure:"20h15/21h45", isno:165, hc:195, animateur:"F. CHARROIS", color:"#fce4ec:#880e4f" },
+        ]
+      },
+      classique: {
+        icon: "🩰", label: "Danse Classique",
+        acts: [
+          { id:"danse-classique-4-5", name:"Danse Classique 4-5 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"09h30/10h15", isno:140, hc:170, animateur:"M. RABAEY", color:"#fff8e1:#e65100" },
+          { id:"danse-classique-6-7", name:"Danse Classique 6-7 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"10h15/11h00", isno:140, hc:170, animateur:"M. RABAEY", color:"#fff8e1:#e65100" },
+          { id:"danse-classique-8-10", name:"Danse Classique 8-10 ans ✨", lieu:"GSF", jour:"Mercredi", heure:"11h00/12h00", isno:185, hc:215, animateur:"M. RABAEY", color:"#fff8e1:#e65100" },
+          { id:"danse-classique-11-13", name:"Danse Classique 11-13 ans ✨", lieu:"GSF", jour:"Lundi", heure:"17h45/18h45", isno:185, hc:215, animateur:"M. RABAEY", color:"#fff8e1:#e65100" },
+          { id:"danse-classique-inter-a", name:"Danse Classique Inter Ados/Adultes ✨", lieu:"GSF", jour:"Lundi", heure:"18h45/20h00", isno:205, hc:235, animateur:"M. RABAEY", color:"#fff8e1:#e65100" },
+          { id:"danse-classique-pointes-lu", name:"Danse Classique Pointes ✨", lieu:"GSF", jour:"Lundi", heure:"20h00/20h20", isno:50, hc:70, animateur:"M. RABAEY", color:"#fff8e1:#e65100" },
+          { id:"danse-classique-barre", name:"Danse Classique Barre à terre ✨", lieu:"GSF", jour:"Jeudi", heure:"12h15/13h15", isno:185, hc:215, animateur:"M. RABAEY", color:"#fff8e1:#e65100" },
+          { id:"danse-classique-debu-je", name:"Danse Classique Débutants/Inters ✨", lieu:"GSF", jour:"Jeudi", heure:"13h15/14h30", isno:205, hc:235, animateur:"M. RABAEY", color:"#fff8e1:#e65100" },
+          { id:"danse-classique-pointes-je", name:"Danse Classique Pointes ✨", lieu:"GSF", jour:"Jeudi", heure:"14h30/14h50", isno:50, hc:70, animateur:"M. RABAEY", color:"#fff8e1:#e65100" },
+        ]
+      },
+      danse_en_ligne: {
+        icon: "🤠", label: "Danse en ligne",
+        acts: [
+          { id:"country-init-a", name:"Danse en ligne (Country) Initiation ✨", lieu:"MB", jour:"Vendredi", heure:"18h30/19h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€", color:"#e0f7fa:#006064" },
+          { id:"country-debu-a", name:"Danse en ligne (Country) Débutants ✨", lieu:"MB", jour:"Vendredi", heure:"19h30/20h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€", color:"#e0f7fa:#006064" },
+          { id:"country-novice", name:"Danse en ligne (Country) Novices ✨", lieu:"MB", jour:"Vendredi", heure:"20h30/21h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€", color:"#e0f7fa:#006064" },
+          { id:"country-inter", name:"Danse en ligne (Country) Intermédiaires ✨", lieu:"MB", jour:"Vendredi", heure:"21h30/22h30", isno:125, hc:155, animateur:"B. DECOUX", countryForfait:true, forfaitIsno:190, forfaitHc:220, note:"Forfait 2-3 séances: 190€/220€", color:"#e0f7fa:#006064" },
         ]
       }
     }
@@ -2228,8 +2245,13 @@ const CAT_COLORS = {
   sport_sante:    '#f1f8e9:#558b2f',
   culture_adultes: '#fff9c4:#827717',
   culture_jeunes:  '#fbe9e7:#bf360c',
-  ateliers:        '#fff9c4:#827717',
-  danses:          '#fce4ec:#880e4f',
+  peinture:        '#fffde7:#f57f17',
+  couture:         '#fce4ec:#880e4f',
+  theatre:         '#f3e5f5:#6a1b9a',
+  guitare:         '#e8f5e9:#1b5e20',
+  danse_en_ligne:  '#e0f7fa:#006064',
+  modern_jazz:     '#fce4ec:#880e4f',
+  classique:       '#fff8e1:#e65100',
   gym:             '#e8f5e9:#1b5e20',
 };
 
@@ -2252,12 +2274,12 @@ function buildCategoryTabs() {
     for (const [catKey, cat] of Object.entries(section.cats)) {
       if (cat.acts) {
         // Catégorie simple avec des activités directes
-        tabs.push({ key: catKey, label: cat.label, secKey, acts: cat.acts });
+        tabs.push({ key: catKey, label: cat.label, icon: cat.icon||'', secKey, acts: cat.acts });
       } else {
         // Catégorie conteneur (ex: culture_jeunes) avec des sous-catégories
         for (const [subKey, subCat] of Object.entries(cat)) {
           if (subCat && subCat.acts) {
-            tabs.push({ key: subKey, label: subCat.label, secKey, acts: subCat.acts });
+            tabs.push({ key: subKey, label: subCat.label, icon: subCat.icon||''  , secKey, acts: subCat.acts });
           }
         }
       }
@@ -2270,10 +2292,21 @@ function semainierHtml(memberId) {
   const tabs = buildCategoryTabs();
   const firstKey = tabs[0].key;
 
-  const tabsHtml = `<div style="font-size:11px;color:var(--gray);margin-bottom:6px;">💡 Cliquez sur une ou plusieurs catégories pour afficher les créneaux</div>`
-    + tabs.map((t, i) =>
-      `<button class="sem-tab${i===0?' active':''}" data-sem-tab="${memberId}" data-cat="${t.key}" onclick="switchSemTab(${memberId},'${t.key}')">${t.label}</button>`
-    ).join('');
+  // Grouper les onglets sur 4 lignes
+  const TAB_GROUPS = [
+    ['tt','marche','sport_sante','fitness','yoga','pilates','sophrologie'],
+    ['couture','peinture','theatre','guitare','modern_jazz','classique','danse_en_ligne'],
+  ];
+  const _tabIdx = {};
+  tabs.forEach((t,i) => { _tabIdx[t.key] = {t, i}; });
+  const tabsHtml = TAB_GROUPS.map(grp =>
+        '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:3px;">'
+        + grp.filter(k => _tabIdx[k]).map(k => {
+            const {t, i} = _tabIdx[k];
+            return `<button class="sem-tab${i===0?' active':''}" data-sem-tab="${memberId}" data-cat="${t.key}" onclick="switchSemTab(${memberId},'${t.key}')">${t.icon ? t.icon+' ' : ''}${t.label}</button>`;
+          }).join('')
+        + '</div>'
+      ).join('');
 
   const gridsHtml = tabs.map((t, i) =>
     `<div class="sem-grid-wrap" id="sem-grid-${memberId}-${t.key}" style="${i===0?'':'display:none'}">
@@ -2283,10 +2316,11 @@ function semainierHtml(memberId) {
 
   return `
     <div style="margin-top:20px">
-      <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:var(--dark);">
-        📅 Choisissez vos activités dans le semainier
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap;">
+        <div style="font-weight:700;font-size:14px;color:var(--dark);">📅 Choisissez vos activités dans le semainier</div>
+        <div style="font-size:11px;color:var(--gray);white-space:nowrap;">💡 Cliquez sur une ou plusieurs catégories pour afficher les créneaux</div>
       </div>
-      <div class="semainier-tabs" id="sem-tabs-${memberId}">${tabsHtml}</div>
+      <div class="semainier-tabs" id="sem-tabs-${memberId}" style="display:block;">${tabsHtml}</div>
       <div id="sem-merged-${memberId}" style="display:none"></div>
       <div id="sem-grids-${memberId}">
         ${gridsHtml}
