@@ -1337,9 +1337,34 @@ function formatDateFRI(d) {
 function getAppsScriptUrl() {
   return localStorage.getItem('fri_apps_script_url') || APPS_SCRIPT_URL;
 }
-// Token secret partagé avec le GAS — à changer après déploiement
-// Doit être identique à FRI_SECRET_TOKEN dans Code_GAS_FRI.js
-const FRI_SECRET_TOKEN = 'FRI2026_xK9mP3qZ';
+// Token dynamique : récupéré au chargement depuis le GAS (jamais écrit en dur)
+let FRI_SECRET_TOKEN = ''; // sera rempli par initDynamicToken()
+let _tokenExpires = 0;     // timestamp ms d'expiration
+
+async function initDynamicToken() {
+  // Si token encore valide (marge 30s), on garde
+  if (FRI_SECRET_TOKEN && Date.now() < _tokenExpires - 30000) return FRI_SECRET_TOKEN;
+  try {
+    const url = getAppsScriptUrl();
+    if (!url) return '';
+    const data = await new Promise((resolve) => {
+      const cb = '_friTok_' + Date.now();
+      const params = new URLSearchParams({ action: 'getToken', callback: cb });
+      window[cb] = (d) => { clearTimeout(t); try { s.remove(); } catch(e){} delete window[cb]; resolve(d); };
+      const t = setTimeout(() => { try { s.remove(); } catch(e){} delete window[cb]; resolve({}); }, 8000);
+      const s = document.createElement('script');
+      s.src = url + '?' + params;
+      document.head.appendChild(s);
+    });
+    if (data && data.token) {
+      FRI_SECRET_TOKEN = data.token;
+      _tokenExpires = data.expires || (Date.now() + 4 * 60 * 1000);
+      // Renouveler automatiquement 1 min avant expiration
+      setTimeout(initDynamicToken, Math.max(0, _tokenExpires - Date.now() - 60000));
+    }
+  } catch(e) { console.warn('[FRI] initDynamicToken KO:', e); }
+  return FRI_SECRET_TOKEN;
+}
 const SHEET_ID_PUBLIC  = '1KMVBYHReafOYgwolaeCb_yWHfKBdN05gskwHijmYtp4'; // ID du Google Sheet FRI
 // Exemple: 'https://script.google.com/macros/s/AKfycb.../exec'
 // Note: peut aussi etre configure dans le panneau admin sans modifier ce fichier
@@ -6135,6 +6160,10 @@ async function callAppsScript(payload) {
   if (!url || url === 'VOTRE_URL_APPS_SCRIPT_ICI') {
     return { ok: false, reason: 'URL non configurée' };
   }
+  // Renouveler le token si besoin avant chaque requete
+  if (payload.action !== 'getToken' && payload.action !== 'ping') {
+    await initDynamicToken();
+  }
 
   if (READ_ACTIONS.includes(payload.action)) {
     return callAppsScriptJsonp(url, payload);
@@ -9109,6 +9138,8 @@ function exportSingleExcel(id) {
 // INIT
 // ============================================================
 (async function init() {
+  // Récupérer le token dynamique en parallèle du reste
+  initDynamicToken();
   // Load places availability before rendering
   // Charger les places avec un léger délai pour laisser le DOM se stabiliser
   // Puis re-rendre la section active pour mettre à jour les badges de places
