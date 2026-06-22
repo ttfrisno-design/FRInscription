@@ -4635,10 +4635,10 @@ async function chargerDossierExistant() {
 // HELPERS
 // ============================================================
 function isTTActivity(actId) {
-  // Réduction -30€ femmes : TT adultes avec/sans entraînement + Ping bien-être/Loisirs
+  // Réduction -30€ femmes : TT adultes avec/sans entraînement uniquement
+  // NB : ping-bienetre (Ping santé) est exclu de la réduction féminine
   return actId === 'tt-comp-entrain'    || actId === 'tt-comp-entrain-me'
-      || actId === 'tt-comp-sans'       || actId === 'tt-comp-sans-me'
-      || actId === 'ping-bienetre';
+      || actId === 'tt-comp-sans'       || actId === 'tt-comp-sans-me';
 }
 
 // Mapping IDs site → IDs onglet Places (identique à getPlacesId dans Code.gs)
