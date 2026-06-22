@@ -1507,13 +1507,13 @@ const ACTIVITIES = {
       gym: {
         icon: "🤸", label: "Gym Enf.",
         acts: [
-          { id:"gym-eveil",      name:"Gym Éveil\n18 mois - 3 ans", lieu:"CM", jour:"Mercredi", heure:"09h30/10h15", isno:130, hc:145, animateur:"A. BONNET" },
-          { id:"gym-parent-3-5", name:"Gym Parent-Enfant\n3-5 ans", lieu:"CM", jour:"Mercredi", heure:"10h45/11h30", isno:130, hc:145, animateur:"A. BONNET" },
-          { id:"gym-3-5",        name:"Gym\n3-5 ans", lieu:"CM", jour:"Mercredi", heure:"11h30/12h15", isno:130, hc:145, animateur:"A. BONNET" },
-          { id:"gym-inter-av1",  name:"Gym\nInter/Avancés 1", lieu:"CM", jour:"Mercredi", heure:"12h15/13h15", isno:155, hc:170, animateur:"A. BONNET" },
-          { id:"gym-debu-6-8-1", name:"Gym Débutants\n6-8 ans (1)", lieu:"CM", jour:"Mercredi", heure:"13h15/14h15", isno:130, hc:145, animateur:"A. BONNET" },
-          { id:"gym-debu-6-8-2", name:"Gym Débutants\n6-8 ans (2)", lieu:"CM", jour:"Mercredi", heure:"14h15/15h15", isno:130, hc:145, animateur:"A. BONNET" },
-          { id:"gym-inter-av2",  name:"Gym\nInter/Avancés 2", lieu:"CM", jour:"Mercredi", heure:"15h15/16h15", isno:155, hc:170, animateur:"A. BONNET" },
+          { id:"gym-eveil",      name:"Gym Éveil\n18 mois - 3 ans", lieu:"MB", jour:"Mercredi", heure:"09h30/10h15", isno:130, hc:145, animateur:"A. BONNET" },
+          { id:"gym-parent-3-5", name:"Gym Parent-Enfant\n3-5 ans", lieu:"MB", jour:"Mercredi", heure:"10h45/11h30", isno:130, hc:145, animateur:"A. BONNET" },
+          { id:"gym-3-5",        name:"Gym\n3-5 ans", lieu:"MB", jour:"Mercredi", heure:"11h30/12h15", isno:130, hc:145, animateur:"A. BONNET" },
+          { id:"gym-inter-av1",  name:"Gym\nInter/Avancés 1", lieu:"MB", jour:"Mercredi", heure:"12h15/13h15", isno:155, hc:170, animateur:"A. BONNET" },
+          { id:"gym-debu-6-8-1", name:"Gym Débutants\n6-8 ans (1)", lieu:"MB", jour:"Mercredi", heure:"13h15/14h15", isno:130, hc:145, animateur:"A. BONNET" },
+          { id:"gym-debu-6-8-2", name:"Gym Débutants\n6-8 ans (2)", lieu:"MB", jour:"Mercredi", heure:"14h15/15h15", isno:130, hc:145, animateur:"A. BONNET" },
+          { id:"gym-inter-av2",  name:"Gym\nInter/Avancés 2", lieu:"MB", jour:"Mercredi", heure:"15h15/16h15", isno:155, hc:170, animateur:"A. BONNET" },
         ]
       },
       modern_jazz: {
@@ -2434,8 +2434,8 @@ function buildTimeGrid(memberId, tabDef, color, isno, byDay, times) {
     if (e > tMax) tMax = e;
   }));
   if (!isFinite(tMin)) { tMin = 540; tMax = 1320; }
-  tMin = Math.floor(tMin / 60) * 60; // arrondir à l'heure pleine
-  tMax = Math.ceil(tMax  / 60) * 60;
+  tMin = Math.floor(tMin / STEP) * STEP;
+  tMax = Math.ceil(tMax  / STEP) * STEP;
 
   // Toutes les lignes (tranches de 15 min)
   const rows = [];
@@ -2446,12 +2446,13 @@ function buildTimeGrid(memberId, tabDef, color, isno, byDay, times) {
   const hasAM    = activeDays.some(d => (byDay[d]||[]).some(a => parseTime(a.heure) >= MIDI));
   const needsSep = hasMatin && hasAM;
 
-  // blocked[day][rowIdx] = true si couverte par un rowspan
+  // Pour chaque colonne, construire un tableau de rowspan
+  // blocked[day][rowIdx] = true si la cellule est couverte par un rowspan au-dessus
   const blocked = {};
   activeDays.forEach(d => { blocked[d] = {}; });
 
-  // actMap[day][rowIdx] = {act, rowspan}
-  const actMap = {};
+  // Calculer rowspan pour chaque activité
+  const actMap = {}; // actMap[day][rowIdx] = {act, rowspan}
   activeDays.forEach(day => {
     actMap[day] = {};
     (byDay[day] || []).forEach(a => {
@@ -2465,44 +2466,41 @@ function buildTimeGrid(memberId, tabDef, color, isno, byDay, times) {
     });
   });
 
-  const CELL_H = 14; // hauteur px d'une tranche de 15 min
-
+  // Générer les lignes HTML
   const rowsHtml = rows.map((t, ri) => {
-    const isHour = (t % 60 === 0);
-    const borderTop = isHour ? '1px solid #bbb' : '1px solid transparent';
-
     // Séparateur matin
     let sepRow = '';
     if (needsSep && t === MIDI) {
-      sepRow = `<tr><td colspan="${activeDays.length + 1}" style="padding:0;border:none;">` +
-        `<div style="border-top:2px dashed #ccc;font-size:9px;color:#aaa;text-align:center;padding:2px 0;">après-midi</div></td></tr>`;
+      const colspan = activeDays.length;
+      sepRow = `<tr><td colspan="${colspan}" style="padding:1px 0;border:none;">` +
+        `<div style="border-top:1px dashed #ccc;font-size:9px;color:#bbb;text-align:center;padding:1px 0;">après-midi</div></td></tr>`;
     }
 
-    // Colonne horaire gauche : afficher uniquement les heures pleines
-    const timeCell = isHour
-      ? `<td style="font-size:9px;color:#999;font-weight:600;text-align:right;padding:0 4px 0 0;white-space:nowrap;border-top:${borderTop};border-right:1px solid #ccc;width:28px;vertical-align:top;">${Math.floor(t/60)}h</td>`
-      : `<td style="border-top:${borderTop};border-right:1px solid #ccc;width:28px;"></td>`;
+    // Ligne heure = multiple de 60min, ligne quart = autre
+    const isHourLine = (t % 60 === 0);
+    const isQtrLine  = (t % 60 !== 0);
+    const topBorder  = isHourLine
+      ? '1px solid #ccc'   // ligne heure : visible
+      : '1px solid transparent'; // ligne quart : invisible
 
     const cells = activeDays.map(day => {
-      if (blocked[day][ri]) return '';
+      if (blocked[day][ri]) return ''; // couverte par un rowspan
       if (actMap[day][ri]) {
         const { act, rowspan } = actMap[day][ri];
         const slot = slotHtml(act, memberId, color, isno);
-        return `<td rowspan="${rowspan}" style="vertical-align:top;padding:2px 3px;border-left:1px solid #ddd;border-top:${borderTop};">${slot}</td>`;
+        return `<td rowspan="${rowspan}" style="vertical-align:top;padding:2px 3px;border:none;border-top:${topBorder};">${slot}</td>`;
       }
-      return `<td style="height:${CELL_H}px;padding:0;border-left:1px solid #ddd;border-top:${borderTop};background:transparent;"></td>`;
+      return `<td style="padding:0;border:none;border-top:${topBorder};background:transparent;height:14px;"></td>`;
     }).join('');
 
-    return sepRow + `<tr>${timeCell}${cells}</tr>`;
+    return sepRow + `<tr>${cells}</tr>`;
   }).join('');
 
-  const daysHeaders = activeDayShorts.map(d =>
-    `<th style="border-left:1px solid rgba(255,255,255,0.2);">${d}</th>`
-  ).join('');
+  const daysHeaders = activeDayShorts.map(d => `<th>${d}</th>`).join('');
 
   return `<div class="semainier-wrap">` +
     `<table class="semainier" style="border-collapse:collapse;width:100%;">` +
-    `<thead><tr><th style="width:28px;background:var(--dark);"></th>${daysHeaders}</tr></thead>` +
+    `<thead><tr>${daysHeaders}</tr></thead>` +
     `<tbody>${rowsHtml}</tbody>` +
     `</table></div>`;
 }
