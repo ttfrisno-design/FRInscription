@@ -742,7 +742,7 @@
         ⚠️ Vous devez accepter la politique de confidentialité pour continuer.
       </div>
     </div>
-    <button class="btn btn-primary" id="btn-save-dossier" onclick="saveDossier()" style="width:100%;justify-content:center;">
+    <button class="btn btn-primary" id="btn-save-dossier" onclick="saveDossier()" style="width:100%;justify-content:center;opacity:0.5;pointer-events:none;">
       💾 Enregistrer mon dossier et obtenir mon code
     </button>
   </div>
@@ -5094,8 +5094,9 @@ function checkRgpdConsent() {
   const err = document.getElementById('rgpd-error');
   const btn = document.getElementById('btn-save-dossier');
   if (cb && err && btn) {
-    err.style.display = cb.checked ? 'none' : 'none'; // reset
+    err.style.display = cb.checked ? 'none' : 'block';
     btn.style.opacity = cb.checked ? '1' : '0.5';
+    btn.style.pointerEvents = cb.checked ? 'auto' : 'none';
   }
 }
 
