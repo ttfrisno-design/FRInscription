@@ -1282,26 +1282,40 @@ window.validerReglementInterieur = async function() {
     const dateStr   = new Date().toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
 
     // Envoyer au GAS pour sauvegarde sur Drive
+    // Méthode : formulaire HTML caché dans iframe (même technique que QS Santé)
     const url = getAppsScriptUrl();
-    // saveReglement : POST no-cors (Apps Script redirect) — on ne lit pas la réponse
-    // La signature base64 est trop grande pour JSONP GET
     try {
-      await fetch(url, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify({
-          action:    'saveReglement',
-          _token:    FRI_SECRET_TOKEN,
-          code:      code,
-          nom:       (reg.nom  || '').toUpperCase(),
-          prenom:    reg.prenom || '',
-          email:     reg.email1 || '',
-          date:      dateStr,
-          signature: sigBase64
-        })
+      const riPayload = JSON.stringify({
+        action:    'saveReglement',
+        _token:    FRI_SECRET_TOKEN,
+        code:      code,
+        nom:       (reg.nom  || '').toUpperCase(),
+        prenom:    reg.prenom || '',
+        email:     reg.email1 || '',
+        date:      dateStr,
+        signature: sigBase64
       });
-      console.log('[FRI] saveReglement envoyé (no-cors)');
+      const iframe = document.createElement('iframe');
+      iframe.name  = 'fri_ri_iframe_' + Date.now();
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      const form        = document.createElement('form');
+      form.method       = 'POST';
+      form.action       = url;
+      form.target       = iframe.name;
+      form.style.display = 'none';
+      const input       = document.createElement('input');
+      input.type        = 'hidden';
+      input.name        = 'payload';
+      input.value       = riPayload;
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+      setTimeout(() => {
+        try { document.body.removeChild(form); } catch(e) {}
+        try { document.body.removeChild(iframe); } catch(e) {}
+        console.log('[FRI] saveReglement envoyé via formulaire ✅');
+      }, 15000);
     } catch(fetchErr) {
       console.warn('saveReglement fetch KO (non bloquant):', fetchErr);
     }
