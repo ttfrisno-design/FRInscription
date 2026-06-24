@@ -6967,29 +6967,20 @@ function toggleAdminPassVis() {
 }
 
 async function doAdminLogin() {
-  const user    = document.getElementById('admin-login-user').value.trim().toLowerCase();
-  const pass    = document.getElementById('admin-login-pass').value;
-  const btnLogin = document.querySelector('#admin-modal button[type="submit"], #admin-modal .btn-primary');
-  const errEl   = document.getElementById('admin-login-error');
+  const user   = document.getElementById('admin-login-user').value.trim().toLowerCase();
+  const pass   = document.getElementById('admin-login-pass').value;
+  const errEl  = document.getElementById('admin-login-error');
+  const submitBtn = document.querySelector('#admin-modal form .btn-primary')
+                 || document.querySelector('#admin-modal form button[type="submit"]');
   errEl.style.display = 'none';
-
-  // Indicateur de chargement
-  const submitBtn = document.querySelector('#admin-modal form button[type="submit"]')
-                 || document.querySelector('#admin-modal form .btn-primary');
   if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '⏳ Connexion…'; }
 
   try {
-    const url = getAppsScriptUrl();
-    const payload = JSON.stringify({ action: 'adminLogin', user, pass });
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: 'payload=' + encodeURIComponent(payload)
-    });
-    const data = await resp.json();
+    // Utiliser JSONP (doGet) — même mécanisme que toute l'application
+    const res = await callGAS({ action: 'adminLogin', user, pass });
+    const data = res && res.data ? res.data : res;
 
-    if (data.status === 'ok' && data.token) {
-      // Login réussi — stocker token en mémoire (jamais sur disque)
+    if (data && data.status === 'ok' && data.token) {
       adminSessionToken = data.token;
       adminSessionRole  = data.role;
       adminSession      = data.user;
@@ -7010,8 +7001,7 @@ async function doAdminLogin() {
       document.getElementById('admin-panel').scrollIntoView({ behavior: 'smooth' });
       try { chargerDossiersDepuisSheet(); } catch(e) {}
     } else {
-      // Login échoué
-      errEl.textContent = '❌ ' + (data.message || 'Identifiant ou mot de passe incorrect.');
+      errEl.textContent = '❌ ' + ((data && data.message) || 'Identifiant ou mot de passe incorrect.');
       errEl.style.display = 'block';
       document.getElementById('admin-login-pass').value = '';
       document.getElementById('admin-login-pass').focus();
