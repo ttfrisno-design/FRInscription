@@ -4530,9 +4530,9 @@ function updateQS(memberId) {
     m.qsResult = 'certificat_requis';
   } else {
     res.className = 'qs-result qs-ok';
-    res.innerHTML = '✅ Toutes réponses NON — Remettez uniquement l\'Attestation santé à l\'association.'
-      + '<br><button onclick="genererAttestationPDF(' + memberId + ')" style="margin-top:8px;background:var(--green);color:white;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;">✍️ Signer et Télécharger l\'attestation PDF</button>';
-    m.qsResult = 'attestation_ok';
+    res.innerHTML = '⚠️ Toutes réponses NON — <strong>Veuillez maintenant signer et envoyer l\'attestation au FRI.</strong>'
+      + '<br><button onclick="genererAttestationPDF(' + memberId + ')" style="margin-top:8px;background:var(--green);color:white;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;">✍️ Signer et envoyer l\'attestation PDF au FRI</button>';
+    m.qsResult = 'qs_answers_ok'; // réponses complètes mais signature pas encore faite
   }
   checkHealthContinuerBtn();
 }
@@ -4545,8 +4545,9 @@ function checkHealthContinuerBtn() {
   const members = state.members || [];
   if (members.length === 0) { btn.style.opacity='0.5'; btn.style.pointerEvents='none'; btn.disabled=true; return; }
   const allOk = members.every(m => {
-    if (m.qsResult === 'attestation_ok') return true; // QS signé électroniquement
+    if (m.qsResult === 'attestation_ok') return true; // QS signé et envoyé au FRI
     if (m.qsResult === 'certificat_requis' && m.certifMedEnvoye) return true; // certificat envoyé pour ce membre
+    // 'qs_answers_ok' = réponses NON mais signature pas encore faite → insuffisant
     return false;
   });
   if (allOk) {
@@ -4897,7 +4898,8 @@ function buildRows(reg) {
           ancv_montant: reg.responsable.ancvMontant || 0,
           fftt_price: (m.ffttWant && m.ffttPrice) ? Number(m.ffttPrice) : 0,
           qs_sante: m.qsResult === 'attestation_ok' ? 'Attestation OK'
-                  : m.qsResult === 'certificat_requis' ? 'Certificat requis' : 'Non rempli',
+                  : m.qsResult === 'certificat_requis' ? 'Certificat requis'
+                  : m.qsResult === 'qs_answers_ok' ? 'Non signé' : 'Non rempli',
           pass_aide: (function(){
             const parts = [];
             if (passAide) parts.push(passAide);
@@ -5100,7 +5102,7 @@ function renderSummary() {
     <div class="card">
       <div class="card-title">🏥 Résultats questionnaires santé</div>
       ${state.members.map(m => `<p style="font-size:14px;margin-bottom:8px;padding:8px 12px;border-radius:6px;${m.qsResult==='attestation_ok'?'background:var(--green-pale);':m.qsResult==='certificat_requis'?'background:#ffeeed;':'background:#fff9e6;'}">
-        <strong>${m.prenom} ${m.nom} :</strong> ${m.qsResult==='attestation_ok'?'✅ Questionnaire santé signé électroniquement — rien à apporter':m.qsResult==='certificat_requis'?'⚠️ Certificat médical obligatoire à apporter':'⏳ Questionnaire non complété'}
+        <strong>${m.prenom} ${m.nom} :</strong> ${m.qsResult==='attestation_ok'?'✅ Questionnaire santé signé électroniquement — rien à apporter':m.qsResult==='certificat_requis'?'⚠️ Certificat médical obligatoire à apporter':m.qsResult==='qs_answers_ok'?'⚠️ Questionnaire rempli mais pas encore signé':'⏳ Questionnaire non complété'}
       </p>`).join('')}
     </div>`;
 }
@@ -5749,6 +5751,17 @@ async function _genererPDFAvecSignature(memberId, signatureDataUrl) {
 
   // PDF généré et envoyé au FRI — pas d'ouverture dans un nouvel onglet
   showToast('✅ QS Santé signé et envoyé au FRI', 'green', 5000);
+  // Marquer le membre comme ayant signé et envoyé son QS → active le bouton Continuer
+  if (m) {
+    m.qsResult = 'attestation_ok';
+    // Mettre à jour l'affichage du résultat QS pour ce membre
+    const resEl = document.getElementById('qs-result-' + m.id);
+    if (resEl) {
+      resEl.className = 'qs-result qs-ok';
+      resEl.innerHTML = '✅ Attestation santé signée et envoyée au FRI.';
+    }
+    checkHealthContinuerBtn();
+  }
 
   // ── Envoi PDF vers Drive via Apps Script ──
   try {
