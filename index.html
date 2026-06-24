@@ -671,24 +671,11 @@
     ⚕️ <strong>Important :</strong> Si vous répondez OUI à au moins une question, un certificat médical de non contre-indication à la pratique sportive est requis. Seule l'attestation (si toutes réponses NON) est à remettre au Foyer Rural — ne pas joindre le questionnaire.
   </div>
 
-  <!-- Envoi certificat medical optionnel -->
-  <div style="background:#e8f4fd;border:2px solid #2980b9;border-radius:10px;padding:16px 18px;margin-bottom:16px;">
-    <div style="font-size:14px;font-weight:700;color:#1565c0;margin-bottom:4px;">📄 Envoyer votre certificat médical au FRI <span style="font-size:12px;font-weight:400;color:#555;">(optionnel)</span></div>
-    <p style="font-size:12px;color:#555;margin:4px 0 12px;line-height:1.6;">
-      Si vous possédez déjà un certificat médical de moins d’un an, vous pouvez le transmettre directement au FRI ici.<br>
-      <strong>Formats acceptés :</strong> PDF, JPG, PNG — max 5 Mo
-    </p>
-    <input type="file" id="certif-med-qs-input" accept=".pdf,.jpg,.jpeg,.png,image/*"
-      onchange="onCertifQSSelected()"
-      style="font-size:12px;width:100%;box-sizing:border-box;margin-bottom:8px;">
-    <div id="certif-med-qs-status" style="font-size:12px;min-height:18px;"></div>
-  </div>
-
   <div id="health-container"></div>
 
   <div class="btn-nav">
     <button class="btn btn-secondary" onclick="goStep(2)">← Retour</button>
-    <button class="btn btn-primary" onclick="nextStep(3)">Continuer → Récapitulatif</button>
+    <button class="btn btn-primary" id="btn-next-step3" onclick="nextStep(3)" style="opacity:0.5;pointer-events:none;" disabled>Continuer → Récapitulatif</button>
   </div>
 </div>
 
@@ -2061,7 +2048,7 @@ let memberCount = 0;
 
 function addMember() {
   const id = memberCount++;
-  const m = { id, nom:'', prenom:'', ddn:'', sexe:'', email:'', activities:[], qs:{}, qsResult:null, ffttWant:false, ffttPrice:0 };
+  const m = { id, nom:'', prenom:'', ddn:'', sexe:'', email:'', activities:[], qs:{}, qsResult:null, ffttWant:false, ffttPrice:0, certifMedEnvoye:false };
   state.members.push(m);
   renderMembers();
   // Charger les effectifs si pas encore fait
@@ -3562,9 +3549,9 @@ function showModalAssuranceFFTT() {
   mc.addEventListener('click', e => { if (e.target === mc) mc.remove(); });
 }
 
-async function onCertifQSSelected() {
-  const fileInput = document.getElementById('certif-med-qs-input');
-  const status    = document.getElementById('certif-med-qs-status');
+async function onCertifMembreSelected(memberId) {
+  const fileInput = document.getElementById('certif-input-' + memberId);
+  const status    = document.getElementById('certif-status-' + memberId);
   const url       = getAppsScriptUrl();
   if (!fileInput || !fileInput.files || fileInput.files.length === 0) return;
   if (!url) { if (status) { status.style.color = '#c0392b'; status.textContent = 'URL Apps Script non configurée.'; } return; }
@@ -3575,12 +3562,12 @@ async function onCertifQSSelected() {
   }
   if (status) { status.style.color = '#1565c0'; status.textContent = '⏳ Envoi en cours...'; }
   try {
-    const r    = state.responsable || {};
+    const m = state.members.find(m => m.id === memberId) || {};
     const codeDOM  = document.getElementById('dossier-code')?.textContent?.trim() || '';
     const codePend = Object.keys(JSON.parse(localStorage.getItem('fri_pending') || '{}')).pop() || '';
     const code = codeDOM || state.codeDossierPreview || codePend || '';
-    const nom    = r.nom    || '';
-    const prenom = r.prenom || '';
+    const nom    = m.nom    || '';
+    const prenom = m.prenom || '';
     const ext    = file.name.split('.').pop().toLowerCase();
     const fname  = 'CertifMedical_' + (code||'QS') + '_' + (prenom||'')+'_'+(nom||'')+'.'+ext;
     const arrayBuffer = await file.arrayBuffer();
@@ -3608,10 +3595,13 @@ async function onCertifQSSelected() {
       status.style.cssText = 'color:#2d6a4f;font-weight:700;';
       status.textContent = '✅ Certificat envoyé au FRI (' + file.name + ')';
     }
-    console.log('[FRI] Certificat QS envoye :', fname);
+    // Marquer ce membre comme ayant envoyé son certificat
+    if (m) m.certifMedEnvoye = true;
+    checkHealthContinuerBtn();
+    console.log('[FRI] Certificat envoyé pour', prenom, nom, ':', fname);
   } catch(e) {
     if (status) { status.style.color = '#c0392b'; status.textContent = '⚠️ Erreur : ' + e.message; }
-    console.warn('[FRI] Erreur certif QS:', e);
+    console.warn('[FRI] Erreur certif membre:', e);
   }
 }
 
@@ -4426,6 +4416,21 @@ function renderHealth() {
         </div>
       </div>`).join('');
 
+    // Bloc certificat médical par membre (affiché après le QS)
+    const certifBloc = `
+      <div id="certif-bloc-${m.id}" style="background:#e8f4fd;border:2px solid #2980b9;border-radius:10px;padding:14px 16px;margin-top:12px;">
+        <div style="font-size:13px;font-weight:700;color:#1565c0;margin-bottom:4px;">📄 Certificat médical — ${m.prenom} ${m.nom}</div>
+        <p style="font-size:12px;color:#555;margin:4px 0 10px;line-height:1.5;">
+          Si vous possédez déjà un certificat médical de non contre-indication de moins d'un an,
+          transmettez-le directement au FRI.<br>
+          <strong>Formats acceptés :</strong> PDF, JPG, PNG — max 5 Mo
+        </p>
+        <input type="file" id="certif-input-${m.id}" accept=".pdf,.jpg,.jpeg,.png,image/*"
+          onchange="onCertifMembreSelected(${m.id})"
+          style="font-size:12px;width:100%;box-sizing:border-box;margin-bottom:6px;">
+        <div id="certif-status-${m.id}" style="font-size:12px;min-height:16px;"></div>
+      </div>`;
+
     return `<div class="qs-block">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
         <div class="qs-name" style="margin-bottom:0">👤 ${m.prenom} ${m.nom} — ${isMineur ? 'Mineur ('+age+' ans)' : 'Majeur ('+age+' ans)'}</div>
@@ -4436,8 +4441,11 @@ function renderHealth() {
       </div>
       ${questionsHtml}
       <div id="qs-result-${m.id}" class="qs-result qs-pending">⏳ Veuillez répondre à toutes les questions.</div>
+      ${certifBloc}
     </div>`;
   }).join('');
+  // Réévaluer le bouton après rendu (cas restauration dossier existant)
+  checkHealthContinuerBtn();
 }
 
 // Cocher NON à toutes les questions pour un membre
@@ -4525,6 +4533,30 @@ function updateQS(memberId) {
     res.innerHTML = '✅ Toutes réponses NON — Remettez uniquement l\'Attestation santé à l\'association.'
       + '<br><button onclick="genererAttestationPDF(' + memberId + ')" style="margin-top:8px;background:var(--green);color:white;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;">✍️ Signer et Télécharger l\'attestation PDF</button>';
     m.qsResult = 'attestation_ok';
+  }
+  checkHealthContinuerBtn();
+}
+
+// Vérifie si tous les membres ont leur QS ou certificat validé
+// et active/désactive le bouton "Continuer → Récapitulatif"
+function checkHealthContinuerBtn() {
+  const btn = document.getElementById('btn-next-step3');
+  if (!btn) return;
+  const members = state.members || [];
+  if (members.length === 0) { btn.style.opacity='0.5'; btn.style.pointerEvents='none'; btn.disabled=true; return; }
+  const allOk = members.every(m => {
+    if (m.qsResult === 'attestation_ok') return true; // QS signé électroniquement
+    if (m.qsResult === 'certificat_requis' && m.certifMedEnvoye) return true; // certificat envoyé pour ce membre
+    return false;
+  });
+  if (allOk) {
+    btn.style.opacity = '1';
+    btn.style.pointerEvents = 'auto';
+    btn.disabled = false;
+  } else {
+    btn.style.opacity = '0.5';
+    btn.style.pointerEvents = 'none';
+    btn.disabled = true;
   }
 }
 
