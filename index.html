@@ -6934,34 +6934,16 @@ function doExport(regs, filename) {
 }
 
 // ============================================================
-// ADMIN AUTH
+// ADMIN AUTH — vérification côté serveur (GAS)
+// Aucun credential stocké dans le code HTML
 // ============================================================
 
-// Credentials stored as hashed tokens (SHA-256 of "user:pass")
-// Default: admin / FRI-Isneauville2025
-// To change: update ADMIN_CREDENTIALS below with new hash
-const ADMIN_CREDENTIALS = {
-  'admin':        hashSimple('admin:FRI-Isneauville2025'),
-  'secretariat':  hashSimple('secretariat:FRI2025!')
-};
-// Rôles : 'admin' = accès complet | 'secretariat' = dossiers uniquement
-const ADMIN_ROLES = {
-  'admin':       'admin',
-  'secretariat': 'secretariat'
-};
-function isSecretariat() { return adminSession && ADMIN_ROLES[adminSession] === 'secretariat'; }
-function isFullAdmin()   { return adminSession && ADMIN_ROLES[adminSession] === 'admin'; }
+// Token de session reçu du GAS après login réussi (stocké en mémoire uniquement)
+let adminSessionToken = null;
+let adminSessionRole  = null;
 
-function hashSimple(str) {
-  // Simple deterministic hash for client-side (not cryptographic, but obfuscated)
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return hash.toString(36);
-}
+function isSecretariat() { return adminSession && adminSessionRole === 'secretariat'; }
+function isFullAdmin()   { return adminSession && adminSessionRole === 'admin'; }
 
 let adminSession = null;
 
@@ -6984,45 +6966,71 @@ function toggleAdminPassVis() {
   else { inp.type = 'password'; eye.textContent = '👁'; }
 }
 
-function doAdminLogin() {
-  const user = document.getElementById('admin-login-user').value.trim().toLowerCase();
-  const pass = document.getElementById('admin-login-pass').value;
-  const expected = ADMIN_CREDENTIALS[user];
-  const actual = hashSimple(user + ':' + pass);
+async function doAdminLogin() {
+  const user    = document.getElementById('admin-login-user').value.trim().toLowerCase();
+  const pass    = document.getElementById('admin-login-pass').value;
+  const btnLogin = document.querySelector('#admin-modal button[type="submit"], #admin-modal .btn-primary');
+  const errEl   = document.getElementById('admin-login-error');
+  errEl.style.display = 'none';
 
-  if (expected && actual === expected) {
-    adminSession = user;
-    hideAdminLogin();
-    document.getElementById('admin-panel').style.display = 'block';
-    const roleLabel = ADMIN_ROLES[user] === 'secretariat' ? '📋 Secrétariat' : '🔑 Admin';
-    document.getElementById('admin-logged-as').textContent = roleLabel + ' : ' + user;
-    // Changer la couleur du bandeau de connexion selon le rôle
-    const loggedEl = document.getElementById('admin-logged-as');
-    if (loggedEl && isSecretariat()) {
-      loggedEl.style.background = 'rgba(21,101,192,0.8)';
-      loggedEl.style.borderColor = 'rgba(21,101,192,0.5)';
+  // Indicateur de chargement
+  const submitBtn = document.querySelector('#admin-modal form button[type="submit"]')
+                 || document.querySelector('#admin-modal form .btn-primary');
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '⏳ Connexion…'; }
+
+  try {
+    const url = getAppsScriptUrl();
+    const payload = JSON.stringify({ action: 'adminLogin', user, pass });
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'payload=' + encodeURIComponent(payload)
+    });
+    const data = await resp.json();
+
+    if (data.status === 'ok' && data.token) {
+      // Login réussi — stocker token en mémoire (jamais sur disque)
+      adminSessionToken = data.token;
+      adminSessionRole  = data.role;
+      adminSession      = data.user;
+      hideAdminLogin();
+      document.getElementById('admin-panel').style.display = 'block';
+      const roleLabel = data.role === 'secretariat' ? '📋 Secrétariat' : '🔑 Admin';
+      document.getElementById('admin-logged-as').textContent = roleLabel + ' : ' + data.user;
+      const loggedEl = document.getElementById('admin-logged-as');
+      if (loggedEl && isSecretariat()) {
+        loggedEl.style.background = 'rgba(21,101,192,0.8)';
+        loggedEl.style.borderColor = 'rgba(21,101,192,0.5)';
+      }
+      appliquerRestrictionsProfil();
+      try { if (isFullAdmin()) showAdminConfigBanner(); } catch(e) {}
+      try { renderAdmin(); } catch(e) { console.error('renderAdmin:', e); }
+      try { renderAdminStats(); } catch(e) {}
+      try { if (isFullAdmin()) renderSemainierSalle(); } catch(e) {}
+      document.getElementById('admin-panel').scrollIntoView({ behavior: 'smooth' });
+      try { chargerDossiersDepuisSheet(); } catch(e) {}
+    } else {
+      // Login échoué
+      errEl.textContent = '❌ ' + (data.message || 'Identifiant ou mot de passe incorrect.');
+      errEl.style.display = 'block';
+      document.getElementById('admin-login-pass').value = '';
+      document.getElementById('admin-login-pass').focus();
+      const modal = document.querySelector('#admin-modal > div');
+      if (modal) { modal.style.animation = 'shake 0.4s ease'; setTimeout(() => modal.style.animation = '', 400); }
     }
-    // Appliquer les restrictions de rôle
-    appliquerRestrictionsProfil();
-    try { if (isFullAdmin()) showAdminConfigBanner(); } catch(e) {}
-    try { renderAdmin(); } catch(e) { console.error('renderAdmin:', e); }
-    try { renderAdminStats(); } catch(e) {}
-    try { if (isFullAdmin()) renderSemainierSalle(); } catch(e) {}
-    document.getElementById('admin-panel').scrollIntoView({ behavior: 'smooth' });
-    try { chargerDossiersDepuisSheet(); } catch(e) {}
-  } else {
-    document.getElementById('admin-login-error').style.display = 'block';
-    document.getElementById('admin-login-pass').value = '';
-    document.getElementById('admin-login-pass').focus();
-    // Brief shake animation
-    const modal = document.querySelector('#admin-modal > div');
-    modal.style.animation = 'shake 0.4s ease';
-    setTimeout(() => modal.style.animation = '', 400);
+  } catch(e) {
+    errEl.textContent = '❌ Erreur de connexion au serveur. Réessayez.';
+    errEl.style.display = 'block';
+    console.error('doAdminLogin error:', e);
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Se connecter'; }
   }
 }
 
 function adminLogout() {
-  adminSession = null;
+  adminSession      = null;
+  adminSessionToken = null;
+  adminSessionRole  = null;
   document.getElementById('admin-panel').style.display = 'none';
 }
 
