@@ -6977,7 +6977,7 @@ async function doAdminLogin() {
 
   try {
     // Utiliser JSONP (doGet) — même mécanisme que toute l'application
-    const res = await callGAS({ action: 'adminLogin', user, pass });
+    const res = await callAppsScript({ action: 'adminLogin', user, pass });
     const data = res && res.data ? res.data : res;
 
     if (data && data.status === 'ok' && data.token) {
