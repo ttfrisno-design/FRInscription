@@ -8011,9 +8011,7 @@ async function envoyerRappelPieces(code) {
   const email = reg && reg.responsable && reg.responsable.email1 ? reg.responsable.email1 : '';
   const nom   = reg && reg.responsable ? (reg.responsable.prenom + ' ' + reg.responsable.nom) : code;
 
-  if (!confirm('Envoyer un email de rappel à ' + (email || 'l'adhérent') + ' pour les pièces manquantes :
-• ' + piecesAttente.join('
-• '))) return;
+  if (!confirm('Envoyer un email de rappel à ' + (email || 'l\'adhérent') + ' pour les pièces manquantes :\n• ' + piecesAttente.join('\n• '))) return;
 
   const btn = event && event.target ? event.target : null;
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Envoi...'; }
