@@ -5211,7 +5211,7 @@ function buildChequesHtml(total, ch1, ch2, ch3, showTroisOption) {
     + buildChequeRow(1, '', total, false)
     + '</div>';
 
-  // Option 3 chèques — seulement si montant > 260€
+  // Option 3 chèques — seulement si montant > 200€
   if (showTroisOption) {
     html += '<div style="background:#f0f4f8;border:1px solid #4a90d9;border-radius:8px;padding:10px 14px;margin-bottom:16px;">'
       + '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:700;color:#1a5276;">'
@@ -7869,31 +7869,7 @@ async function chargerEtAfficherElementsPaiement(code, docId) {
             var ct = document.getElementById('pay-counter-'+did);
             if (ct) ct.textContent = n2 + ' / ' + allEls.length + ' re\u00e7us';
             // MAJ dynamique bouton Valider et bouton Rappel
-            var nbAttente = Object.values(c2).filter(function(x){return x==='attente';}).length;
-            var safeCode  = c.replace(/[^A-Z0-9]/g,'');
-            var btnVal    = document.getElementById('btn-valider-'+c);
-            var btnRappel = document.getElementById('btn-rappel-'+c);
-            var btnRappelOld = document.getElementById('btn-rappel-simple-'+c);
-            if (btnVal) {
-              if (nbAttente > 0) {
-                btnVal.disabled = true;
-                btnVal.style.background = 'rgba(150,150,150,0.4)';
-                btnVal.style.color = 'rgba(255,255,255,0.4)';
-                btnVal.style.cursor = 'not-allowed';
-                btnVal.style.opacity = '0.6';
-                btnVal.textContent = '\u2705 Valider inscription (' + nbAttente + ' pi\u00e8ce(s) en attente)';
-              } else {
-                btnVal.disabled = false;
-                btnVal.style.background = 'var(--gold)';
-                btnVal.style.color = 'var(--dark)';
-                btnVal.style.cursor = 'pointer';
-                btnVal.style.opacity = '1';
-                btnVal.textContent = '\u2705 Valider inscription';
-              }
-            }
-            // Afficher/masquer bouton Rappel pièces
-            if (btnRappel) btnRappel.style.display = nbAttente > 0 ? 'block' : 'none';
-            if (btnRappelOld) btnRappelOld.style.display = nbAttente > 0 ? 'none' : 'block';
+            majBoutonsValidation(c);
           };
         })(code, itemId, val, docId, elements);
         var sp = document.createElement('span'); sp.textContent = emoji;
@@ -8030,9 +8006,40 @@ async function chargerElementsPaiement(code, containerId) {
     });
     html += '</div>';
     container.innerHTML = html;
+    // MAJ immédiate des boutons Valider/Rappel selon l'état des pièces en localStorage
+    majBoutonsValidation(code);
   } catch(e) {
     container.innerHTML = '<span style="color:rgba(255,100,100,0.6);font-size:11px;">\u26a0\ufe0f ' + e.message + '</span>';
   }
+}
+
+// Met à jour dynamiquement les boutons Valider et Rappel d'un dossier
+function majBoutonsValidation(code) {
+  var s = JSON.parse(localStorage.getItem('fri_admin_checks') || '{}');
+  var c = s[code] || {};
+  var nbAttente = Object.values(c).filter(function(x) { return x === 'attente'; }).length;
+  var btnVal     = document.getElementById('btn-valider-' + code);
+  var btnRappel  = document.getElementById('btn-rappel-' + code);
+  var btnRappelS = document.getElementById('btn-rappel-simple-' + code);
+  if (btnVal) {
+    if (nbAttente > 0) {
+      btnVal.disabled = true;
+      btnVal.style.background  = 'rgba(150,150,150,0.4)';
+      btnVal.style.color       = 'rgba(255,255,255,0.4)';
+      btnVal.style.cursor      = 'not-allowed';
+      btnVal.style.opacity     = '0.6';
+      btnVal.textContent = '✅ Valider inscription (' + nbAttente + ' pièce(s) en attente)';
+    } else {
+      btnVal.disabled = false;
+      btnVal.style.background  = 'var(--gold)';
+      btnVal.style.color       = 'var(--dark)';
+      btnVal.style.cursor      = 'pointer';
+      btnVal.style.opacity     = '1';
+      btnVal.textContent = '✅ Valider inscription';
+    }
+  }
+  if (btnRappel)  btnRappel.style.display  = nbAttente > 0 ? 'inline-flex' : 'none';
+  if (btnRappelS) btnRappelS.style.display = nbAttente > 0 ? 'none' : 'inline-flex';
 }
 
 async function validerSelectionElements(code, containerId) {
@@ -8080,11 +8087,35 @@ async function envoyerRappelPieces(code) {
     return;
   }
 
-  // Retrouver l'email de l'adhérent
-  const allRegs = [...(sheetDossiers || [])];
-  const reg = allRegs.find(r => r.code === code);
-  const email = reg && reg.responsable && reg.responsable.email1 ? reg.responsable.email1 : '';
-  const nom   = reg && reg.responsable ? (reg.responsable.prenom + ' ' + reg.responsable.nom) : code;
+  // Retrouver l'email de l'adhérent — cherche dans toutes les sources disponibles
+  let email = '', nom = code;
+  // 1. localStorage fri_registrations (dossiers locaux complets)
+  try {
+    const localRegs = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
+    const localReg  = localRegs.find(r => r.code === code || String(r.id) === code);
+    if (localReg && localReg.responsable) {
+      email = localReg.responsable.email1 || localReg.responsable.email || '';
+      nom   = (localReg.responsable.prenom || '') + ' ' + (localReg.responsable.nom || '');
+    }
+  } catch(e) {}
+  // 2. adminPendingList (dossiers en attente chargés depuis le Sheet)
+  if (!email) {
+    const pending = (adminPendingList || []).find(r => r.code === code);
+    if (pending && pending.responsable) {
+      email = pending.responsable.email1 || pending.responsable.email || '';
+      nom   = (pending.responsable.prenom || '') + ' ' + (pending.responsable.nom || '');
+    }
+  }
+  // 3. sheetDossiers brut (lignes plates du Sheet)
+  if (!email) {
+    const sheetRow = (sheetDossiers || []).find(r => (r.code||'').trim() === code);
+    if (sheetRow) {
+      email = sheetRow.email || sheetRow.email1 || '';
+      nom   = (sheetRow.prenom_responsable || sheetRow.prenom_membre || '') + ' '
+            + (sheetRow.nom_responsable   || sheetRow.nom_membre   || '');
+    }
+  }
+  nom = nom.trim() || code;
 
   if (!confirm('Envoyer un email de rappel à ' + (email || 'l\'adhérent') + ' pour les pièces manquantes :\n• ' + piecesAttente.join('\n• '))) return;
 
@@ -9597,14 +9628,14 @@ function setupPaymentStep(code) {
       + '</div>';
 
   } else if (mode === 'cheque' || mode === 'cheque3') {
-    var showTrois = total > 260;
+    var showTrois = total > 200;
     var ch1 = showTrois ? Math.round(total * 0.40) : total;
     var ch2 = showTrois ? Math.round(total * 0.30) : 0;
     var ch3 = showTrois ? total - Math.round(total*0.40) - Math.round(total*0.30) : 0;
     document.getElementById('step-b-title').textContent = 'Paiement par chèque';
     var msgTroisHtml = (!showTrois && total > 0)
       ? '<div style="background:#fff3cd;border:2px solid #ffc107;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#856404;font-weight:600;">'
-        + '⚠️ Le règlement en 3 chèques échelonnés est uniquement disponible pour un solde <strong>supérieur à 260 €</strong>.'
+        + '⚠️ Le règlement en 3 chèques échelonnés est uniquement disponible pour un solde <strong>supérieur à 200 €</strong>.'
         + '<br>Votre solde actuel est de <strong>' + total.toFixed(2) + ' €</strong>.'
         + '</div>'
       : '';
