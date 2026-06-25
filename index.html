@@ -6337,6 +6337,35 @@ function callAppsScriptJsonp(url, payload) {
       document.head.appendChild(s);
     });
   }
+  // adminLogin : JSONP avec payload JSON dans le paramètre 'payload'
+  if (payload.action === 'adminLogin') {
+    return new Promise(function(resolve) {
+      var cbName = '_friLogin_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+      var params = new URLSearchParams({
+        payload:  JSON.stringify(payload),
+        callback: cbName,
+        _t:       Date.now()
+      });
+      window[cbName] = function(data) {
+        clearTimeout(timer);
+        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e){}
+        delete window[cbName];
+        resolve({ ok: true, data: data });
+      };
+      var timer = setTimeout(function() {
+        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e){}
+        delete window[cbName];
+        resolve({ ok: false, data: { status: 'error', message: 'Timeout connexion admin' } });
+      }, 15000);
+      var s = document.createElement('script');
+      s.src = url + '?' + params.toString();
+      s.onerror = function() {
+        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e){}
+      };
+      document.head.appendChild(s);
+    });
+  }
+
   return callAppsScriptFetch(url, payload);
 }
 
