@@ -7637,12 +7637,25 @@ function ouvrirDetailDossier(code, docId) {
     + '&#x1F504; Charger les éléments de règlement depuis le Sheet'
     + '</button></div></div>';
   // ── Actions ───────────────────────────────────────────────────────────────
+  // Calcul des pièces en attente pour ce dossier
+  const savedChecksAct = JSON.parse(localStorage.getItem('fri_admin_checks') || '{}');
+  const checksAct = savedChecksAct[code] || {};
+  const piecesEnAttente = Object.entries(checksAct)
+    .filter(([k, v]) => k.startsWith('pay_') && v === 'attente')
+    .map(([k]) => k.replace('pay_', '').replace(/_/g, ' '));
+  const hasAttente = piecesEnAttente.length > 0;
+
   const actionsHtml = `
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
       ${isPending ? `<button onclick="validerPaiement('${code}','${reg.id}')"
-        style="flex:1;min-width:140px;background:var(--gold);color:var(--dark);border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;font-weight:700;">
-        &#x2705; Valider inscription</button>` : ''}
-      ${isPending ? `<button onclick="envoyerRappelManuel('${code}')"
+        id="btn-valider-${code}"
+        ${hasAttente ? 'disabled title="Des pièces sont encore en attente de réception"' : ''}
+        style="flex:1;min-width:140px;background:${hasAttente ? 'rgba(150,150,150,0.4)' : 'var(--gold)'};color:${hasAttente ? 'rgba(255,255,255,0.4)' : 'var(--dark)'};border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:${hasAttente ? 'not-allowed' : 'pointer'};font-weight:700;opacity:${hasAttente ? '0.6' : '1'};">
+        &#x2705; Valider inscription${hasAttente ? ' (' + piecesEnAttente.length + ' pièce(s) en attente)' : ''}</button>` : ''}
+      ${isPending && hasAttente ? `<button onclick="envoyerRappelPieces('${code}')"
+        style="flex:1;min-width:140px;background:rgba(230,81,0,0.85);color:white;border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;font-weight:600;">
+        &#x1F4E8; Rappel pièces manquantes</button>` : ''}
+      ${isPending && !hasAttente ? `<button onclick="envoyerRappelManuel('${code}')"
         style="flex:1;min-width:140px;background:rgba(230,81,0,0.8);color:white;border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;font-weight:600;">
         &#x1F4E8; Rappel</button>` : ''}
       <button onclick="ouvrirAjoutActivite('${code}')"
@@ -7973,6 +7986,58 @@ async function validerSelectionElements(code, containerId) {
   }
   showAdminToast('\u2705 ' + okCount + ' élément(s) validé(s)', 'green');
   await chargerElementsPaiement(code, containerId);
+}
+
+async function envoyerRappelPieces(code) {
+  if (!requireAdmin()) return;
+  const url = getAppsScriptUrl();
+  if (!url) return;
+
+  // Récupérer les pièces en attente depuis localStorage
+  const savedChecks = JSON.parse(localStorage.getItem('fri_admin_checks') || '{}');
+  const checks = savedChecks[code] || {};
+  const piecesAttente = Object.entries(checks)
+    .filter(([k, v]) => k.startsWith('pay_') && v === 'attente')
+    .map(([k]) => k.replace('pay_', '').replace(/_/g, ' '));
+
+  if (piecesAttente.length === 0) {
+    showAdminToast('Aucune pièce en attente pour ce dossier', 'orange');
+    return;
+  }
+
+  // Retrouver l'email de l'adhérent
+  const allRegs = [...(sheetDossiers || [])];
+  const reg = allRegs.find(r => r.code === code);
+  const email = reg && reg.responsable && reg.responsable.email1 ? reg.responsable.email1 : '';
+  const nom   = reg && reg.responsable ? (reg.responsable.prenom + ' ' + reg.responsable.nom) : code;
+
+  if (!confirm('Envoyer un email de rappel à ' + (email || 'l'adhérent') + ' pour les pièces manquantes :
+• ' + piecesAttente.join('
+• '))) return;
+
+  const btn = event && event.target ? event.target : null;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Envoi...'; }
+
+  try {
+    const res = await callAppsScriptFetch(url, {
+      action:        'envoyerRappelPieces',
+      _token:        FRI_SECRET_TOKEN,
+      code:          code,
+      email:         email,
+      nom:           nom,
+      piecesAttente: piecesAttente
+    });
+    const data = (res && res.data) ? res.data : res;
+    if (data && data.status === 'ok') {
+      showAdminToast('📧 Email de rappel envoyé à ' + email, 'green');
+    } else {
+      showAdminToast('⚠️ ' + (data && data.message ? data.message : 'Erreur envoi'), 'orange');
+    }
+  } catch(e) {
+    showAdminToast('❌ Erreur : ' + e.message, 'red');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📧 Rappel pièces manquantes'; }
+  }
 }
 
 async function validerPaiement(code, regId) {
