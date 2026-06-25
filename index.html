@@ -7005,8 +7005,28 @@ async function doAdminLogin() {
   if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '⏳ Connexion…'; }
 
   try {
-    // Utiliser JSONP (doGet) — même mécanisme que toute l'application
-    const res = await callAppsScript({ action: 'adminLogin', user, pass });
+    // Appel JSONP direct — bypass callAppsScript pour éviter initDynamicToken et le routage fetch
+    const url = getAppsScriptUrl();
+    const res = await new Promise(function(resolve) {
+      const cbName = '_friLogin_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+      const payload = JSON.stringify({ action: 'adminLogin', user: user, pass: pass });
+      const params = new URLSearchParams({ payload: payload, callback: cbName, _t: Date.now() });
+      window[cbName] = function(data) {
+        clearTimeout(timer);
+        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e) {}
+        delete window[cbName];
+        resolve({ ok: true, data: data });
+      };
+      const timer = setTimeout(function() {
+        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e) {}
+        delete window[cbName];
+        resolve({ ok: false, data: { status: 'error', message: 'Délai dépassé — vérifiez la connexion' } });
+      }, 15000);
+      const s = document.createElement('script');
+      s.src = url + '?' + params.toString();
+      s.onerror = function() { try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e) {} };
+      document.head.appendChild(s);
+    });
     const data = res && res.data ? res.data : res;
 
     if (data && data.status === 'ok' && data.token) {
