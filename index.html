@@ -3694,6 +3694,8 @@ async function validerBordereauFFTT(memId) {
   const _codeDOM0    = document.getElementById('dossier-code')?.textContent?.trim() || '';
   const _codePend0   = Object.keys(JSON.parse(localStorage.getItem('fri_pending') || '{}')).pop() || '';
   const code         = _codeDOM0 || state.codeDossierPreview || _codePend0 || '';
+  // Synchroniser state.codeDossierPreview avec le vrai code si disponible
+  if (_codeDOM0 && !state.codeDossierPreview) state.codeDossierPreview = _codeDOM0;
 
   // Collecter tous les champs
   // Inclure les donnees du responsable et du membre directement dans extra
@@ -3735,6 +3737,7 @@ async function validerBordereauFFTT(memId) {
   // Construire reg depuis state pour passer a buildRows
   captureResponsable();
   const _regForFFTT = {
+    code:        code,  // code dossier transmis à buildRows → code_dossier dans les rows
     responsable: { ...state.responsable },
     members:     state.members.map(m => ({...m, activities:[...m.activities]})),
     totals:      calcTotals ? calcTotals() : {}
@@ -5742,11 +5745,13 @@ async function _genererPDFAvecSignature(memberId, signatureDataUrl) {
   // ── Téléchargement ──
   const prenom   = (m.prenom || 'membre').replace(/\s+/g,'_');
   const nom      = (m.nom    || '').replace(/\s+/g,'_');
-  // Générer le code dossier maintenant si pas encore fait — sera réutilisé à la soumission
-  if (!state.codeDossierPreview) {
+  // Code dossier : priorité au vrai code affiché (après enregistrement), puis preview, puis génération
+  const _codeDOM_qs   = document.getElementById('dossier-code')?.textContent?.trim() || '';
+  const _codePend_qs  = Object.keys(JSON.parse(localStorage.getItem('fri_pending') || '{}')).pop() || '';
+  if (!state.codeDossierPreview && !_codeDOM_qs) {
     state.codeDossierPreview = generateDossierCode();
   }
-  const codeDoss = state.codeDossierPreview;
+  const codeDoss = _codeDOM_qs || state.codeDossierPreview || _codePend_qs || '';
   const filename = (codeDoss ? codeDoss + '_' : '') + prenom + '-' + nom + '_QS-Sante.pdf';
 
   // PDF généré et envoyé au FRI — pas d'ouverture dans un nouvel onglet
