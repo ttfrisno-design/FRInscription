@@ -3564,8 +3564,7 @@ async function onCertifMembreSelected(memberId) {
   try {
     const m = state.members.find(m => m.id === memberId) || {};
     const codeDOM  = document.getElementById('dossier-code')?.textContent?.trim() || '';
-    const codePend = Object.keys(JSON.parse(localStorage.getItem('fri_pending') || '{}')).pop() || '';
-    const code = codeDOM || state.codeDossierPreview || codePend || '';
+    const code = codeDOM || state.codeDossierPreview || '';
     const nom    = m.nom    || '';
     const prenom = m.prenom || '';
     const ext    = file.name.split('.').pop().toLowerCase();
@@ -3691,10 +3690,16 @@ async function validerBordereauFFTT(memId) {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Génération en cours...'; }
 
   // Lire le code dossier en premier (utilise dans extra et dans le payload)
-  const _codeDOM0    = document.getElementById('dossier-code')?.textContent?.trim() || '';
-  const _codePend0   = Object.keys(JSON.parse(localStorage.getItem('fri_pending') || '{}')).pop() || '';
-  const code         = _codeDOM0 || state.codeDossierPreview || _codePend0 || '';
-  // Synchroniser state.codeDossierPreview avec le vrai code si disponible
+  // Code dossier : uniquement DOM (après enregistrement) ou state (session en cours)
+  // Ne pas utiliser fri_pending qui peut contenir un ancien code d'une session précédente
+  const _codeDOM0 = document.getElementById('dossier-code')?.textContent?.trim() || '';
+  const code      = _codeDOM0 || state.codeDossierPreview || '';
+  if (!code) {
+    showToast('⚠️ Enregistrez d\'abord votre dossier avant de valider le bordereau FFTT.', 'orange', 5000);
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Valider et envoyer au FRI'; }
+    return;
+  }
+  // Synchroniser state.codeDossierPreview
   if (_codeDOM0 && !state.codeDossierPreview) state.codeDossierPreview = _codeDOM0;
 
   // Collecter tous les champs
@@ -5747,11 +5752,10 @@ async function _genererPDFAvecSignature(memberId, signatureDataUrl) {
   const nom      = (m.nom    || '').replace(/\s+/g,'_');
   // Code dossier : priorité au vrai code affiché (après enregistrement), puis preview, puis génération
   const _codeDOM_qs   = document.getElementById('dossier-code')?.textContent?.trim() || '';
-  const _codePend_qs  = Object.keys(JSON.parse(localStorage.getItem('fri_pending') || '{}')).pop() || '';
   if (!state.codeDossierPreview && !_codeDOM_qs) {
     state.codeDossierPreview = generateDossierCode();
   }
-  const codeDoss = _codeDOM_qs || state.codeDossierPreview || _codePend_qs || '';
+  const codeDoss = _codeDOM_qs || state.codeDossierPreview || '';
   const filename = (codeDoss ? codeDoss + '_' : '') + prenom + '-' + nom + '_QS-Sante.pdf';
 
   // PDF généré et envoyé au FRI — pas d'ouverture dans un nouvel onglet
