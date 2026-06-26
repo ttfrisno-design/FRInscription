@@ -8083,62 +8083,45 @@ async function envoyerRappelPieces(code) {
   const url = getAppsScriptUrl();
   if (!url) return;
 
-  // ── Détecter automatiquement les pièces manquantes ──
-  const piecesAttente = [];
-
-  // 1. Pièces cochées manuellement en attente par l'admin
+  // ── Détecter les pièces manquantes depuis le Sheet (source de vérité) ──
   const savedChecks = JSON.parse(localStorage.getItem('fri_admin_checks') || '{}');
   const checks = savedChecks[code] || {};
+
+  // Charger les éléments réels depuis le GAS
+  let elementsSheet = [];
+  try {
+    const resEl = await callAppsScriptFetch(url, {
+      action: 'getElementsPaiement', _token: FRI_SECRET_TOKEN, code: code });
+    const dataEl = (resEl && resEl.data) ? resEl.data : resEl;
+    elementsSheet = (dataEl && dataEl.elements) ? dataEl.elements : [];
+  } catch(e) { console.warn('getElementsPaiement KO:', e); }
+
+  const piecesUniques = [];
+
+  // 1. Éléments Sheet cochés "attente" ou non encore traités
+  elementsSheet.forEach(el => {
+    const itemId = 'pay_' + el.onglet.replace(/[^A-Za-z0-9]/g,'_');
+    const statut = checks[itemId];
+    if (statut === 'attente') {
+      const label = el.onglet + (el.nom ? ' — ' + el.prenom + ' ' + el.nom : '')
+                              + (el.montant > 0 ? ' (' + el.montant.toFixed(2) + ' €)' : '');
+      piecesUniques.push(label);
+    }
+  });
+
+  // 2. Pièces cochées "attente" hors éléments paiement (QS, RI, aides manuelles)
   Object.entries(checks)
     .filter(([k, v]) => k.startsWith('pay_') && v === 'attente')
-    .forEach(([k]) => piecesAttente.push(k.replace('pay_', '').replace(/_/g, ' ')));
-
-  // 2. Chercher le dossier dans les sources disponibles
-  let reg = (adminPendingList || []).find(r => r.code === code);
-  if (!reg) {
-    try {
-      const localRegs = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
-      reg = localRegs.find(r => r.code === code);
-    } catch(e) {}
-  }
-
-  if (reg) {
-    // 3. QS santé : vérifier chaque membre
-    (reg.members || []).forEach(m => {
-      if (!m.qsResult || m.qsResult === null || m.qsResult === 'qs_answers_ok') {
-        piecesAttente.push('Questionnaire de santé non signé — ' + (m.prenom||'') + ' ' + (m.nom||''));
-      } else if (m.qsResult === 'certificat_requis' && !m.certifMedEnvoye) {
-        piecesAttente.push('Certificat médical manquant — ' + (m.prenom||'') + ' ' + (m.nom||''));
+    .forEach(([k]) => {
+      const label = k.replace('pay_','').replace(/_/g,' ');
+      if (!piecesUniques.some(p => p.replace(/[^a-z]/gi,'').toLowerCase()
+                                    .startsWith(label.replace(/[^a-z]/gi,'').toLowerCase().substring(0,8)))) {
+        piecesUniques.push(label);
       }
     });
 
-    // 4. Règlement intérieur signé
-    const riSigne = reg._rows && reg._rows.some(r => r.ri_signe === 'oui' || r.ri_signe === true);
-    if (!riSigne && reg._rows && reg._rows.length > 0) {
-      piecesAttente.push('Règlement intérieur non signé');
-    }
-
-    // 5. Licence FFTT si activité TT compétition
-    const hasTTComp = (reg.members || []).some(m =>
-      (m.activities || []).some(a => isTTActivity(a) || a.startsWith('tt-comp') || a.startsWith('tt-jeunes-comp')));
-    const ffttOk = reg._rows && reg._rows.some(r => Number(r.fftt_price||0) > 0 && r.bordereau_fftt === 'ok');
-    if (hasTTComp && !ffttOk) {
-      piecesAttente.push('Bordereau FFTT non reçu');
-    }
-
-    // 6. Aides : coupon/justificatif si aide sélectionnée
-    const resp = reg.responsable || {};
-    if (resp.passSport === 'oui' && !checks['pay_Pass_sport']) piecesAttente.push("Justificatif Pass\'sport Etat");
-    if (resp.passJeunes === 'oui' && !checks['pay_Pass_jeunes']) piecesAttente.push("Justificatif Pass-jeunes 76 / Handipass-sport");
-    if (resp.atoutNormandie === 'oui' && !checks['pay_Atout_Normandie']) piecesAttente.push('Justificatif Atout Normandie');
-    if (resp.ancv === 'oui' && !checks['pay_ANCV']) piecesAttente.push('Coupons ANCV');
-  }
-
-  // Dédupliquer
-  const piecesUniques = [...new Set(piecesAttente)];
-
   if (piecesUniques.length === 0) {
-    showAdminToast('Aucune pièce manquante détectée pour ce dossier', 'green');
+    showAdminToast('Aucune pièce en attente pour ce dossier', 'green');
     return;
   }
 
