@@ -8218,8 +8218,17 @@ async function validerPaiement(code, regId) {
   // Envoyer le code à Apps Script — il retrouve tout dans le Sheet
   const result = await callAppsScriptValidate(getAppsScriptUrl(), code);
 
-  // Recharger depuis le Sheet pour mettre à jour le statut sur cet écran
+  // Masquer immédiatement les boutons du dossier validé
+  const btnVal    = document.getElementById('btn-valider-'      + code);
+  const btnRappel = document.getElementById('btn-rappel-'       + code);
+  const btnRappS  = document.getElementById('btn-rappel-simple-'+ code);
+  if (btnVal)    btnVal.closest('div')?.remove();
+  if (btnRappel) btnRappel.remove();
+  if (btnRappS)  btnRappS.remove();
+
+  // Recharger depuis le Sheet et rafraîchir l'affichage
   await chargerDossiersDepuisSheet();
+  renderAdmin();
 
   if (result && result.ok !== false) {
     showAdminToast('✅ Paiement validé — email de confirmation envoyé à l\'adhérent', 'green');
@@ -8304,6 +8313,7 @@ async function chargerDossiersDepuisSheet() {
     'green'
   );
   if (el) el.textContent = '✅ ' + nb + ' dossier' + (nb>1?'s':'') + ' chargé' + (nb>1?'s':'') + (nbP > 0 ? ' · ' + nbP + ' en attente' : '');
+  renderAdmin();
   sheetLoadInProgress = false;
 }
 
