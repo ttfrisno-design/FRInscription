@@ -6695,23 +6695,11 @@ async function sendToGoogleSheets(reg) {
     console.log('[FRI] sendToGoogleSheets payload size:', payloadSize);
 
     let result;
+    // Toujours utiliser callAppsScriptFetch pour lire la réponse GAS (emails, confirmations)
+    // callAppsScriptFetch gère les gros payloads via POST form-urlencoded avec réponse lisible
     if (payloadSize > 6000) {
-      // Payload trop grand pour JSONP GET (limite URL ~8Ko) -> POST form-urlencoded
-      console.log('[FRI] Payload > 6Ko : envoi par POST form-urlencoded');
-      try {
-        const formBody = 'payload=' + encodeURIComponent(payloadStr);
-        await fetch(url, {
-          method: 'POST', mode: 'no-cors',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: formBody
-        });
-        // no-cors = reponse opaque, on attend que le GAS traite
-        await new Promise(r => setTimeout(r, 6000));
-        result = { ok: true };
-      } catch(ePost) {
-        console.warn('[FRI] POST KO, fallback JSONP:', ePost);
-        result = await callAppsScript(payloadObj);
-      }
+      console.log('[FRI] Payload > 6Ko : envoi par callAppsScriptFetch');
+      result = await callAppsScriptFetch(url, payloadObj);
     } else {
       result = await callAppsScript(payloadObj);
     }
