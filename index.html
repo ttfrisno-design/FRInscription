@@ -920,11 +920,8 @@
         <div style="font-size:26px;flex-shrink:0">💚</div>
         <div style="font-size:13px;color:#1b5e20;line-height:1.6;">
           <strong>Le Foyer Rural vous remercie de privilégier le règlement en ligne</strong><br>
-          <a href="https://www.helloasso.com/associations/foyer-rural-d-isneauville/adhesions/paiement-de-l-adhesion-au-foyer-rural-isneauville-2"
-            target="_blank" style="color:#2e7d32;font-weight:700;text-decoration:none;">
-            💳 Payer via HelloAsso →
-          </a>
-          <span style="font-size:11px;color:#388e3c;margin-left:6px;">Paiement sécurisé, sans frais pour l'association</span>
+          <span style="font-size:12px;color:#388e3c;">💳 HelloAsso — Paiement sécurisé par CB, sans frais pour l'association</span><br>
+          <span style="font-size:11px;color:#555;">Cliquez sur <strong>"Valider et procéder au règlement"</strong> ci-dessous pour choisir entre paiement en 1 fois ou 3 fois.</span>
         </div>
       </div>
     </div>
@@ -5933,14 +5930,21 @@ async function lancerCheckoutHA(code, total, echelonne) {
     const errDetail = (e && e.message) ? e.message : String(e);
     const zone = document.getElementById('ha-checkout-zone');
     if (zone) {
-      const isCreds = errDetail.toLowerCase().includes('credential') || errDetail.toLowerCase().includes('ha_client');
-      zone.innerHTML = '<div style="background:#fff3e0;border:1px solid #e65100;border-radius:8px;padding:12px;font-size:13px;color:#e65100;margin-bottom:12px;">'
-        + (isCreds
-          ? '⚙️ <strong>Configuration requise :</strong> Les credentials HelloAsso ne sont pas encore configurés dans le GAS.<br>Ajoutez <code>HA_CLIENT_ID</code> et <code>HA_CLIENT_SECRET</code> dans les propriétés du script Apps Script.'
-          : '⚠️ Connexion HelloAsso impossible : ' + errDetail)
+      // Fallback : proposer 1 fois et 3 fois via lien direct HA
+      zone.innerHTML = '<div style="background:#fff3e0;border:1px solid #e65100;border-radius:8px;padding:10px 12px;font-size:12px;color:#856404;margin-bottom:12px;">'
+        + '&#x26A0;&#xFE0F; Paiement automatis&#xE9; indisponible &mdash; utilisez les liens ci-dessous'
         + '</div>'
-        + '<a href="' + HELLOASSO_URL + '" target="_blank" class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none;display:flex;">'
-        + '💳 Payer sur HelloAsso (lien direct)</a>';
+        + '<div style="display:flex;flex-direction:column;gap:10px;">'
+        + '<a href="' + HELLOASSO_URL + '" target="_blank" class="btn btn-primary" style="width:100%;justify-content:center;text-decoration:none;display:flex;font-size:15px;padding:14px;">'
+        + '&#x1F4B3; Payer ' + total.toFixed(2) + ' &#x20AC; en 1 fois via HelloAsso</a>'
+        + '<a href="' + HELLOASSO_URL + '" target="_blank" class="btn" style="width:100%;justify-content:center;text-decoration:none;display:flex;font-size:14px;padding:12px;background:#1565c0;color:white;border-radius:10px;">'
+        + '&#x1F4C5; Payer en 3 fois via HelloAsso</a>'
+        + '<div style="font-size:11px;color:#555;text-align:center;">'
+        + '40% le jour du r&#xE8;glement (' + (total*0.40).toFixed(2) + ' &#x20AC;)'
+        + ' &middot; 30% le 15/10/2026 (' + (total*0.30).toFixed(2) + ' &#x20AC;)'
+        + ' &middot; solde le 15/01/2027</div>'
+        + '</div>';
+
     }
   }
 }
