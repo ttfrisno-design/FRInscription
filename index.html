@@ -9683,14 +9683,15 @@ function setupPaymentStep(code) {
   // ── Cas spécial : solde nul (aides couvrent tout le montant) ──
   if (total <= 0) {
     document.getElementById('step-b-title').textContent = 'Dossier soldé par les aides';
+    var btnConfirmAide = '<button class="btn btn-primary" onclick="finaliserInscriptionAide(\'' + code + '\')"'
+      + ' style="width:100%;justify-content:center;margin-top:8px;font-size:15px;padding:14px;">&#x2705; Confirmer mon inscription</button>';
     document.getElementById('step-b-content').innerHTML = codeBox + atoutBox
       + '<div style="background:#d8f3dc;border:2px solid #2d6a4f;border-radius:12px;padding:20px;text-align:center;margin-bottom:16px;">'
-      + '<div style="font-size:32px;margin-bottom:8px;">✅</div>'
-      + '<div style="font-size:16px;font-weight:700;color:#1b5e20;margin-bottom:6px;">Votre dossier est intégralement couvert par vos aides</div>'
-      + '<div style="font-size:13px;color:#2d6a4f;">Aucun règlement supplémentaire n'est requis.<br>Apportez vos justificatifs d'aides en permanence.</div>'
+      + '<div style="font-size:32px;margin-bottom:8px;">&#x2705;</div>'
+      + '<div style="font-size:16px;font-weight:700;color:#1b5e20;margin-bottom:6px;">Votre dossier est enti&egrave;rement couvert par vos aides</div>'
+      + '<div style="font-size:13px;color:#2d6a4f;">Aucun r&egrave;glement suppl&eacute;mentaire requis.<br>Apportez vos justificatifs d\'aides en permanence.</div>'
       + '</div>'
-      + '<button class="btn btn-primary" onclick="finaliserInscriptionAide('' + code + '')"'
-      + ' style="width:100%;justify-content:center;margin-top:8px;font-size:15px;padding:14px;">✅ Confirmer mon inscription</button>';
+      + btnConfirmAide;
     return;
   }
 
