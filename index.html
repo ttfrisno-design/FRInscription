@@ -945,30 +945,6 @@
     <div id="step-b-content"></div>
   </div>
 
-  <!-- ÉTAPE C : Confirmer le paiement (HelloAsso uniquement) -->
-  <div class="card" id="card-step-c" style="border-left:4px solid #ccc;opacity:0.5;pointer-events:none">
-    <div class="card-title"><span style="background:#ccc;color:white;border-radius:50%;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin-right:8px" id="step-c-num">4</span> Confirmez votre paiement HelloAsso</div>
-    <p style="font-size:14px;color:var(--gray);margin-bottom:16px;">
-      Une fois le paiement effectué sur HelloAsso, saisissez votre email et votre code de dossier pour valider définitivement votre inscription.
-    </p>
-    <div class="form-grid" style="margin-bottom:14px">
-      <div class="field">
-        <label>Votre email <span class="req">*</span></label>
-        <input type="email" id="confirm-email" placeholder="marie.dupont@exemple.fr">
-      </div>
-      <div class="field">
-        <label>Code de dossier <span class="req">*</span></label>
-        <input type="text" id="confirm-code" placeholder="Ex: FRI-A3B7" maxlength="10"
-          style="font-family:monospace;font-size:18px;font-weight:700;letter-spacing:3px;text-transform:uppercase"
-          oninput="this.value=this.value.toUpperCase()">
-      </div>
-    </div>
-    <div id="confirm-error" style="display:none" class="alert" style="margin-bottom:12px"></div>
-    <button class="btn btn-primary" id="btn-confirm-payment" onclick="confirmPayment()" style="width:100%;justify-content:center;background:var(--gold);color:var(--dark)">
-      ✅ Valider mon inscription
-    </button>
-  </div>
-
   <div class="card">
     <div class="card-title"><span class="icon">📄</span> Documents à apporter à la permanence</div>
     <div id="docs-list"></div>
@@ -9700,11 +9676,9 @@ function setupPaymentStep(code) {
     document.getElementById('step-b-content').innerHTML = codeBox + atoutBox
       + '<div style="background:#e8f5e9;border:2px solid #2d6a4f;border-radius:10px;padding:16px;margin-bottom:16px;">'      + '<div style="font-size:15px;font-weight:700;color:#1b5e20;margin-bottom:8px;">💳 Récapitulatif de votre paiement</div>'      + '<table style="width:100%;font-size:14px;">'      + '<tr><td style="padding:4px 0;color:#555">Montant à régler :</td><td style="text-align:right;font-weight:700;font-size:18px;color:#2d6a4f">' + total.toFixed(2) + ' €</td></tr>'      + '<tr><td style="padding:4px 0;color:#555">Votre code dossier :</td><td style="text-align:right;font-weight:700;color:#1565c0">' + code + '</td></tr>'      + '</table></div>'      + '<div id="ha-checkout-zone">'      + '<div style="display:flex;flex-direction:column;gap:10px;">'      + '<button id="btn-ha-checkout" class="btn btn-primary" style="width:100%;font-size:16px;padding:16px;justify-content:center;" '      + 'onclick="lancerCheckoutHA(\'' + code + '\',' + total.toFixed(2) + ', false)">'      + '💳 Payer ' + total.toFixed(2) + ' € en 1 fois via HelloAsso</button>'      + '<button id="btn-ha-checkout-3x" class="btn" style="width:100%;font-size:15px;padding:14px;justify-content:center;background:#1565c0;color:white;border:none;border-radius:10px;cursor:pointer;" '      + 'onclick="lancerCheckoutHA(\'' + code + '\',' + total.toFixed(2) + ', true)">'      + '📅 Payer en 3 fois via HelloAsso</button>'      + '<div style="font-size:11px;color:#555;text-align:center;margin-top:-4px;">'      + '40% le jour du règlement (' + (total*0.40).toFixed(2) + ' €)'      + ' · 30% le 15/10/2026 (' + (total*0.30).toFixed(2) + ' €)'      + ' · solde le 15/01/2027 (' + (total - Math.round(total*0.40*100)/100 - Math.round(total*0.30*100)/100).toFixed(2) + ' €)'      + '</div>'      + '<p style="font-size:11px;color:var(--gray);text-align:center;margin-top:4px;">Paiement sécurisé — sans commission pour l\'association</p>'      + '</div>'      + '</div>'
       + '<div style="border:2px solid #e8c84a;border-radius:10px;background:#fffdf0;padding:16px;margin-top:12px;">'
-      + '<div style="font-size:13px;font-weight:700;color:#856404;margin-bottom:8px;">&#x1F4BE; Enregistrez votre dossier avant de payer</div>'
-      + '<div style="font-size:13px;color:var(--dark);margin-bottom:12px;">Cliquez ci-dessous pour enregistrer votre dossier, <strong>puis</strong> effectuez votre paiement sur HelloAsso.</div>'
-      + '<button class="btn btn-primary" onclick="finaliserInscription(\'' + code + '\')" style="width:100%;justify-content:center;">&#x1F4BE; Enregistrer mon dossier</button>'
+      + '<div style="background:#e3f2fd;border:2px solid #1565c0;border-radius:10px;padding:14px;margin-top:12px;font-size:13px;color:#1565c0;">'
+      + '<strong>&#x2139;&#xFE0F; Apr&egrave;s votre paiement</strong> : vous serez redirig&eacute; automatiquement sur cette page et votre dossier sera enregistr&eacute;. Aucune action suppl&eacute;mentaire n\'est requise.'
       + '</div>';
-
   } else if (mode === 'cheque' || mode === 'cheque3') {
     var showTrois = total > 200;
     var ch1 = showTrois ? Math.round(total * 0.40) : total;
