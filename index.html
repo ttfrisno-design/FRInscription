@@ -5364,12 +5364,15 @@ function genererAttestationPDF(memberId) {
 
   document.getElementById('consent-ok-' + memberId).onclick = function() {
     modal.remove();
-    const sigLabel = isMineur
-      ? 'Signature du parent / responsable légal de ' + m.prenom + ' ' + m.nom
-      : 'Signature de ' + m.prenom + ' ' + m.nom;
-    ouvrirSignature(sigLabel, function(signatureDataUrl) {
-      _genererPDFAvecSignature(memberId, signatureDataUrl);
-    });
+    // Délai pour laisser le DOM se stabiliser après suppression du modal de consentement
+    setTimeout(function() {
+      const sigLabel = isMineur
+        ? 'Signature du parent / responsable légal de ' + m.prenom + ' ' + m.nom
+        : 'Signature de ' + m.prenom + ' ' + m.nom;
+      ouvrirSignature(sigLabel, function(signatureDataUrl) {
+        _genererPDFAvecSignature(memberId, signatureDataUrl);
+      });
+    }, 80);
   };
 }
 
@@ -9551,7 +9554,10 @@ function initSignaturePad() {
 
 function ouvrirSignature(label, callback) {
   const modal = document.getElementById('signature-modal');
+  if (!modal) { console.error('signature-modal introuvable'); return; }
   modal.style.display = 'flex';
+  modal.style.alignItems = 'center';
+  modal.style.justifyContent = 'center';
   document.getElementById('signature-who').textContent = label;
   _sigCallback = callback;
   if (!_sigCtx) initSignaturePad();
