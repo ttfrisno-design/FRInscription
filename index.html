@@ -9605,20 +9605,7 @@ function setupPaymentStep(code) {
 
 
 
-  // Afficher l'étape de confirmation uniquement pour HelloAsso
-  if (mode === 'helloasso') {
-    var cardC = document.getElementById('card-step-c');
-    cardC.style.display = '';
-    cardC.style.opacity = '1';
-    cardC.style.pointerEvents = '';
-    cardC.style.borderLeftColor = 'var(--gold)';
-    document.getElementById('step-c-num').style.background = 'var(--gold)';
-    // Préremplir le code et l'email
-    var emailEl = document.getElementById('confirm-email');
-    var codeEl  = document.getElementById('confirm-code');
-    if (emailEl && reg.responsable.email1) emailEl.value = reg.responsable.email1;
-    if (codeEl  && code) codeEl.value = code;
-  }
+  // card-step-c supprimé — le flux HA est géré directement dans card-step-pay
 
   // Encart code dossier
   var codeBox = '<div style="background:var(--green-pale);border:2px solid var(--green);border-radius:12px;padding:18px;margin-bottom:20px;text-align:center;">'
