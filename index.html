@@ -6695,11 +6695,35 @@ async function sendToGoogleSheets(reg) {
     console.log('[FRI] sendToGoogleSheets payload size:', payloadSize);
 
     let result;
-    // Toujours utiliser callAppsScriptFetch pour lire la réponse GAS (emails, confirmations)
-    // callAppsScriptFetch gère les gros payloads via POST form-urlencoded avec réponse lisible
     if (payloadSize > 6000) {
-      console.log('[FRI] Payload > 6Ko : envoi par callAppsScriptFetch');
-      result = await callAppsScriptFetch(url, payloadObj);
+      // Payload trop grand pour JSONP GET → POST via iframe (même méthode que QS santé/RI)
+      // Apps Script reçoit via doPost → traiterRequete → addRegistration → emails envoyés
+      console.log('[FRI] Payload > 6Ko (' + payloadSize + ') : envoi par iframe POST');
+      await new Promise(function(resolvePost) {
+        const iframe = document.createElement('iframe');
+        iframe.name = 'fri_reg_' + Date.now();
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.target = iframe.name;
+        form.style.display = 'none';
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'payload';
+        input.value = payloadStr;
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+        // Attendre que GAS traite (doPost ~3-5s)
+        setTimeout(function() {
+          try { document.body.removeChild(form); } catch(e) {}
+          try { document.body.removeChild(iframe); } catch(e) {}
+          resolvePost();
+        }, 8000);
+      });
+      result = { ok: true };
     } else {
       result = await callAppsScript(payloadObj);
     }
@@ -7696,6 +7720,9 @@ function ouvrirDetailDossier(code, docId) {
       ${isPending ? `<button id="btn-rappel-simple-${code}" onclick="envoyerRappelManuel('${code}')"
         style="flex:1;min-width:140px;background:rgba(230,81,0,0.8);color:white;border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;font-weight:600;">
         &#x1F4E8; Rappel règlement</button>` : ''}
+      ${isPending ? `<button onclick="renvoyerEmailInscription('${code}')"
+        style="flex:1;min-width:140px;background:rgba(21,101,192,0.85);color:white;border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;font-weight:600;">
+        &#x1F4E7; Renvoyer email inscription</button>` : ''}
       <button onclick="ouvrirAjoutActivite('${code}')"
         style="background:rgba(21,101,192,0.7);color:white;border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;">&#x2795; Activit\u00e9</button>
       <button onclick="ouvrirSupprActivite('${code}')"
@@ -8056,6 +8083,25 @@ async function validerSelectionElements(code, containerId) {
   }
   showAdminToast('\u2705 ' + okCount + ' élément(s) validé(s)', 'green');
   await chargerElementsPaiement(code, containerId);
+}
+
+async function renvoyerEmailInscription(code) {
+  if (!requireAdmin()) return;
+  if (!confirm('Renvoyer l\'email de demande d\'inscription à l\'adhérent et au FRI pour le dossier ' + code + ' ?')) return;
+  const url = getAppsScriptUrl();
+  if (!url) return;
+  try {
+    const res = await callAppsScriptFetch(url, {
+      action: 'renvoyerEmailInscription', _token: FRI_SECRET_TOKEN, code: code });
+    const data = (res && res.data) ? res.data : res;
+    if (data && data.status === 'ok') {
+      showAdminToast('📧 Email inscription renvoyé pour ' + code, 'green');
+    } else {
+      showAdminToast('⚠️ ' + (data && data.message ? data.message : 'Erreur envoi'), 'orange');
+    }
+  } catch(e) {
+    showAdminToast('❌ Erreur : ' + e.message, 'red');
+  }
 }
 
 async function envoyerRappelPieces(code) {
