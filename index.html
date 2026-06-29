@@ -1848,30 +1848,40 @@ function validerAidesEtProceder() {
 
   // Mettre à jour le pending avec les nouvelles infos
   const pending = JSON.parse(localStorage.getItem('fri_pending') || '{}');
-  const codes = Object.keys(pending);
-  if (codes.length > 0) {
-    const code = codes[codes.length - 1];
-    const reg  = pending[code];
-    if (reg) {
-      reg.responsable = { ...reg.responsable, ...state.responsable };
-      reg.solde = state.solde;
-      pending[code] = reg;
-      localStorage.setItem('fri_pending', JSON.stringify(pending));
-
-      // Marquer l'étape 2 comme validée (vert)
-      const cardB2 = document.getElementById('card-step-b3');
-      if (cardB2) { cardB2.style.borderLeftColor = 'var(--green)'; }
-      const numB2 = document.getElementById('step-b3-num');
-      if (numB2) { numB2.style.background = 'var(--green)'; numB2.style.color = 'white'; numB2.textContent = '✓'; }
-
-      setupPaymentStep(code);
-      // Scroller vers rubrique 3 (paiement)
-      setTimeout(() => {
-        const cardPay = document.getElementById('card-step-pay');
-        if (cardPay) cardPay.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 200);
-    }
+  // Utiliser le code existant ou créer un nouveau si nécessaire
+  let code = Object.keys(pending).pop() || state.codeDossierPreview || '';
+  if (!code) {
+    // Déclencher saveDossier pour créer le dossier si pas encore fait
+    saveDossier();
+    code = state.codeDossierPreview || Object.keys(JSON.parse(localStorage.getItem('fri_pending') || '{}')).pop() || '';
   }
+
+  if (!code) {
+    showToast('⚠️ Veuillez d\'abord enregistrer votre dossier.', 'red');
+    return;
+  }
+
+  // Mettre à jour le pending avec le solde actuel
+  const pendingFresh = JSON.parse(localStorage.getItem('fri_pending') || '{}');
+  const reg = pendingFresh[code];
+  if (reg) {
+    reg.responsable = { ...reg.responsable, ...state.responsable };
+    reg.solde = state.solde;
+    pendingFresh[code] = reg;
+    localStorage.setItem('fri_pending', JSON.stringify(pendingFresh));
+  }
+
+  // Marquer l'étape aides comme validée (vert)
+  const cardB2 = document.getElementById('card-step-b3');
+  if (cardB2) { cardB2.style.borderLeftColor = 'var(--green)'; }
+  const numB2 = document.getElementById('step-b3-num');
+  if (numB2) { numB2.style.background = 'var(--green)'; numB2.style.color = 'white'; numB2.textContent = '✓'; }
+
+  setupPaymentStep(code);
+  setTimeout(() => {
+    const cardPay = document.getElementById('card-step-pay');
+    if (cardPay) cardPay.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 200);
 }
 
 // Validation format email
@@ -5201,6 +5211,17 @@ function saveDossier() {
     const err = document.getElementById('rgpd-error');
     if (err) err.style.display = 'block';
     document.getElementById('rgpd-consent-block').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  // Vérification des infos responsable légal (étape 1)
+  if (!validateStep1()) {
+    showToast('⚠️ Les informations du responsable légal sont incomplètes ou invalides.', 'red', 5000);
+    goStep(1);
+    return;
+  }
+  // Vérification des infos membres et activités (étape 2)
+  if (!validateStep2()) {
+    goStep(2);
     return;
   }
   captureResponsable();
@@ -10057,6 +10078,37 @@ async function validerFormulaireCheques(code, total, showTrois) {
 
 // Recherche adhérent FRI année précédente par téléphone
 let _adherentSearchTimer = null;
+function afficherPopupVerifCoordonnees(a) {
+  // Créer le modal de vérification
+  var modal = document.createElement('div');
+  modal.id = 'modal-verif-coordonnees';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.innerHTML = '<div style="background:white;border-radius:16px;padding:28px 24px;max-width:460px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.25);">'
+    + '<div style="font-size:28px;text-align:center;margin-bottom:12px;">⚠️</div>'
+    + '<h3 style="color:#c62828;font-size:17px;margin:0 0 12px;text-align:center;">Prenez 30 secondes pour vérifier vos coordonnées !</h3>'
+    + '<div style="background:#fff8e1;border:1px solid #f9a825;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:14px;line-height:1.7;">'
+    + '<strong>Erreurs fréquentes :</strong><br>'
+    + '&bull; &nbsp;📧 <strong>Adresse e-mail</strong> — une faute de frappe et vous ne recevrez aucun email du FRI<br>'
+    + '&bull; &nbsp;📱 <strong>Numéro de téléphone</strong> — vérifiez chaque chiffre<br>'
+    + '</div>'
+    + '<div style="background:#fce4ec;border:1px solid #ef9a9a;border-radius:8px;padding:10px 14px;font-size:13px;color:#c62828;margin-bottom:20px;text-align:center;font-weight:600;">'
+    + 'Si vos coordonnées sont erronées, vous ne recevrez pas les informations du Foyer Rural d\'Isneauville.'
+    + '</div>'
+    + '<div style="font-size:13px;color:#555;margin-bottom:16px;text-align:center;">'
+    + 'Coordonnées pré-remplies pour&nbsp;: <strong>' + (a.prenom||'') + ' ' + (a.nom||'').toUpperCase() + '</strong><br>'
+    + '<span style="color:#888;font-size:12px;">📧 ' + (a.email1||'non renseigné') + ' &nbsp; 📱 ' + (a.tel1||'non renseigné') + '</span>'
+    + '</div>'
+    + '<button onclick="document.getElementById(&quot;modal-verif-coordonnees&quot;).remove()" '
+    + 'style="width:100%;background:#1b5e20;color:white;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;">'
+    + '&#x2705; J\'ai v&#xE9;rifi&#xE9; mes coordonn&#xE9;es</button>'
+    + '</div>';
+  document.body.appendChild(modal);
+  // Fermer en cliquant sur le fond
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) modal.remove();
+  });
+}
+
 async function rechercherAdherentFRI(telPartiel) {
   const clean = (telPartiel||'').replace(/[^0-9]/g,'');
   const resultsDiv = document.getElementById('adherent-search-results');
@@ -10197,6 +10249,9 @@ function remplirFormulaireAdherent(idx) {
     + '\u2705 Formulaire pr\u00e9-rempli avec les informations de ' + (a.prenom||'') + ' ' + (a.nom||'')
     + '<br><small style="font-weight:400;color:#555;">V\u00e9rifiez et modifiez si n\u00e9cessaire.</small></div>';
   document.getElementById('adherent-search-tel').value = '';
+
+  // Popup de vérification des coordonnées
+  setTimeout(function() { afficherPopupVerifCoordonnees(a); }, 300);
 }
 
 </script>
