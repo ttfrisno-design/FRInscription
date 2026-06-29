@@ -926,6 +926,19 @@
       </div>
     </div>
 
+    <!-- Upload justificatifs -->
+    <div style="margin-top:14px;padding:14px 16px;background:#e8f4fd;border:2px solid #2980b9;border-radius:10px;">
+      <div style="font-size:13px;font-weight:700;color:#1565c0;margin-bottom:6px;">📎 Justificatifs d'aides (optionnel)</div>
+      <p style="font-size:12px;color:#555;margin:0 0 10px;line-height:1.5;">
+        Vous pouvez joindre vos justificatifs d'aides (Pass'sport, Pass'jeunes, Atout Normandie, ANCV…)<br>
+        <strong>Formats acceptés :</strong> PDF, JPG, PNG — max 5 Mo par fichier — plusieurs fichiers possibles
+      </p>
+      <input type="file" id="justif-input" accept=".pdf,.jpg,.jpeg,.png,image/*" multiple
+        onchange="onJustifSelected()"
+        style="font-size:12px;width:100%;box-sizing:border-box;margin-bottom:6px;">
+      <div id="justif-status" style="font-size:12px;min-height:16px;"></div>
+    </div>
+
     <!-- Bouton valider et procéder au paiement -->
     <button id="btn-payer-solde" class="btn btn-primary" onclick="validerAidesEtProceder()"
       style="width:100%;justify-content:center;margin-top:12px;background:var(--green)">
@@ -3520,6 +3533,73 @@ function showModalAssuranceFFTT() {
     + '</div></div>'
   document.body.appendChild(mc);
   mc.addEventListener('click', e => { if (e.target === mc) mc.remove(); });
+}
+
+async function onJustifSelected() {
+  const input  = document.getElementById('justif-input');
+  const status = document.getElementById('justif-status');
+  const url    = getAppsScriptUrl();
+  if (!input || !input.files || input.files.length === 0) return;
+
+  // Récupérer le code dossier
+  const codeDOM  = document.getElementById('dossier-code')?.textContent?.trim() || '';
+  const code     = codeDOM || state.codeDossierPreview || '';
+  const r        = state.responsable || {};
+  const nom      = (r.nom    || '').toUpperCase();
+  const prenom   = r.prenom  || '';
+
+  status.style.color = '#1565c0';
+  status.textContent = '⏳ Envoi en cours...';
+
+  let nbOk = 0, nbErr = 0;
+  for (const file of input.files) {
+    if (file.size > 5 * 1024 * 1024) {
+      nbErr++;
+      status.textContent = '⚠️ ' + file.name + ' trop volumineux (max 5 Mo)';
+      continue;
+    }
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8 = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+      const base64 = btoa(binary);
+      const ext    = file.name.split('.').pop().toLowerCase();
+      const fname  = 'Justif_' + (code || 'FRI') + '_' + prenom + '_' + nom + '_' + file.name;
+
+      // Envoi via iframe POST (fichier potentiellement lourd)
+      const payloadStr = JSON.stringify({
+        action: 'uploadJustificatif', _token: FRI_SECRET_TOKEN,
+        code: code || 'FRI', nom, prenom,
+        filename: fname, mimeType: file.type || 'application/octet-stream',
+        fileBase64: base64
+      });
+      const iframe = document.createElement('iframe');
+      iframe.name = 'fri_justif_' + Date.now();
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      const form = document.createElement('form');
+      form.method = 'POST'; form.action = url; form.target = iframe.name;
+      form.style.display = 'none';
+      const inp = document.createElement('input');
+      inp.type = 'hidden'; inp.name = 'payload'; inp.value = payloadStr;
+      form.appendChild(inp);
+      document.body.appendChild(form);
+      form.submit();
+      await new Promise(r => setTimeout(r, 3000));
+      try { document.body.removeChild(form); } catch(e) {}
+      try { document.body.removeChild(iframe); } catch(e) {}
+      nbOk++;
+    } catch(e) { nbErr++; console.warn('Justif upload KO:', e); }
+  }
+
+  if (nbOk > 0 && nbErr === 0) {
+    status.style.cssText = 'color:#2d6a4f;font-weight:700;';
+    status.textContent = '✅ ' + nbOk + ' fichier(s) envoyé(s) au FRI';
+  } else if (nbErr > 0) {
+    status.style.color = '#c0392b';
+    status.textContent = '⚠️ ' + nbOk + ' fichier(s) envoyé(s), ' + nbErr + ' erreur(s)';
+  }
 }
 
 async function onCertifMembreSelected(memberId) {
