@@ -1133,11 +1133,14 @@
 function calcCountryForfait(membre, isno) {
   const CFIDS = ['country-init-a','country-debu-a','country-novice','country-inter','country-debu-j'];
   const sel = (membre.activities || []).filter(id => CFIDS.includes(id));
-  // Initiation incompatible avec Novices et Intermediaires (trop grande difference de niveau)
   const hasInit   = sel.includes('country-init-a') || sel.includes('country-init-j');
+  const hasDebu   = sel.includes('country-debu-a') || sel.includes('country-debu-j');
   const hasNovice = sel.includes('country-novice');
   const hasInter  = sel.includes('country-inter');
-  if (hasInit && (hasNovice || hasInter)) return { forfait: false, ids: [], incompatible: true };
+  // Initiation UNIQUEMENT compatible avec Débutants (niveaux adjacents)
+  // Initiation + Novices ou Initiation + Intermédiaires = interdit (écart de niveau trop grand)
+  if (hasInit && (hasNovice || hasInter)) return { forfait: false, ids: [], incompatible: true, reason: 'init_novice' };
+  // Forfait si ≥2 créneaux avec niveaux compatibles
   if (sel.length >= 2) return { forfait: true, prix: isno ? 190 : 220, ids: sel };
   return { forfait: false, ids: [] };
 }
@@ -2816,14 +2819,21 @@ function afficherMessagesCountry(memberId, triggerId) {
     });
   }
 
-  // Avertissement Initiation + Novices
-  if (hasInit && hasNovice) {
+  // Avertissement Initiation + Novices/Intermédiaires (combinaison interdite)
+  const hasInter2 = selected.includes('country-inter');
+  if (hasInit && (hasNovice || hasInter2)) {
     msgs.push({
-      color: '#e65100', bg: '#fff8e1', border: '#ffca28', icon: '⚠️',
-      titre: 'Attention — niveau Novices',
-      texte: 'Le créneau <strong>Novices</strong> est destiné aux danseurs ayant déjà une première expérience en country.<br>'
-           + 'Il peut être difficile à suivre en débutant en <strong>Initiation</strong> la mêtre année.',
-      btn: 'J’ai compris, je continue'
+      color: '#c62828', bg: '#ffebee', border: '#ef9a9a', icon: '\uD83D\uDEAB',
+      titre: 'Combinaison interdite',
+      texte: 'Le cr\u00e9neau <strong>Initiation</strong> ne peut pas \u00eatre combin\u00e9 avec '
+           + '<strong>' + (hasNovice ? 'Novices' : '') + (hasNovice && hasInter2 ? ' et ' : '') + (hasInter2 ? 'Interm\u00e9diaires' : '') + '</strong>.<br>'
+           + 'L\'\u00e9cart de niveau est trop important.<br><br>'
+           + '<strong>Combinaisons valides :</strong><br>'
+           + '&bull; Initiation + D\u00e9butants<br>'
+           + '&bull; D\u00e9butants + Novices<br>'
+           + '&bull; Novices + Interm\u00e9diaires<br>'
+           + '&bull; D\u00e9butants + Novices + Interm\u00e9diaires',
+      btn: 'Compris \u2014 je modifie ma s\u00e9lection'
     });
   }
 
