@@ -4930,7 +4930,7 @@ function buildRows(reg) {
         const _isWaiting = (_wl||[]).includes(actId);
         if (_isWaiting) price = 0;
         const cFl = calcCountryForfait(m, isno);
-        const CFIDSl = ['country-debu-a','country-novice','country-inter','country-debu-j'];
+        const CFIDSl = ['country-init-a','country-debu-a','country-novice','country-inter','country-debu-j','country-init-j'];
         if (cFl.forfait && CFIDSl.includes(actId)) price = (cFl.ids[0] === actId) ? cFl.prix : 0;
 
         // Appliquer remise 15% si éligible — tarif = montant réellement réglé
@@ -5007,7 +5007,7 @@ function buildRows(reg) {
       const _isWaiting2 = (_wl2||[]).includes(actId);
       if (_isWaiting2) price = 0;
       const cFl2 = calcCountryForfait(m, isno);
-      const CFIDSl2 = ['country-debu-a','country-novice','country-inter','country-debu-j'];
+      const CFIDSl2 = ['country-init-a','country-debu-a','country-novice','country-inter','country-debu-j','country-init-j'];
       if (cFl2.forfait && CFIDSl2.includes(actId)) price = (cFl2.ids[0] === actId) ? cFl2.prix : 0;
       const aRemise15b = reg.totals && reg.totals.familyActCount >= 3;
       const NON_REMISABLE2 = ['marche-nordic','country-init-a','country-init-j'];
