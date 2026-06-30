@@ -8250,11 +8250,23 @@ async function genererPDFInscriptionAdmin(code) {
     const res = await callAppsScriptFetch(url, {
       action: 'genererPDFInscriptionAdmin', _token: FRI_SECRET_TOKEN, code: code });
     const data = (res && res.data) ? res.data : res;
-    if (data && data.status === 'ok' && data.pdfUrl) {
-      window.open(data.pdfUrl, '_blank');
-      showAdminToast('✅ PDF généré — ouvert dans un nouvel onglet', 'green');
+    if (data && data.status === 'ok' && data.pdfBase64) {
+      // Ouvrir le PDF localement depuis le base64
+      const byteChars = atob(data.pdfBase64);
+      const byteArr = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = data.filename || (code + '_Inscription.pdf');
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 3000);
+      showAdminToast('✅ PDF ouvert localement', 'green');
     } else if (data && data.status === 'ok') {
-      showAdminToast('✅ PDF généré (vérifiez le Drive)', 'green');
+      showAdminToast('✅ PDF généré', 'green');
     } else {
       showAdminToast('⚠️ ' + (data && data.message ? data.message : 'Erreur génération PDF'), 'orange');
     }
