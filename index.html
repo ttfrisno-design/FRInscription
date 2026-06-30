@@ -1483,8 +1483,8 @@ const ACTIVITIES = {
           { id:"theatre-creation", name:"Théâtre Adultes — recherche & création", lieu:"GSF", jour:"Lundi", heure:"20h30/22h30", isno:230, hc:260, animateur:"J. PICQUET", color:"#f3e5f5:#6a1b9a" },
           { id:"theatre-loisirs-a", name:"Théâtre Adultes — loisirs", lieu:"GSF", jour:"Jeudi", heure:"19h00/20h30", isno:180, hc:210, animateur:"V. DUBOS", color:"#f3e5f5:#6a1b9a" },
           { id:"theatre-cm1cm2", name:"Théâtre Primaires (CM1 et CM2)", lieu:"GSF", jour:"Vendredi", heure:"16h30/17h30", isno:130, hc:160, animateur:"V. DUBOS", color:"#f3e5f5:#6a1b9a" },
-          { id:"theatre-6e5e", name:"Théâtre Collégiens (6e et 5e)", lieu:"GSF", jour:"Vendredi", heure:"17h30/18h30", isno:130, hc:160, animateur:"V. DUBOS", color:"#f3e5f5:#6a1b9a" },
-          { id:"theatre-lycee", name:"Théâtre Lycéens", lieu:"GSF", jour:"Vendredi", heure:"18h30/19h30", isno:130, hc:160, animateur:"V. DUBOS", color:"#f3e5f5:#6a1b9a" },
+          { id:"theatre-6e5e", name:"Théâtre Collégiens (6e, 5e et 4e)", lieu:"GSF", jour:"Vendredi", heure:"17h30/18h30", isno:130, hc:160, animateur:"V. DUBOS", color:"#f3e5f5:#6a1b9a" },
+          { id:"theatre-lycee", name:"Théâtre 3e et Lycéens", lieu:"GSF", jour:"Vendredi", heure:"18h30/19h30", isno:130, hc:160, animateur:"V. DUBOS", color:"#f3e5f5:#6a1b9a" },
         ]
       },
       guitare: {
@@ -8244,14 +8244,15 @@ async function genererPDFInscriptionAdmin(code) {
   if (!requireAdmin()) return;
   const url = getAppsScriptUrl();
   if (!url) return;
-  showAdminToast('⏳ Génération du PDF en cours...', 'blue');
+  showAdminToast('⏳ Génération du PDF en cours (~30s)...', 'blue');
   try {
+    // JSONP via callAppsScriptFetch — handler dans traiterRequete (doGet)
     const res = await callAppsScriptFetch(url, {
       action: 'genererPDFInscriptionAdmin', _token: FRI_SECRET_TOKEN, code: code });
     const data = (res && res.data) ? res.data : res;
     if (data && data.status === 'ok' && data.pdfUrl) {
       window.open(data.pdfUrl, '_blank');
-      showAdminToast('✅ PDF généré et ouvert', 'green');
+      showAdminToast('✅ PDF généré — ouvert dans un nouvel onglet', 'green');
     } else if (data && data.status === 'ok') {
       showAdminToast('✅ PDF généré (vérifiez le Drive)', 'green');
     } else {
