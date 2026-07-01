@@ -2232,6 +2232,34 @@ function inscrireListeAttente(memberId, primaryId, primaryLink) {
   showToast(`⏳ Inscrit sur liste d'attente : ${getActById(primaryId)?.name.replace(/\n/g,' — ')}`, '#0d6e6e', 5000);
 }
 
+// ── Gestion tap mobile sur semainier (évite conflit scroll horizontal) ──
+function initAllSemainierTouchHandlers() {
+  document.querySelectorAll('.semainier-wrap').forEach(function(wrap) {
+    if (wrap._touchInit) return;
+    wrap._touchInit = true;
+    var startX = 0, startY = 0, moved = false;
+    wrap.addEventListener('touchstart', function(e) {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      moved = false;
+    }, { passive: true });
+    wrap.addEventListener('touchmove', function(e) {
+      var dx = Math.abs(e.touches[0].clientX - startX);
+      var dy = Math.abs(e.touches[0].clientY - startY);
+      if (dx > 12 || dy > 6) moved = true; // scroll horizontal = dx>12, vertical = dy>6
+    }, { passive: true });
+    wrap.addEventListener('touchend', function(e) {
+      if (moved) return;
+      var slot = e.target.closest('[data-act]');
+      if (!slot) return;
+      e.preventDefault();
+      var mId = parseInt(slot.getAttribute('data-member'));
+      var aId = slot.getAttribute('data-act');
+      if (aId) toggleSlot(mId, aId);
+    }, { passive: false });
+  });
+}
+
 function renderMembers() {
   const c = document.getElementById('members-container');
   if (state.members.length === 0) {
@@ -2251,6 +2279,8 @@ function renderMembers() {
     updateMemberTotal(m.id);
     updateSelectedBadge(m.id);
   });
+  // Initialiser les handlers tactile mobile après rendu
+  setTimeout(initAllSemainierTouchHandlers, 50);
 }
 
 // ── SEMAINIER ────────────────────────────────────────────────
@@ -8251,22 +8281,29 @@ async function genererPDFInscriptionAdmin(code) {
       action: 'genererPDFInscriptionAdmin', _token: FRI_SECRET_TOKEN, code: code });
     const data = (res && res.data) ? res.data : res;
     if (data && data.status === 'ok' && data.pdfBase64) {
-      // Ouvrir le PDF localement depuis le base64
-      const byteChars = atob(data.pdfBase64);
-      const byteArr = new Uint8Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-      const blob = new Blob([byteArr], { type: 'application/pdf' });
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = data.filename || (code + '_Inscription.pdf');
-      a.target = '_blank';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 3000);
-      showAdminToast('✅ PDF ouvert localement', 'green');
+      // Ouvrir localement depuis base64
+      try {
+        const byteChars = atob(data.pdfBase64);
+        const byteArr = new Uint8Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+        const blob = new Blob([byteArr], { type: 'application/pdf' });
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = data.filename || (code + '_Inscription.pdf');
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { try { document.body.removeChild(a); } catch(e){} URL.revokeObjectURL(blobUrl); }, 3000);
+        showAdminToast('✅ PDF téléchargé', 'green');
+      } catch(eB64) {
+        showAdminToast('⚠️ Erreur ouverture locale : ' + eB64.message, 'orange');
+      }
+    } else if (data && data.status === 'ok' && data.pdfUrl) {
+      // PDF volumineux : ouvrir depuis Drive
+      window.open(data.pdfUrl, '_blank');
+      showAdminToast('✅ PDF ouvert depuis Drive', 'green');
     } else if (data && data.status === 'ok') {
-      showAdminToast('✅ PDF généré', 'green');
+      showAdminToast('✅ PDF généré (vérifiez le Drive)', 'green');
     } else {
       showAdminToast('⚠️ ' + (data && data.message ? data.message : 'Erreur génération PDF'), 'orange');
     }
