@@ -8698,14 +8698,17 @@ function mergerDossiersSheet(dossiers) {
         date:   d.date || '',
         // 'En attente de place' ou 'Reglement recu' = dossier PAYE, place pas encore dispo
         // 'En attente' seul = paiement pas encore valide
-        status: (d.statut && (
-            (d.statut.toLowerCase().includes('attente')
-             && !d.statut.toLowerCase().includes('place')
-             && !d.statut.toLowerCase().includes('glement re'))
-            || d.statut.toLowerCase().includes('pending')
-          )) ? 'pending_manual'
-           : (d.statut && d.statut.toLowerCase().includes('pay')) ? 'paid'
-           : 'pending_manual',  // par défaut non réglé si statut inconnu
+        status: (function(st) {
+          if (!st) return 'pending_manual';
+          var s = st.toLowerCase();
+          // Dossier validé : contient 'valid', 'payé', 'inscrit', 'réglé'
+          if (s.includes('valid') || s.includes('pay') || s.includes('inscrit') || s.includes('régl') || s.includes('regl')) return 'paid';
+          // En liste d'attente de place (réglé mais pas encore de place)
+          if (s.includes('en attente de place') || s.includes('règlement reçu') || s.includes('reglement recu')) return 'paid';
+          // En attente de règlement = pending
+          if (s.includes('attente') || s.includes('pending')) return 'pending_manual';
+          return 'pending_manual';
+        })(d.statut),
         responsable: {
           nom:          d.nom_responsable   || d.nom_membre || '',
           prenom:       d.prenom_responsable || d.prenom_membre || '',
