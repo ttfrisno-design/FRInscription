@@ -1057,8 +1057,13 @@
     <!-- Search & Actions -->
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
       <input type="text" id="search-admin" placeholder="🔍 Rechercher un adhérent..." 
-        style="padding:9px 14px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;width:240px;outline:none;background:rgba(255,255,255,0.08);color:white;" 
+        style="padding:9px 14px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;width:220px;outline:none;background:rgba(255,255,255,0.08);color:white;" 
         oninput="renderAdmin()">
+      <input type="text" id="search-dossier" placeholder="FRI-" maxlength="8"
+        style="padding:9px 14px;border:1.5px solid rgba(255,165,0,0.4);border-radius:8px;font-family:monospace;font-size:14px;font-weight:700;width:100px;outline:none;background:rgba(255,255,255,0.08);color:#ffd700;letter-spacing:2px;text-transform:uppercase;"
+        oninput="this.value=this.value.toUpperCase();renderAdmin()"
+        onfocus="if(!this.value)this.value='FRI-'"
+        onblur="if(this.value==='FRI-')this.value=''">
       <select id="filter-paiement" onchange="renderAdmin()"
         style="padding:9px 14px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:rgba(255,255,255,0.08);color:white;outline:none;">
         <option value="" style="background:#1a2e22;color:white;">Tous les dossiers</option>
@@ -6998,51 +7003,71 @@ function showConfirmation(reg, offlineOnly = false, isPaid = false) {
 }
 
 // ============================================================
-// EXCEL EXPORT (Gestaffil compatible)
+// EXCEL EXPORT (Gestafill compatible)
+// Colonnes : A=N°Licence B=Civilité C=Nom D=Prénom E=DDN F=Appt/Étage G=Bat/Résidence
+//            H=N°+Voie I=Lieu-dit/BP J=CP K=Ville L=Cedex M=CodePays N=TélFixe
+//            O=TélPortable P=Email Q=Commentaire
 // ============================================================
 function buildExcelData(registrations) {
   const rows = [
-    ['N° Interne', 'Nom', 'Prénom', 'Date naissance', 'Sexe', 'Adresse', 'Code postal', 'Ville', 'Téléphone 1', 'Téléphone 2', 'Email 1', 'Email 2', 'Commune', 'Activité', 'Jour', 'Heure', 'Lieu', 'Animateur', 'Tarif (€)', 'Adhésion FNSMR (€)', 'Réduction (%)', 'Total (€)', 'Mode paiement', 'QS Santé', 'Pass/Aide', 'Date inscription', 'Responsable légal']
+    ['A - N° de licence','B - Civilité','C - Nom','D - Prénom','E - Date de naissance',
+     'F - Appartement / Etage','G - Batiment / Résidence','H - N° et nom de voie',
+     'I - Lieu-dit ou boîte postale','J - Code postal','K - Ville','L - Cedex',
+     'M - Code pays','N - Tél. fixe','O - Tél. portable','P - Adresse e-mail','Q - Commentaire']
   ];
 
-  registrations.forEach((reg, ri) => {
-    const isno = reg.responsable.commune === 'isno';
+  // Dédupliquer par membre (un adhérent = une ligne, même s'il a plusieurs activités)
+  const seen = new Set();
+  registrations.forEach(reg => {
     reg.members.forEach(m => {
-      m.activities.forEach(actId => {
-        const act = getActById(actId);
-        if (!act) return;
-        const price = isno ? act.isno : act.hc;
-        const passes = [reg.responsable.passJeunes==='oui'?'Pass\'jeunes 76':'', reg.responsable.atoutNormandie==='oui'?'Atout Normandie':'', reg.responsable.passSport==='oui'?'Pass\'sport État':''].filter(Boolean).join(', ');
-        rows.push([
-          '',
-          m.nom || reg.responsable.nom,
-          m.prenom,
-          m.ddn,
-          m.sexe,
-          reg.responsable.adresse,
-          reg.responsable.cp,
-          reg.responsable.ville,
-          reg.responsable.tel1,
-          reg.responsable.tel2,
-          reg.responsable.email1,
-          reg.responsable.email2,
-          isno ? 'Isneauville' : 'Hors commune',
-          act.name,
-          act.jour,
-          act.heure,
-          act.lieu || '',
-          act.animateur,
-          price,
-          15,
-          reg.totals && reg.totals.familyActCount >= 3 ? 15 : 0,
-          price + 15,
-          reg.responsable.modePaiement,
-          m.qsResult === 'attestation_ok' ? 'Attestation OK' : m.qsResult === 'certificat_requis' ? 'Certificat requis' : 'Non rempli',
-          passes,
-          reg.date,
-          `${reg.responsable.nom} ${reg.responsable.prenom}`
-        ]);
-      });
+      const memberKey = `${reg.responsable.nom}_${m.prenom}_${m.ddn || ''}`.toLowerCase();
+      if (seen.has(memberKey)) return;
+      seen.add(memberKey);
+
+      // Civilité : M. / Mme selon sexe
+      const civilite = m.sexe === 'F' ? 'Mme' : 'M.';
+      // Nom du membre (enfant) ou responsable si identique
+      const nomMembre   = (m.nom || reg.responsable.nom || '').toUpperCase();
+      const prenomMembre = m.prenom || '';
+
+      // Activités résumées en commentaire
+      const isno = reg.responsable.commune === 'isno';
+      const activitesStr = m.activities.map(aId => {
+        const a = getActById(aId);
+        return a ? `${a.name.replace(/\n/g,' - ')} (${a.jour} ${a.heure})` : aId;
+      }).join(' | ');
+
+      const commentaire = [
+        `Dossier:${reg.code||''}`,
+        activitesStr,
+        `Mode:${reg.responsable.modePaiement||''}`,
+        reg.responsable.passJeunes==='oui' ? 'Pass-jeunes' : '',
+        reg.responsable.atoutNormandie==='oui' ? 'Atout Normandie' : '',
+        reg.responsable.passSport==='oui' ? 'Pass-sport' : '',
+      ].filter(Boolean).join(' | ');
+
+      // Découper adresse en N°+voie et lieu-dit si besoin
+      const adresse = reg.responsable.adresse || '';
+
+      rows.push([
+        '',                          // A - N° de licence (vide)
+        civilite,                    // B - Civilité
+        nomMembre,                   // C - Nom
+        prenomMembre,                // D - Prénom
+        m.ddn || '',                 // E - Date de naissance
+        '',                          // F - Appartement / Etage
+        '',                          // G - Batiment / Résidence
+        adresse,                     // H - N° et nom de voie
+        '',                          // I - Lieu-dit ou boîte postale
+        reg.responsable.cp || '',    // J - Code postal
+        reg.responsable.ville || '', // K - Ville
+        '',                          // L - Cedex
+        'FR',                        // M - Code pays
+        reg.responsable.tel1 || '',  // N - Tél. fixe
+        reg.responsable.tel2 || '',  // O - Tél. portable
+        reg.responsable.email1 || '',// P - Adresse e-mail
+        commentaire                  // Q - Commentaire
+      ]);
     });
   });
   return rows;
@@ -7075,7 +7100,7 @@ function doExport(regs, filename) {
   const ws = XLSX.utils.aoa_to_sheet(data);
 
   // Column widths
-  ws['!cols'] = [8,15,15,14,6,28,10,15,14,14,28,28,14,30,14,14,10,20,10,14,12,10,15,15,20,14,20].map(w => ({wch:w}));
+  ws['!cols'] = [12,8,18,15,12,14,14,28,20,10,18,10,10,14,14,28,50].map(w => ({wch:w}));
 
   // Header style
   const header = data[0];
@@ -7645,10 +7670,19 @@ function renderAdmin() {
   const validRegs = regs.filter(r =>
     r.code && /^FRI-[A-Z0-9]{4}$/.test(r.code.trim()) && r.responsable && r.responsable.nom
   );
-  let filtered = validRegs.filter(r =>
-    `${r.responsable.nom} ${r.responsable.prenom} ${r.responsable.email1||''}`.toLowerCase().includes(search) ||
-    r.members.some(m => `${m.nom} ${m.prenom}`.toLowerCase().includes(search))
-  );
+  const searchDossier = (document.getElementById('search-dossier')?.value || '').toUpperCase().trim();
+  let filtered = validRegs.filter(r => {
+    // Filtre par N° dossier
+    if (searchDossier && searchDossier !== 'FRI-') {
+      return (r.code || '').toUpperCase().includes(searchDossier);
+    }
+    // Filtre par nom/prénom/email
+    if (search) {
+      return `${r.responsable.nom} ${r.responsable.prenom} ${r.responsable.email1||''}`.toLowerCase().includes(search) ||
+        r.members.some(m => `${m.nom} ${m.prenom}`.toLowerCase().includes(search));
+    }
+    return true;
+  });
   if (filterPay === 'pending') filtered = filtered.filter(r => r.status === 'pending_manual');
   else if (filterPay) filtered = filtered.filter(r => r.responsable.modePaiement === filterPay);
 
