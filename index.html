@@ -1076,8 +1076,8 @@
       <button onclick="chargerDossiersDepuisSheet()" style="background:rgba(82,183,136,0.2);color:var(--green-light);border:1px solid rgba(82,183,136,0.4);border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">
         🔄 Rafraîchir
       </button>
-      <button id="btn-export-gestaffil" class="btn btn-export" onclick="exportAllExcel()" style="font-size:13px;padding:9px 18px;">
-        📊 Exporter Gestaffil (Excel)
+      <button id="btn-export-gestaffil" class="btn btn-export" onclick="exportGestafillDepuisSheet()" style="font-size:13px;padding:9px 18px;background:var(--gold);color:var(--dark);">
+        📊 Exporter Gestafill (Sheet)
       </button>
       <button class="btn" onclick="exportAllExcel('csv')" style="background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.2);font-size:13px;padding:9px 18px;border-radius:8px;">
         📋 Exporter CSV
@@ -7081,6 +7081,41 @@ function buildExcelData(registrations) {
     });
   });
   return rows;
+}
+
+async function exportGestafillDepuisSheet() {
+  if (!requireAdmin()) return;
+  const url = getAppsScriptUrl();
+  if (!url) return;
+  showAdminToast('⏳ Export depuis Sheet en cours...', 'blue');
+  try {
+    const res = await callAppsScriptFetch(url, { action: 'exportGestafillSheet', _token: FRI_SECRET_TOKEN });
+    const data = (res && res.data) ? res.data : res;
+    if (!data || data.status !== 'ok' || !data.rows || !data.rows.length) {
+      showAdminToast('⚠️ Aucune donnée à exporter', 'orange'); return;
+    }
+    const headers = ['A - N° de licence','B - Civilité','C - Nom','D - Prénom','E - Date de naissance',
+      'F - Appartement / Etage','G - Batiment / Résidence','H - N° et nom de voie',
+      'I - Lieu-dit ou boîte postale','J - Code postal','K - Ville','L - Cedex',
+      'M - Code pays','N - Tél. fixe','O - Tél. portable','P - Adresse e-mail','Q - Commentaire'];
+    const rows = [headers, ...data.rows.map(r => [
+      r.a, r.b, r.c, r.d, r.e, r.f, r.g, r.h, r.i, r.j, r.k, r.l, r.m, r.n, r.o, r.p, r.q
+    ])];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [12,8,18,15,12,14,14,30,20,10,18,10,10,14,14,30,60].map(w => ({wch:w}));
+    // Style en-têtes
+    headers.forEach((_, ci) => {
+      const ref = XLSX.utils.encode_cell({r:0, c:ci});
+      if (ws[ref]) ws[ref].s = { font:{bold:true,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'2D6A4F'}}, alignment:{horizontal:'center'} };
+    });
+    XLSX.utils.book_append_sheet(wb, ws, 'Gestafill');
+    const fname = 'Gestafill_FRI_' + new Date().toISOString().slice(0,10) + '.xlsx';
+    XLSX.writeFile(wb, fname);
+    showAdminToast('✅ ' + data.rows.length + ' membres exportés → ' + fname, 'green');
+  } catch(e) {
+    showAdminToast('❌ Erreur export : ' + e.message, 'red');
+  }
 }
 
 function exportExcel() {
