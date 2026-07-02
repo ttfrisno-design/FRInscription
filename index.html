@@ -7049,24 +7049,34 @@ function buildExcelData(registrations) {
       // Découper adresse en N°+voie et lieu-dit si besoin
       const adresse = reg.responsable.adresse || '';
 
+      // IDs activités pour commentaire
+      const actIdsStr = m.activities.join(' | ');
+      const commentaire2 = [
+        `Dossier:${reg.code||''}`,
+        actIdsStr,
+        reg.responsable.passJeunes==='oui' ? 'Pass-jeunes' : '',
+        reg.responsable.atoutNormandie==='oui' ? 'Atout Normandie' : '',
+        reg.responsable.passSport==='oui' ? 'Pass-sport' : '',
+      ].filter(Boolean).join(' | ');
+
       rows.push([
-        '',                          // A - N° de licence (vide)
-        civilite,                    // B - Civilité
-        nomMembre,                   // C - Nom
-        prenomMembre,                // D - Prénom
-        m.ddn || '',                 // E - Date de naissance
-        '',                          // F - Appartement / Etage
-        '',                          // G - Batiment / Résidence
-        adresse,                     // H - N° et nom de voie
-        '',                          // I - Lieu-dit ou boîte postale
-        reg.responsable.cp || '',    // J - Code postal
-        reg.responsable.ville || '', // K - Ville
-        '',                          // L - Cedex
-        'FR',                        // M - Code pays
-        reg.responsable.tel1 || '',  // N - Tél. fixe
-        reg.responsable.tel2 || '',  // O - Tél. portable
-        reg.responsable.email1 || '',// P - Adresse e-mail
-        commentaire                  // Q - Commentaire
+        '',                              // A - N° de licence (vide)
+        civilite,                        // B - Civilité
+        nomMembre,                       // C - Nom
+        prenomMembre,                    // D - Prénom
+        m.ddn || '',                     // E - Date de naissance
+        '',                              // F - Appartement / Etage
+        '',                              // G - Batiment / Résidence
+        reg.responsable.adresse || '',   // H - N° et nom de voie
+        '',                              // I - Lieu-dit ou boîte postale
+        reg.responsable.cp || '',        // J - Code postal
+        reg.responsable.ville || '',     // K - Ville
+        '',                              // L - Cedex
+        'FR',                            // M - Code pays
+        '',                              // N - Tél. fixe (vide)
+        reg.responsable.tel1 || '',      // O - Tél. portable
+        reg.responsable.email1 || '',    // P - Adresse e-mail
+        commentaire2                     // Q - Commentaire (ID activités)
       ]);
     });
   });
@@ -8748,6 +8758,8 @@ function mergerDossiersSheet(dossiers) {
           prenom:       d.prenom_responsable || d.prenom_membre || '',
           email1:       d.email        || '',
           tel1:         d.tel          || '',
+          adresse:      d.adresse      || '',
+          cp:           d.cp           || '',
           ville:        d.ville        || '',
           commune:      '',
           modePaiement: d.mode_paiement || 'cheque'
@@ -8774,6 +8786,8 @@ function mergerDossiersSheet(dossiers) {
       reg.members.push({
         prenom:    d.prenom_membre || '',
         nom:       d.nom_membre    || '',
+        ddn:       d.ddn           || '',
+        sexe:      d.sexe           || '',
         activities: [],
         qsResult:  d.qs_sante === 'Certificat requis' ? 'certificat_requis'
                  : d.qs_sante === 'Attestation OK'    ? 'attestation_ok' : null
