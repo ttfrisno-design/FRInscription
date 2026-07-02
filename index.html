@@ -7010,10 +7010,10 @@ function showConfirmation(reg, offlineOnly = false, isPaid = false) {
 // ============================================================
 function buildExcelData(registrations) {
   const rows = [
-    ['A - N° de licence','B - Civilité','C - Nom','D - Prénom','E - Date de naissance',
-     'F - Appartement / Etage','G - Batiment / Résidence','H - N° et nom de voie',
-     'I - Lieu-dit ou boîte postale','J - Code postal','K - Ville','L - Cedex',
-     'M - Code pays','N - Tél. fixe','O - Tél. portable','P - Adresse e-mail','Q - Commentaire']
+    ['N° de licence','Civilité','Nom','Prénom','Date de naissance',
+     'Appartement / Etage','Batiment / Résidence','N° et nom de voie',
+     'Lieu-dit ou boîte postale','Code postal','Ville','Cedex',
+     'Code pays','Tél. fixe','Tél. portable','Adresse e-mail','Commentaire']
   ];
 
   // Dédupliquer par membre (un adhérent = une ligne, même s'il a plusieurs activités)
@@ -7094,10 +7094,10 @@ async function exportGestafillDepuisSheet() {
     if (!data || data.status !== 'ok' || !data.rows || !data.rows.length) {
       showAdminToast('⚠️ Aucune donnée à exporter', 'orange'); return;
     }
-    const headers = ['A - N° de licence','B - Civilité','C - Nom','D - Prénom','E - Date de naissance',
-      'F - Appartement / Etage','G - Batiment / Résidence','H - N° et nom de voie',
-      'I - Lieu-dit ou boîte postale','J - Code postal','K - Ville','L - Cedex',
-      'M - Code pays','N - Tél. fixe','O - Tél. portable','P - Adresse e-mail','Q - Commentaire'];
+    const headers = ['N° de licence','Civilité','Nom','Prénom','Date de naissance',
+      'Appartement / Etage','Batiment / Résidence','N° et nom de voie',
+      'Lieu-dit ou boîte postale','Code postal','Ville','Cedex',
+      'Code pays','Tél. fixe','Tél. portable','Adresse e-mail','Commentaire'];
     const rows = [headers, ...data.rows.map(r => [
       r.a, r.b, r.c, r.d, r.e, r.f, r.g, r.h, r.i, r.j, r.k, r.l, r.m, r.n, r.o, r.p, r.q
     ])];
