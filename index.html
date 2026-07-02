@@ -9680,7 +9680,18 @@ async function deleteRegistration(id) {
   const nom  = reg.responsable ? (reg.responsable.nom + ' ' + reg.responsable.prenom) : 'inconnu';
   const code = reg.code || '—';
 
-  if (!confirm(`Supprimer le dossier ${code} — ${nom} ?\n\nCette action supprime le dossier localement.\nLes lignes dans Google Sheets seront également supprimées.`)) return;
+  const confirme1 = confirm(
+    '⚠️ SUPPRESSION DU DOSSIER\n\n' +
+    'Dossier : ' + code + ' — ' + nom + '\n\n' +
+    'Cette action va supprimer définitivement :\n' +
+    '  • Toutes les lignes d\'inscription dans le Sheet\n' +
+    '  • Les entrées dans les onglets Chèques, Aides, HelloAsso\n' +
+    '  • Les avoirs et licences FFTT liés\n\n' +
+    'Êtes-vous sûr de vouloir supprimer ce dossier ?'
+  );
+  if (!confirme1) return;
+  const confirme2 = confirm('Dernière confirmation — Supprimer définitivement le dossier ' + code + ' ?');
+  if (!confirme2) return;
 
   // 1. Supprimer du localStorage
   const updated = regs.filter(r => r.id !== id);
