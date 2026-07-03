@@ -7821,6 +7821,7 @@ function ouvrirDetailDossier(code, docId) {
   // Sauvegarder l'état des coches dans localStorage
   const savedChecks = JSON.parse(localStorage.getItem('fri_admin_checks') || '{}');
   const checks = savedChecks[code] || {};
+  console.log('[FRI] envoyerRappelPieces — code:', code, 'checks:', JSON.stringify(checks), 'allKeys:', Object.keys(savedChecks));
 
   // Récupérer ou créer le panneau détail
   let panel = document.getElementById('admin-detail-panel');
