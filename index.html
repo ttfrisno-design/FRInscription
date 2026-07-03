@@ -8493,7 +8493,8 @@ async function envoyerRappelPieces(code) {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Envoi...'; }
 
   try {
-    const res = await callAppsScriptFetch(url, {
+    // Utiliser callAppsScript (JSONP) avec payload sérialisé
+    const res = await callAppsScript({
       action:        'envoyerRappelPieces',
       _token:        FRI_SECRET_TOKEN,
       code:          code,
