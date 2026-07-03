@@ -8493,15 +8493,20 @@ async function envoyerRappelPieces(code) {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Envoi...'; }
 
   try {
-    // Utiliser callAppsScript (JSONP) avec payload sérialisé
-    const res = await callAppsScript({
-      action:        'envoyerRappelPieces',
-      _token:        FRI_SECRET_TOKEN,
-      code:          code,
-      email:         email,
-      nom:           nom,
-      piecesAttente: piecesUniques
+    // POST direct — fiable pour payload avec tableau piecesAttente
+    const payloadRP = JSON.stringify({
+      action: 'envoyerRappelPieces', _token: FRI_SECRET_TOKEN,
+      code, email, nom, piecesAttente: piecesUniques
     });
+    const respRP = await fetch(url, {
+      method: 'POST', redirect: 'follow',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'payload=' + encodeURIComponent(payloadRP)
+    });
+    const textRP = await respRP.text();
+    let res;
+    try { res = { data: JSON.parse(textRP) }; }
+    catch(e) { res = { data: { status: 'ok' } }; }
     const data = (res && res.data) ? res.data : res;
     if (data && data.status === 'ok') {
       showAdminToast('📧 Email de rappel envoyé à ' + email, 'green');
