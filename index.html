@@ -8430,27 +8430,25 @@ async function envoyerRappelPieces(code) {
 
   const piecesUniques = [];
 
-  // 1. Éléments Sheet cochés "attente" ou non encore traités
+  // 1. TOUTES les coches manuelles "attente" de l'admin (QS, RI, aides, règlement...)
+  Object.entries(checks)
+    .filter(([k, v]) => k.startsWith('pay_') && v === 'attente')
+    .forEach(([k]) => {
+      piecesUniques.push(k.replace('pay_','').replace(/_/g,' '));
+    });
+
+  // 2. Éléments Sheet cochés "attente" non déjà dans la liste
   elementsSheet.forEach(el => {
     const itemId = 'pay_' + el.onglet.replace(/[^A-Za-z0-9]/g,'_');
     const statut = checks[itemId];
     if (statut === 'attente') {
       const label = el.onglet + (el.nom ? ' — ' + el.prenom + ' ' + el.nom : '')
                               + (el.montant > 0 ? ' (' + el.montant.toFixed(2) + ' €)' : '');
-      piecesUniques.push(label);
-    }
-  });
-
-  // 2. Pièces cochées "attente" hors éléments paiement (QS, RI, aides manuelles)
-  Object.entries(checks)
-    .filter(([k, v]) => k.startsWith('pay_') && v === 'attente')
-    .forEach(([k]) => {
-      const label = k.replace('pay_','').replace(/_/g,' ');
-      if (!piecesUniques.some(p => p.replace(/[^a-z]/gi,'').toLowerCase()
-                                    .startsWith(label.replace(/[^a-z]/gi,'').toLowerCase().substring(0,8)))) {
+      if (!piecesUniques.some(p => p.toLowerCase().startsWith(el.onglet.toLowerCase().substring(0,6)))) {
         piecesUniques.push(label);
       }
-    });
+    }
+  });
 
   if (piecesUniques.length === 0) {
     showAdminToast('Aucune pièce en attente pour ce dossier', 'green');
