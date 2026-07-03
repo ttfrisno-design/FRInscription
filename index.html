@@ -6073,6 +6073,12 @@ async function lancerCheckoutHA(code, total, echelonne) {
   } catch(e) {
     console.error('lancerCheckoutHA KO:', e);
     if (btn) { btn.disabled = false; btn.textContent = '💳 Réessayer le paiement HelloAsso'; }
+    // Sauvegarder echelonne dans pending_ha même en fallback
+    const pendingFB = JSON.parse(localStorage.getItem('fri_pending') || '{}');
+    const regFB = pendingFB[code] || {};
+    const pendingHAFB = JSON.parse(localStorage.getItem('fri_pending_ha') || '{}');
+    pendingHAFB[code] = { total, timestamp: Date.now(), echelonne: !!echelonne, reg: regFB };
+    localStorage.setItem('fri_pending_ha', JSON.stringify(pendingHAFB));
     const errDetail = (e && e.message) ? e.message : String(e);
     const zone = document.getElementById('ha-checkout-zone');
     if (zone) {
@@ -6089,10 +6095,29 @@ async function lancerCheckoutHA(code, total, echelonne) {
         + '40% le jour du r&#xE8;glement (' + (total*0.40).toFixed(2) + ' &#x20AC;)'
         + ' &middot; 30% le 15/10/2026 (' + (total*0.30).toFixed(2) + ' &#x20AC;)'
         + ' &middot; solde le 15/01/2027</div>'
-        + '</div>';
+        + '</div>'
+        + '<button onclick="enregistrerApresHAFallback(\'' + code + '\')" '
+        + 'style="width:100%;margin-top:12px;background:#2d6a4f;color:white;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">'
+        + '&#x2705; J\'ai pay&#xE9; sur HelloAsso &mdash; Enregistrer mon dossier</button>';
 
     }
   }
+}
+
+async function enregistrerApresHAFallback(code) {
+  const pHA = JSON.parse(localStorage.getItem('fri_pending_ha') || '{}');
+  const hE  = pHA[code];
+  const pFB = JSON.parse(localStorage.getItem('fri_pending') || '{}');
+  const reg = (hE && hE.reg) ? hE.reg : pFB[code];
+  if (!reg) { showToast('Dossier introuvable — réessayez', 'red'); return; }
+  reg.status = 'paid';
+  reg.responsable = reg.responsable || {};
+  reg.responsable.modePaiement = (hE && hE.echelonne) ? 'helloasso3x' : 'helloasso';
+  showToast('⏳ Enregistrement en cours...', 'blue', 8000);
+  await sendToGoogleSheets(reg);
+  delete pHA[code]; localStorage.setItem('fri_pending_ha', JSON.stringify(pHA));
+  delete pFB[code]; localStorage.setItem('fri_pending', JSON.stringify(pFB));
+  showToast('✅ Dossier enregistré avec succès !', 'green', 6000);
 }
 
 // Gérer le retour depuis HelloAsso
