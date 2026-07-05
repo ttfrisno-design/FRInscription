@@ -1532,6 +1532,17 @@ let state = {
 // ============================================================
 // STEP NAVIGATION
 // ============================================================
+function afficherSectionDocuments() {
+  document.querySelectorAll('.section').forEach(function(el) { el.classList.remove('active'); });
+  var hero = document.querySelector('.hero');
+  var stepsNav = document.querySelector('.steps-nav');
+  if (hero) hero.style.display = 'none';
+  if (stepsNav) stepsNav.style.display = 'none';
+  var sd = document.getElementById('section-documents');
+  if (sd) { sd.style.display = 'block'; window.scrollTo(0, 0); }
+  if (typeof initSectionDocuments === 'function') initSectionDocuments();
+}
+
 function goStep(n) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById('section-' + n).classList.add('active');
@@ -10734,21 +10745,7 @@ async function docEnregistrer() {
   document.getElementById('doc-btn-enregistrer').style.opacity = '0.5';
 }
 
-function afficherSectionDocuments() {
-  // Masquer toutes les sections actives (via classe CSS)
-  document.querySelectorAll('.section').forEach(function(el) {
-    el.classList.remove('active');
-  });
-  // Masquer hero et steps-nav
-  var hero = document.querySelector('.hero');
-  var stepsNav = document.querySelector('.steps-nav');
-  if (hero) hero.style.display = 'none';
-  if (stepsNav) stepsNav.style.display = 'none';
-  // Afficher la section documents
-  var sd = document.getElementById('section-documents');
-  if (sd) { sd.style.display = 'block'; window.scrollTo(0, 0); }
-  initSectionDocuments();
-}
+
 
 // Détecter ?mode=documents dans l'URL (accès direct)
 (function() {
