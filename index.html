@@ -10444,6 +10444,260 @@ function afficherPopupVerifCoordonnees(a) {
   });
 }
 
+// ══════════════════════════════════════════════════
+// SECTION DOCUMENTS UNIQUEMENT
+// ══════════════════════════════════════════════════
+
+var docRISigné = false;
+var docRICanvas = null;
+var docRICtx = null;
+var docRIDrawing = false;
+
+function initSectionDocuments() {
+  // Afficher section documents, masquer le reste
+  document.querySelectorAll('.section, #section-documents').forEach(function(el) {
+    el.style.display = el.id === 'section-documents' ? 'block' : 'none';
+  });
+  document.getElementById('nav-steps') && (document.getElementById('nav-steps').style.display = 'none');
+
+  // Initialiser canvas RI
+  docRICanvas = document.getElementById('doc-ri-canvas');
+  if (docRICanvas) {
+    docRICtx = docRICanvas.getContext('2d');
+    docRICtx.strokeStyle = '#1b5e20';
+    docRICtx.lineWidth = 2.5;
+    docRICtx.lineCap = 'round';
+    var drawing = false;
+    function getPos(e) {
+      var r = docRICanvas.getBoundingClientRect();
+      var src = e.touches ? e.touches[0] : e;
+      return { x: (src.clientX - r.left) * docRICanvas.width / r.width,
+               y: (src.clientY - r.top) * docRICanvas.height / r.height };
+    }
+    function start(e) { e.preventDefault(); drawing = true; var p = getPos(e); docRICtx.beginPath(); docRICtx.moveTo(p.x, p.y); }
+    function move(e) { e.preventDefault(); if (!drawing) return; var p = getPos(e); docRICtx.lineTo(p.x, p.y); docRICtx.stroke(); }
+    function stop(e) { drawing = false; }
+    docRICanvas.addEventListener('mousedown', start);
+    docRICanvas.addEventListener('mousemove', move);
+    docRICanvas.addEventListener('mouseup', stop);
+    docRICanvas.addEventListener('touchstart', start, {passive:false});
+    docRICanvas.addEventListener('touchmove', move, {passive:false});
+    docRICanvas.addEventListener('touchend', stop);
+  }
+
+  // Générer le QS dynamiquement
+  initDocumentQS();
+}
+
+function initDocumentQS() {
+  var container = document.getElementById('doc-qs-container');
+  if (!container) return;
+  // Utiliser les mêmes questions que le QS santé principal
+  var questions = [
+    "Pratiquez-vous d'autres activités sportives ou artistiques (hors FRI) ?",
+    "Avez-vous eu une opération chirurgicale au cours de la dernière année ?",
+    "Avez-vous eu des blessures musculaires, osseuses ou articulaires dans la dernière année ?",
+    "Avez-vous des contre-indications médicales à la pratique d'une activité physique ?",
+    "Prenez-vous des médicaments pouvant affecter votre pratique sportive ?",
+    "Avez-vous des antécédents cardio-vasculaires ?",
+    "Souhaitez-vous signaler une information médicale à l'animateur ?"
+  ];
+  var html2 = '<div style="font-size:13px;color:var(--gray);margin-bottom:12px;">Répondez aux questions suivantes :</div>';
+  questions.forEach(function(q, i) {
+    html2 += '<div style="margin-bottom:10px;padding:10px;background:#f9f9f9;border-radius:8px;">'
+           + '<div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:6px;">' + (i+1) + '. ' + q + '</div>'
+           + '<div style="display:flex;gap:16px;">'
+           + '<label style="font-size:13px;cursor:pointer;"><input type="radio" name="doc-qs-' + i + '" value="non" checked style="margin-right:4px;"> Non</label>'
+           + '<label style="font-size:13px;cursor:pointer;"><input type="radio" name="doc-qs-' + i + '" value="oui" style="margin-right:4px;"> Oui</label>'
+           + '</div></div>';
+  });
+  // Espace signature QS
+  html2 += '<div style="margin-top:14px;">'
+         + '<div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:8px;">✍️ Signature (attestation sur l'honneur)</div>'
+         + '<canvas id="doc-qs-canvas" width="520" height="100" style="border:2px solid #c8e6c9;border-radius:8px;cursor:crosshair;touch-action:none;background:white;display:block;max-width:100%;"></canvas>'
+         + '<div style="display:flex;gap:10px;margin-top:8px;">'
+         + '<button onclick="docEffacerQS()" class="btn btn-secondary" style="font-size:13px;">🗑 Effacer</button>'
+         + '</div></div>';
+  container.innerHTML = html2;
+
+  // Init canvas QS
+  var cvs = document.getElementById('doc-qs-canvas');
+  if (cvs) {
+    var ctx = cvs.getContext('2d');
+    ctx.strokeStyle = '#1b5e20'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    var dwg = false;
+    function gp(e) { var r=cvs.getBoundingClientRect(); var s=e.touches?e.touches[0]:e; return {x:(s.clientX-r.left)*cvs.width/r.width, y:(s.clientY-r.top)*cvs.height/r.height}; }
+    cvs.addEventListener('mousedown',  function(e){dwg=true; var p=gp(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
+    cvs.addEventListener('mousemove',  function(e){if(!dwg)return; var p=gp(e);ctx.lineTo(p.x,p.y);ctx.stroke();});
+    cvs.addEventListener('mouseup',    function(){dwg=false;});
+    cvs.addEventListener('touchstart', function(e){e.preventDefault();dwg=true;var p=gp(e);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
+    cvs.addEventListener('touchmove',  function(e){e.preventDefault();if(!dwg)return;var p=gp(e);ctx.lineTo(p.x,p.y);ctx.stroke();},{passive:false});
+    cvs.addEventListener('touchend',   function(){dwg=false;});
+  }
+}
+
+function docEffacerQS() {
+  var cvs = document.getElementById('doc-qs-canvas');
+  if (cvs) cvs.getContext('2d').clearRect(0, 0, cvs.width, cvs.height);
+}
+
+function docEffacerRI() {
+  if (docRICtx && docRICanvas) {
+    docRICtx.clearRect(0, 0, docRICanvas.width, docRICanvas.height);
+    docRISigné = false;
+    document.getElementById('doc-ri-status').textContent = 'Non signé';
+    document.getElementById('doc-ri-status').style.color = 'var(--gray)';
+  }
+}
+
+function docSignerRI() {
+  if (!docRICanvas) return;
+  var imgData = docRICtx.getImageData(0, 0, docRICanvas.width, docRICanvas.height);
+  var hasPixels = imgData.data.some(function(v, i) { return i % 4 === 3 && v > 0; });
+  if (!hasPixels) { showToast('Veuillez signer dans le cadre ci-dessus', 'orange'); return; }
+  docRISigné = true;
+  document.getElementById('doc-ri-status').textContent = '✅ Règlement intérieur signé';
+  document.getElementById('doc-ri-status').style.color = '#2d6a4f';
+  document.getElementById('doc-ri-status').style.fontWeight = '700';
+}
+
+async function docEnregistrer() {
+  var code   = (document.getElementById('doc-code-dossier')?.value || '').trim().toUpperCase();
+  var prenom = (document.getElementById('doc-prenom')?.value || '').trim();
+  var nom    = (document.getElementById('doc-nom')?.value || '').trim().toUpperCase();
+  var email  = (document.getElementById('doc-email')?.value || '').trim();
+  var ddn    = (document.getElementById('doc-ddn')?.value || '').trim();
+
+  if (!code || !code.match(/^FRI-[A-Z0-9]{4}$/)) {
+    showToast('Veuillez saisir un numéro de dossier valide (ex: FRI-AB12)', 'red'); return; }
+  if (!prenom || !nom) {
+    showToast('Prénom et nom sont obligatoires', 'red'); return; }
+  if (!email) {
+    showToast('Email obligatoire', 'red'); return; }
+
+  var url = getAppsScriptUrl();
+  if (!url) return;
+  var resultEl = document.getElementById('doc-result');
+  resultEl.textContent = '⏳ Enregistrement en cours...';
+  resultEl.style.color = '#1565c0';
+
+  var envois = [];
+
+  // ── QS Santé ──
+  var cvQS = document.getElementById('doc-qs-canvas');
+  if (cvQS) {
+    var imgDataQS = cvQS.getContext('2d').getImageData(0, 0, cvQS.width, cvQS.height);
+    var hasQSSig = imgDataQS.data.some(function(v, i) { return i % 4 === 3 && v > 0; });
+    if (hasQSSig) {
+      // Générer PDF QS simple
+      try {
+        var jsPDFcls = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        if (jsPDFcls) {
+          var doc2 = new jsPDFcls({ orientation:'portrait', unit:'mm', format:'a4' });
+          var qsSigDataUrl = cvQS.toDataURL('image/png');
+          var qsRep = [];
+          for (var qi = 0; qi < 7; qi++) {
+            var radios = document.querySelectorAll('input[name="doc-qs-' + qi + '"]');
+            var val = 'non';
+            radios.forEach(function(r) { if (r.checked) val = r.value; });
+            qsRep.push(val);
+          }
+          doc2.setFontSize(14); doc2.setFont('helvetica','bold');
+          doc2.text('QUESTIONNAIRE DE SANTÉ — FRI 2026/2027', 20, 20);
+          doc2.setFontSize(11); doc2.setFont('helvetica','normal');
+          doc2.text('Dossier : ' + code + ' — ' + prenom + ' ' + nom, 20, 30);
+          doc2.text('Email : ' + email + (ddn ? ' | Né(e) le : ' + ddn : ''), 20, 37);
+          var qs2 = [
+            "Autres activités sportives/artistiques ?", "Opération chirurgicale (1 an) ?",
+            "Blessures musculaires/osseuses (1 an) ?", "Contre-indications médicales ?",
+            "Médicaments affectant la pratique ?", "Antécédents cardio-vasculaires ?",
+            "Information médicale pour l'animateur ?"
+          ];
+          var y2 = 48;
+          qs2.forEach(function(q, i) {
+            doc2.setFont('helvetica','bold'); doc2.text((i+1) + '. ' + q, 20, y2);
+            doc2.setFont('helvetica','normal'); doc2.text('Réponse : ' + qsRep[i].toUpperCase(), 25, y2+5);
+            y2 += 12;
+          });
+          y2 += 5;
+          doc2.text('Signature :', 20, y2);
+          doc2.addImage(qsSigDataUrl, 'PNG', 20, y2+3, 80, 20);
+          var pdfB64QS = doc2.output('datauristring').split(',')[1];
+          var fnQS = code + '_' + prenom + '-' + nom + '_QS-Sante.pdf';
+          envois.push({ type: 'qs', base64: pdfB64QS, filename: fnQS });
+        }
+      } catch(eQSDoc) { console.warn('PDF QS doc KO:', eQSDoc); }
+    }
+  }
+
+  // ── RI ──
+  if (docRISigné && docRICanvas) {
+    envois.push({ type: 'ri', signature: docRICanvas.toDataURL('image/png'),
+                  code: code, nom: nom, prenom: prenom, email: email,
+                  date: new Date().toLocaleDateString('fr-FR') });
+  }
+
+  if (!envois.length) {
+    showToast('Aucun document à enregistrer — signez au moins un document', 'orange'); return; }
+
+  var nb = 0;
+  // Envoyer QS
+  for (var ei = 0; ei < envois.length; ei++) {
+    var env = envois[ei];
+    if (env.type === 'qs') {
+      try {
+        await envoyerPDFParEmail(env.filename, env.base64, prenom + ' ' + nom, '', email, false);
+        nb++;
+      } catch(e) { console.warn('Envoi QS doc KO:', e); }
+    }
+    if (env.type === 'ri') {
+      try {
+        var riP = JSON.stringify({
+          action: 'saveReglement', _token: FRI_SECRET_TOKEN,
+          code: env.code, nom: env.nom, prenom: env.prenom,
+          email: env.email, date: env.date, signature: env.signature
+        });
+        var ifr = document.createElement('iframe');
+        ifr.name = 'fri_ri_doc_' + Date.now(); ifr.style.display='none';
+        document.body.appendChild(ifr);
+        var frm = document.createElement('form');
+        frm.method='POST'; frm.action=url; frm.target=ifr.name; frm.style.display='none';
+        var inp = document.createElement('input');
+        inp.type='hidden'; inp.name='payload'; inp.value=riP;
+        frm.appendChild(inp); document.body.appendChild(frm); frm.submit();
+        setTimeout(function() {
+          try{document.body.removeChild(frm);}catch(e){}
+          try{document.body.removeChild(ifr);}catch(e){}
+        }, 8000);
+        nb++;
+      } catch(e) { console.warn('Envoi RI doc KO:', e); }
+    }
+  }
+
+  resultEl.innerHTML = '✅ ' + nb + ' document(s) envoyé(s) au FRI pour le dossier <strong>' + code + '</strong>';
+  resultEl.style.color = '#2d6a4f';
+  document.getElementById('doc-btn-enregistrer').disabled = true;
+  document.getElementById('doc-btn-enregistrer').style.opacity = '0.5';
+}
+
+// Détecter ?mode=documents dans l'URL
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('mode') === 'documents') {
+    document.addEventListener('DOMContentLoaded', function() {
+      // Masquer nav steps
+      var nav = document.getElementById('nav-steps');
+      if (nav) nav.style.display = 'none';
+      // Masquer toutes les sections principales
+      document.querySelectorAll('.section').forEach(function(s) { s.style.display = 'none'; });
+      // Afficher section documents
+      var sd = document.getElementById('section-documents');
+      if (sd) sd.style.display = 'block';
+      initSectionDocuments();
+    });
+  }
+})();
+
 async function rechercherAdherentFRI(telPartiel) {
   const clean = (telPartiel||'').replace(/[^0-9]/g,'');
   const resultsDiv = document.getElementById('adherent-search-results');
@@ -10590,5 +10844,78 @@ function remplirFormulaireAdherent(idx) {
 }
 
 </script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SECTION DOCUMENTS UNIQUEMENT (?mode=documents)
+═══════════════════════════════════════════════════════════ -->
+<div id="section-documents" style="display:none;max-width:700px;margin:0 auto;padding:24px 16px;">
+  <div style="text-align:center;margin-bottom:24px;">
+    <div style="font-size:36px;margin-bottom:8px;">📄</div>
+    <h2 style="color:var(--dark);font-size:22px;margin:0 0 6px;">Documents FRI</h2>
+    <p style="color:var(--gray);font-size:14px;margin:0;">Signature du QS Santé et/ou du Règlement Intérieur</p>
+  </div>
+
+  <!-- N° de dossier -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">📋 Votre numéro de dossier</div>
+    <div class="field" style="max-width:260px;">
+      <label>N° de dossier <span class="req">*</span></label>
+      <input type="text" id="doc-code-dossier" placeholder="FRI-XXXX" maxlength="8"
+        style="font-family:monospace;font-size:20px;font-weight:700;letter-spacing:3px;text-transform:uppercase;"
+        oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div class="form-grid" style="margin-top:14px;">
+      <div class="field">
+        <label>Prénom du membre <span class="req">*</span></label>
+        <input type="text" id="doc-prenom" placeholder="Marie">
+      </div>
+      <div class="field">
+        <label>Nom du membre <span class="req">*</span></label>
+        <input type="text" id="doc-nom" placeholder="DUPONT">
+      </div>
+      <div class="field">
+        <label>Email <span class="req">*</span></label>
+        <input type="email" id="doc-email" placeholder="marie.dupont@exemple.fr">
+      </div>
+      <div class="field">
+        <label>Date de naissance</label>
+        <input type="date" id="doc-ddn">
+      </div>
+    </div>
+  </div>
+
+  <!-- QS Santé -->
+  <div class="card" id="doc-qs-card" style="margin-bottom:16px;">
+    <div class="card-title">🏥 Questionnaire de Santé</div>
+    <div id="doc-qs-container">
+      <!-- Généré dynamiquement par initDocumentQS() -->
+      <p style="font-size:13px;color:var(--gray);">Renseignez d'abord le nom et prénom ci-dessus, puis complétez le questionnaire.</p>
+    </div>
+  </div>
+
+  <!-- Règlement intérieur -->
+  <div class="card" id="doc-ri-card" style="margin-bottom:16px;">
+    <div class="card-title">📋 Règlement Intérieur</div>
+    <div id="doc-ri-status" style="font-size:13px;color:var(--gray);margin-bottom:12px;">Non signé</div>
+    <canvas id="doc-ri-canvas" width="520" height="100"
+      style="border:2px solid #c8e6c9;border-radius:8px;cursor:crosshair;touch-action:none;background:white;display:block;max-width:100%;"></canvas>
+    <div style="display:flex;gap:10px;margin-top:10px;">
+      <button onclick="docEffacerRI()" class="btn btn-secondary" style="font-size:13px;">🗑 Effacer</button>
+      <button onclick="docSignerRI()" class="btn btn-primary" style="font-size:13px;">✅ Valider ma signature</button>
+    </div>
+  </div>
+
+  <!-- Bouton enregistrement -->
+  <button id="doc-btn-enregistrer" onclick="docEnregistrer()"
+    class="btn btn-primary" style="width:100%;justify-content:center;font-size:16px;padding:16px;margin-top:8px;">
+    💾 Enregistrer mes documents
+  </button>
+  <div id="doc-result" style="margin-top:14px;font-size:14px;text-align:center;min-height:20px;"></div>
+
+  <div style="text-align:center;margin-top:20px;">
+    <a href="?" style="font-size:13px;color:var(--gray);">← Retour au formulaire d'inscription</a>
+  </div>
+</div>
+
 </body>
 </html>
