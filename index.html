@@ -10461,8 +10461,9 @@ var docRIDrawing = false;
 
 function initSectionDocuments() {
   // Afficher section documents, masquer le reste
-  document.querySelectorAll('.section, #section-documents').forEach(function(el) {
-    el.style.display = el.id === 'section-documents' ? 'block' : 'none';
+  // Les sections sont gérées par CSS .section.active - utiliser classList
+  document.querySelectorAll('.section').forEach(function(el) {
+    el.classList.remove('active');
   });
   document.getElementById('nav-steps') && (document.getElementById('nav-steps').style.display = 'none');
 
@@ -10734,16 +10735,18 @@ async function docEnregistrer() {
 }
 
 function afficherSectionDocuments() {
-  // Masquer le formulaire principal
-  document.querySelectorAll('.section, .hero, .steps-nav, .hero-badges').forEach(function(el) {
-    el.style.display = 'none';
+  // Masquer toutes les sections actives (via classe CSS)
+  document.querySelectorAll('.section').forEach(function(el) {
+    el.classList.remove('active');
   });
-  // Masquer header steps nav
+  // Masquer hero et steps-nav
+  var hero = document.querySelector('.hero');
   var stepsNav = document.querySelector('.steps-nav');
+  if (hero) hero.style.display = 'none';
   if (stepsNav) stepsNav.style.display = 'none';
   // Afficher la section documents
   var sd = document.getElementById('section-documents');
-  if (sd) { sd.style.display = 'block'; window.scrollTo(0,0); }
+  if (sd) { sd.style.display = 'block'; window.scrollTo(0, 0); }
   initSectionDocuments();
 }
 
