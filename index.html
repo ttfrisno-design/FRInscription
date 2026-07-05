@@ -1262,44 +1262,16 @@ window.validerReglementInterieur = async function() {
     const sigBase64 = window.getSignatureBase64();
     const dateStr   = new Date().toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
 
-    // Envoyer au GAS pour sauvegarde sur Drive
-    // Méthode : formulaire HTML caché dans iframe (même technique que QS Santé)
-    const url = getAppsScriptUrl();
-    try {
-      const riPayload = JSON.stringify({
-        action:    'saveReglement',
-        _token:    FRI_SECRET_TOKEN,
-        code:      code,
-        nom:       (reg.nom  || '').toUpperCase(),
-        prenom:    reg.prenom || '',
-        email:     reg.email1 || '',
-        date:      dateStr,
-        signature: sigBase64
-      });
-      const iframe = document.createElement('iframe');
-      iframe.name  = 'fri_ri_iframe_' + Date.now();
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-      const form        = document.createElement('form');
-      form.method       = 'POST';
-      form.action       = url;
-      form.target       = iframe.name;
-      form.style.display = 'none';
-      const input       = document.createElement('input');
-      input.type        = 'hidden';
-      input.name        = 'payload';
-      input.value       = riPayload;
-      form.appendChild(input);
-      document.body.appendChild(form);
-      form.submit();
-      setTimeout(() => {
-        try { document.body.removeChild(form); } catch(e) {}
-        try { document.body.removeChild(iframe); } catch(e) {}
-        console.log('[FRI] saveReglement envoyé via formulaire ✅');
-      }, 15000);
-    } catch(fetchErr) {
-      console.warn('saveReglement fetch KO (non bloquant):', fetchErr);
-    }
+    // Stocker la signature RI localement — envoi Drive différé à la validation finale
+    state.riSignature = {
+      code:      code || state.codeDossierPreview || generateDossierCode(),
+      nom:       (reg.nom || '').toUpperCase(),
+      prenom:    reg.prenom || '',
+      email:     reg.email1 || '',
+      date:      dateStr,
+      signature: sigBase64
+    };
+    console.log('[FRI] RI stocké localement — sera envoyé au Drive lors de la validation');
     const result = { status: 'ok' }; // continuer dans tous les cas
 
     // Activer l'étape suivante
@@ -5232,11 +5204,63 @@ function renderSummary() {
 
 // Génère un code de dossier court et mémorisable (ex: FRI-A3B7)
 function generateDossierCode() {
+  // Toujours conserver le même code pour une session donnée
+  const stored = localStorage.getItem('fri_code_session');
+  if (stored && stored.match(/^FRI-[A-Z0-9]{4}$/)) return stored;
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = 'FRI-';
   for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  localStorage.setItem('fri_code_session', code);
   return code;
 }
+
+function clearCodeSession() {
+  // Appeler cette fonction uniquement après enregistrement définitif
+  localStorage.removeItem('fri_code_session');
+  localStorage.removeItem('fri_qs_signe');
+  localStorage.removeItem('fri_ri_signe');
+}
+
+// ── Nettoyage des fichiers orphelins si l'inscription est abandonnée ──
+async function nettoyerFichiersOrphelins(code) {
+  if (!code || !code.match(/^FRI-[A-Z0-9]{4}$/)) return;
+  const url = getAppsScriptUrl();
+  if (!url || url === 'VOTRE_URL_APPS_SCRIPT_ICI') return;
+  try {
+    const res = await callAppsScriptFetch(url, {
+      action: 'supprimerFichiersOrphelins', _token: FRI_SECRET_TOKEN, code: code });
+    const data = (res && res.data) ? res.data : res;
+    if (data && data.nb > 0) {
+      console.log('[FRI] Fichiers orphelins supprimés :', data.supprimes);
+    }
+  } catch(e) { console.warn('[FRI] Nettoyage orphelins KO:', e); }
+}
+
+// ── Détecter l'abandon de session ──
+(function() {
+  // Marquer QS et RI comme signés quand c'est fait
+  window._friQSSigné = false;
+  window._friRISigné = false;
+
+  window.addEventListener('beforeunload', function() {
+    const code = localStorage.getItem('fri_code_session');
+    // Si un code existe et que le dossier n'a pas été enregistré → signaler l'abandon
+    const pendingKeys = Object.keys(JSON.parse(localStorage.getItem('fri_pending') || '{}'));
+    const isEnregistré = !pendingKeys.includes(code) && !code;
+    if (code && !isEnregistré) {
+      // Utiliser sendBeacon pour envoyer même lors de la fermeture
+      const url = localStorage.getItem('fri_apps_script_url') || '';
+      if (url) {
+        const payload = JSON.stringify({
+          action: 'supprimerFichiersOrphelins',
+          _token: FRI_SECRET_TOKEN,
+          code: code
+        });
+        navigator.sendBeacon(url + '?callback=_abandon&payload=' + encodeURIComponent(payload));
+      }
+    }
+  });
+})();
 
 function checkRgpdConsent() {
   const cb  = document.getElementById('rgpd-consent');
@@ -5893,24 +5917,22 @@ async function _genererPDFAvecSignature(memberId, signatureDataUrl) {
     checkHealthContinuerBtn();
   }
 
-  // ── Envoi PDF vers Drive via Apps Script ──
+  // ── Stocker le PDF en base64 dans state — envoi Drive différé à la validation finale ──
   try {
-    // Convertir le PDF en base64 via ArrayBuffer (plus fiable que datauristring)
     const pdfArrayBuffer = doc.output('arraybuffer');
     const pdfUint8 = new Uint8Array(pdfArrayBuffer);
     let binary = '';
     for (let i = 0; i < pdfUint8.length; i++) binary += String.fromCharCode(pdfUint8[i]);
     const pdfBase64 = btoa(binary);
-    console.log('[FRI] PDF généré — taille arraybuffer:', pdfUint8.length, '— base64:', pdfBase64.length);
-    envoyerPDFParEmail(
-      filename,
-      pdfBase64,
-      m.prenom + ' ' + m.nom,
-      (state.responsable.prenom||'') + ' ' + (state.responsable.nom||''),
-      state.responsable.email1 || '',
-      isMineur
-    );
-  } catch(e) { console.warn('Envoi PDF Drive:', e); }
+    // Stocker dans le membre pour envoi lors de sendToGoogleSheets
+    const mIdx = state.members.findIndex(mb => mb.id === memberId);
+    if (mIdx >= 0) {
+      state.members[mIdx].qsPdfBase64  = pdfBase64;
+      state.members[mIdx].qsPdfFilename = filename;
+    }
+    console.log('[FRI] QS PDF stocké localement (' + pdfUint8.length + ' bytes) — sera envoyé au Drive lors de la validation');
+    showToast('✅ QS Santé signé et enregistré — sera transmis au FRI à la validation', 'green', 5000);
+  } catch(e) { console.warn('Stockage PDF QS KO:', e); }
 
   } catch(pdfErr) {
     console.error('Erreur génération PDF:', pdfErr);
@@ -6280,6 +6302,7 @@ async function finaliserInscription(code) {
     reg.dateDossier = formatDateFRI();
 
     delete pending[code];
+    clearCodeSession(); // Libérer le code session après enregistrement
     localStorage.setItem('fri_pending', JSON.stringify(pending));
     const existing = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
     if (!existing.find(r => r.id === reg.id)) existing.push(reg);
@@ -6288,6 +6311,61 @@ async function finaliserInscription(code) {
 
     console.log('[FRI] reg.cheques au moment envoi:', JSON.stringify(reg.cheques));
     await sendToGoogleSheets(reg);
+
+    // ── Envoyer QS et RI au Drive maintenant que le dossier est enregistré ──
+    const regCode = code || reg.code || '';
+    const gasUrl = getAppsScriptUrl();
+
+    // Envoyer les QS de chaque membre
+    if (gasUrl && state.members) {
+      for (const mb of state.members) {
+        if (mb.qsPdfBase64 && mb.qsPdfFilename) {
+          try {
+            await envoyerPDFParEmail(
+              mb.qsPdfFilename, mb.qsPdfBase64,
+              mb.prenom + ' ' + mb.nom,
+              (state.responsable.prenom||'') + ' ' + (state.responsable.nom||''),
+              state.responsable.email1 || '',
+              getAge(mb.ddn) < 18
+            );
+            console.log('[FRI] QS envoyé au Drive pour', mb.prenom);
+          } catch(eQS) { console.warn('Envoi QS Drive KO:', eQS); }
+        }
+      }
+    }
+
+    // Envoyer le RI
+    if (gasUrl && state.riSignature) {
+      try {
+        const riPayload = JSON.stringify({
+          action: 'saveReglement', _token: FRI_SECRET_TOKEN,
+          code:      state.riSignature.code || regCode,
+          nom:       state.riSignature.nom,
+          prenom:    state.riSignature.prenom,
+          email:     state.riSignature.email,
+          date:      state.riSignature.date,
+          signature: state.riSignature.signature
+        });
+        const iframeRI = document.createElement('iframe');
+        iframeRI.name = 'fri_ri_final_' + Date.now();
+        iframeRI.style.display = 'none';
+        document.body.appendChild(iframeRI);
+        const formRI = document.createElement('form');
+        formRI.method = 'POST'; formRI.action = gasUrl;
+        formRI.target = iframeRI.name; formRI.style.display = 'none';
+        const inputRI = document.createElement('input');
+        inputRI.type = 'hidden'; inputRI.name = 'payload'; inputRI.value = riPayload;
+        formRI.appendChild(inputRI);
+        document.body.appendChild(formRI);
+        formRI.submit();
+        setTimeout(() => {
+          try { document.body.removeChild(formRI); } catch(e) {}
+          try { document.body.removeChild(iframeRI); } catch(e) {}
+          console.log('[FRI] RI envoyé au Drive ✅');
+          state.riSignature = null;
+        }, 10000);
+      } catch(eRI) { console.warn('Envoi RI Drive KO:', eRI); }
+    }
 
     removeOverlay();
 
@@ -6381,6 +6459,7 @@ async function confirmPayment() {
 
   // Remove from pending
   delete pending[code];
+    clearCodeSession(); // Libérer le code session après enregistrement
   localStorage.setItem('fri_pending', JSON.stringify(pending));
 
   // Save to confirmed registrations locally — THIS ALWAYS SUCCEEDS
