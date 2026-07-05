@@ -508,6 +508,12 @@
     <span class="badge">👨‍👩‍👧‍👦 Jeunes & Adultes</span>
     <span class="badge">📍 Isneauville</span>
   </div>
+  <div style="margin-top:16px;">
+    <button onclick="afficherSectionDocuments()"
+      style="background:rgba(255,255,255,0.15);color:white;border:2px solid rgba(255,255,255,0.6);border-radius:10px;padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer;backdrop-filter:blur(4px);transition:all 0.2s;">
+      📄 J'ai déjà un dossier — Signer QS santé / Règlement intérieur
+    </button>
+  </div>
 </div>
 
 <!-- STEPS NAV -->
@@ -10680,20 +10686,26 @@ async function docEnregistrer() {
   document.getElementById('doc-btn-enregistrer').style.opacity = '0.5';
 }
 
-// Détecter ?mode=documents dans l'URL
+function afficherSectionDocuments() {
+  // Masquer le formulaire principal
+  document.querySelectorAll('.section, .hero, .steps-nav, .hero-badges').forEach(function(el) {
+    el.style.display = 'none';
+  });
+  // Masquer header steps nav
+  var stepsNav = document.querySelector('.steps-nav');
+  if (stepsNav) stepsNav.style.display = 'none';
+  // Afficher la section documents
+  var sd = document.getElementById('section-documents');
+  if (sd) { sd.style.display = 'block'; window.scrollTo(0,0); }
+  initSectionDocuments();
+}
+
+// Détecter ?mode=documents dans l'URL (accès direct)
 (function() {
   var params = new URLSearchParams(window.location.search);
   if (params.get('mode') === 'documents') {
     document.addEventListener('DOMContentLoaded', function() {
-      // Masquer nav steps
-      var nav = document.getElementById('nav-steps');
-      if (nav) nav.style.display = 'none';
-      // Masquer toutes les sections principales
-      document.querySelectorAll('.section').forEach(function(s) { s.style.display = 'none'; });
-      // Afficher section documents
-      var sd = document.getElementById('section-documents');
-      if (sd) sd.style.display = 'block';
-      initSectionDocuments();
+      afficherSectionDocuments();
     });
   }
 })();
