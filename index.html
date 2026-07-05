@@ -10466,85 +10466,132 @@ function initSectionDocuments() {
   });
   document.getElementById('nav-steps') && (document.getElementById('nav-steps').style.display = 'none');
 
-  // Initialiser canvas RI
-  docRICanvas = document.getElementById('doc-ri-canvas');
-  if (docRICanvas) {
-    docRICtx = docRICanvas.getContext('2d');
-    docRICtx.strokeStyle = '#1b5e20';
-    docRICtx.lineWidth = 2.5;
-    docRICtx.lineCap = 'round';
-    var drawing = false;
-    function getPos(e) {
-      var r = docRICanvas.getBoundingClientRect();
-      var src = e.touches ? e.touches[0] : e;
-      return { x: (src.clientX - r.left) * docRICanvas.width / r.width,
-               y: (src.clientY - r.top) * docRICanvas.height / r.height };
-    }
-    function start(e) { e.preventDefault(); drawing = true; var p = getPos(e); docRICtx.beginPath(); docRICtx.moveTo(p.x, p.y); }
-    function move(e) { e.preventDefault(); if (!drawing) return; var p = getPos(e); docRICtx.lineTo(p.x, p.y); docRICtx.stroke(); }
-    function stop(e) { drawing = false; }
-    docRICanvas.addEventListener('mousedown', start);
-    docRICanvas.addEventListener('mousemove', move);
-    docRICanvas.addEventListener('mouseup', stop);
-    docRICanvas.addEventListener('touchstart', start, {passive:false});
-    docRICanvas.addEventListener('touchmove', move, {passive:false});
-    docRICanvas.addEventListener('touchend', stop);
-  }
+  // Canvas RI initialisé dynamiquement quand la case est cochée (voir docCheckRI)
 
   // Générer le QS dynamiquement
   initDocumentQS();
+  // Appliquer la sélection initiale (les deux cochés par défaut)
+  setTimeout(docMajAffichage, 50);
 }
 
 function initDocumentQS() {
   var container = document.getElementById('doc-qs-container');
   if (!container) return;
-  // Utiliser les mêmes questions que le QS santé principal
-  var questions = [
-    "Pratiquez-vous d'autres activités sportives ou artistiques (hors FRI) ?",
-    "Avez-vous eu une opération chirurgicale au cours de la dernière année ?",
-    "Avez-vous eu des blessures musculaires, osseuses ou articulaires dans la dernière année ?",
-    "Avez-vous des contre-indications médicales à la pratique d'une activité physique ?",
-    "Prenez-vous des médicaments pouvant affecter votre pratique sportive ?",
-    "Avez-vous des antécédents cardio-vasculaires ?",
-    "Souhaitez-vous signaler une information médicale à l'animateur ?"
-  ];
-  var html2 = '<div style="font-size:13px;color:var(--gray);margin-bottom:12px;">Répondez aux questions suivantes :</div>';
-  questions.forEach(function(q, i) {
-    html2 += '<div style="margin-bottom:10px;padding:10px;background:#f9f9f9;border-radius:8px;">'
-           + '<div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:6px;">' + (i+1) + '. ' + q + '</div>'
-           + '<div style="display:flex;gap:16px;">'
-           + '<label style="font-size:13px;cursor:pointer;"><input type="radio" name="doc-qs-' + i + '" value="non" checked style="margin-right:4px;"> Non</label>'
-           + '<label style="font-size:13px;cursor:pointer;"><input type="radio" name="doc-qs-' + i + '" value="oui" style="margin-right:4px;"> Oui</label>'
-           + '</div></div>';
-  });
-  // Espace signature QS
-  html2 += '<div style="margin-top:14px;">'
-         + '<div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:8px;">✍️ Signature (attestation sur l\'honneur)</div>'
-         + '<canvas id="doc-qs-canvas" width="520" height="100" style="border:2px solid #c8e6c9;border-radius:8px;cursor:crosshair;touch-action:none;background:white;display:block;max-width:100%;"></canvas>'
-         + '<div style="display:flex;gap:10px;margin-top:8px;">'
-         + '<button onclick="docEffacerQS()" class="btn btn-secondary" style="font-size:13px;">🗑 Effacer</button>'
-         + '</div></div>';
-  container.innerHTML = html2;
 
-  // Init canvas QS
-  var cvs = document.getElementById('doc-qs-canvas');
-  if (cvs) {
-    var ctx = cvs.getContext('2d');
-    ctx.strokeStyle = '#1b5e20'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
-    var dwg = false;
-    function gp(e) { var r=cvs.getBoundingClientRect(); var s=e.touches?e.touches[0]:e; return {x:(s.clientX-r.left)*cvs.width/r.width, y:(s.clientY-r.top)*cvs.height/r.height}; }
-    cvs.addEventListener('mousedown',  function(e){dwg=true; var p=gp(e);ctx.beginPath();ctx.moveTo(p.x,p.y);});
-    cvs.addEventListener('mousemove',  function(e){if(!dwg)return; var p=gp(e);ctx.lineTo(p.x,p.y);ctx.stroke();});
-    cvs.addEventListener('mouseup',    function(){dwg=false;});
-    cvs.addEventListener('touchstart', function(e){e.preventDefault();dwg=true;var p=gp(e);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
-    cvs.addEventListener('touchmove',  function(e){e.preventDefault();if(!dwg)return;var p=gp(e);ctx.lineTo(p.x,p.y);ctx.stroke();},{passive:false});
-    cvs.addEventListener('touchend',   function(){dwg=false;});
+  // Détecter si mineur selon la DDN saisie
+  var ddnVal = (document.getElementById('doc-ddn') && document.getElementById('doc-ddn').value) || '';
+  var isMineur = false;
+  if (ddnVal) {
+    var today = new Date(); var dob = new Date(ddnVal);
+    var age = today.getFullYear() - dob.getFullYear();
+    var mo = today.getMonth() - dob.getMonth();
+    if (mo < 0 || (mo === 0 && today.getDate() < dob.getDate())) age--;
+    isMineur = age < 18;
   }
-}
+
+  var questionsMaj = [
+    "Lors d\'un effort inhabituel, ressentez-vous une douleur dans la poitrine ?",
+    "Avez-vous eu une douleur dans la poitrine au repos lors des 12 derniers mois ?",
+    "Perdez-vous parfois connaissance ou avez-vous des vertiges ?",
+    "Avez-vous des problèmes osseux, articulaires ou musculaires qui pourraient s\'aggraver ?",
+    "Un médecin vous a-t-il prescrit des médicaments pour la pression ou le cœur ?",
+    "Avez-vous conscience d\'une autre raison physique qui vous empêcherait de faire de l\'exercice ?",
+    "Avez-vous eu une chirurgie au cours de la dernière année ?",
+    "Souhaitez-vous signaler une information médicale à l\'animateur ?"
+  ];
+  var questionsMin = [
+    "Votre enfant ressent-il des douleurs dans la poitrine à l\'effort ou au repos ?",
+    "Votre enfant perd-il connaissance ou a-t-il des vertiges lors d\'un effort ?",
+    "Votre enfant a-t-il des problèmes osseux, articulaires ou musculaires susceptibles de s\'aggraver ?",
+    "Votre enfant a-t-il eu une chirurgie au cours de la dernière année ?",
+    "Votre enfant a-t-il des antécédents cardio-vasculaires ?",
+    "Votre enfant prend-il des médicaments pouvant affecter sa pratique sportive ?",
+    "Souhaitez-vous signaler une information médicale à l\'animateur ?"
+  ];
+
+  var questions = isMineur ? questionsMin : questionsMaj;
+  var mention = isMineur ? '👶 Mineur — Questionnaire rempli par le parent / responsable légal'
+                         : '👤 Majeur — Questionnaire à compléter par le pratiquant';
+  var couleur = isMineur ? '#fff3e0' : '#e8f5e9';
+  var txtColor = isMineur ? '#e65100' : '#2d6a4f';
+
+  var html2 = '<div style="background:' + couleur + ';border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:600;color:' + txtColor + ';">' + mention + '</div>';
+  html2 += '<div style="font-size:13px;color:var(--gray);margin-bottom:12px;">Si vous répondez OUI à l\'une des questions, un certificat médical sera requis.</div>';
+
+  questions.forEach(function(q, i) {
+    html2 += '<div style="margin-bottom:10px;padding:10px;background:#f9f9f9;border-radius:8px;">'           + '<div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:6px;">' + (i+1) + '. ' + q + '</div>'           + '<div style="display:flex;gap:16px;">'           + '<label style="font-size:13px;cursor:pointer;"><input type="radio" name="doc-qs-' + i + '" value="non" checked style="margin-right:4px;"> Non</label>'           + '<label style="font-size:13px;cursor:pointer;"><input type="radio" name="doc-qs-' + i + '" value="oui" style="margin-right:4px;"> Oui</label>'           + '</div></div>';
+  });
+
+  var sigLabel = isMineur
+    ? '✍️ Signature du parent / responsable légal (attestation sur l\'honneur)'
+    : '✍️ Signature du pratiquant (attestation sur l\'honneur)';
+  html2 += '<div style="margin-top:14px;">'         + '<div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:8px;">' + sigLabel + '</div>'         + '<canvas id="doc-qs-canvas" width="520" height="100" style="border:2px solid #c8e6c9;border-radius:8px;cursor:crosshair;touch-action:none;background:white;display:block;max-width:100%;"></canvas>'         + '<div style="display:flex;gap:10px;margin-top:8px;">'         + '<button onclick="docEffacerQS()" class="btn btn-secondary" style="font-size:13px;">🗑 Effacer</button>'         + '</div></div>';
+  container.innerHTML = html2;
 
 function docEffacerQS() {
   var cvs = document.getElementById('doc-qs-canvas');
   if (cvs) cvs.getContext('2d').clearRect(0, 0, cvs.width, cvs.height);
+}
+
+function docMajAffichage() {
+  var selQS = document.getElementById('doc-sel-qs');
+  var selRI = document.getElementById('doc-sel-ri');
+  var cardQS = document.getElementById('doc-qs-card');
+  var cardRI = document.getElementById('doc-ri-card');
+  var lblQS  = document.getElementById('doc-sel-qs-label');
+  var lblRI  = document.getElementById('doc-sel-ri-label');
+
+  var wantQS = selQS && selQS.checked;
+  var wantRI = selRI && selRI.checked;
+
+  if (cardQS) cardQS.style.display = wantQS ? 'block' : 'none';
+  if (cardRI) cardRI.style.display = wantRI ? 'block' : 'none';
+
+  // Mettre en valeur la sélection
+  if (lblQS) lblQS.style.borderColor = wantQS ? 'var(--green)' : '#e0e0e0';
+  if (lblRI) lblRI.style.borderColor = wantRI ? 'var(--green)' : '#e0e0e0';
+  if (lblQS) lblQS.style.background  = wantQS ? '#e8f5e9' : '#f9f9f9';
+  if (lblRI) lblRI.style.background  = wantRI ? '#e8f5e9' : '#f9f9f9';
+
+  // Bloquer si rien sélectionné
+  var btnEnv = document.getElementById('doc-btn-enregistrer');
+  if (btnEnv) {
+    btnEnv.disabled = !wantQS && !wantRI;
+    btnEnv.style.opacity = (!wantQS && !wantRI) ? '0.4' : '1';
+  }
+}
+
+function docCheckRI() {
+  var cb = document.getElementById('doc-ri-checkbox');
+  var zone = document.getElementById('doc-ri-signature-zone');
+  if (cb && zone) {
+    zone.style.display = cb.checked ? 'block' : 'none';
+    if (cb.checked) {
+      // Réinitialiser le canvas RI après affichage
+      setTimeout(initDocRI, 100);
+    } else {
+      docRISigné = false;
+    }
+  }
+}
+
+function initDocRI() {
+  docRICanvas = document.getElementById('doc-ri-canvas');
+  if (!docRICanvas) return;
+  docRICtx = docRICanvas.getContext('2d');
+  docRICtx.strokeStyle = '#1b5e20'; docRICtx.lineWidth = 2.5; docRICtx.lineCap = 'round';
+  var drawing = false;
+  function getPos(e) {
+    var r = docRICanvas.getBoundingClientRect();
+    var src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX-r.left)*docRICanvas.width/r.width, y: (src.clientY-r.top)*docRICanvas.height/r.height };
+  }
+  docRICanvas.addEventListener('mousedown',  function(e){drawing=true;var p=getPos(e);docRICtx.beginPath();docRICtx.moveTo(p.x,p.y);});
+  docRICanvas.addEventListener('mousemove',  function(e){if(!drawing)return;var p=getPos(e);docRICtx.lineTo(p.x,p.y);docRICtx.stroke();});
+  docRICanvas.addEventListener('mouseup',    function(){drawing=false;});
+  docRICanvas.addEventListener('touchstart', function(e){e.preventDefault();drawing=true;var p=getPos(e);docRICtx.beginPath();docRICtx.moveTo(p.x,p.y);},{passive:false});
+  docRICanvas.addEventListener('touchmove',  function(e){e.preventDefault();if(!drawing)return;var p=getPos(e);docRICtx.lineTo(p.x,p.y);docRICtx.stroke();},{passive:false});
+  docRICanvas.addEventListener('touchend',   function(){drawing=false;});
 }
 
 function docEffacerRI() {
@@ -10855,6 +10902,7 @@ function remplirFormulaireAdherent(idx) {
   setTimeout(function() { afficherPopupVerifCoordonnees(a); }, 300);
 }
 
+}
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════
@@ -10865,6 +10913,29 @@ function remplirFormulaireAdherent(idx) {
     <div style="font-size:36px;margin-bottom:8px;">📄</div>
     <h2 style="color:var(--dark);font-size:22px;margin:0 0 6px;">Documents FRI</h2>
     <p style="color:var(--gray);font-size:14px;margin:0;">Signature du QS Santé et/ou du Règlement Intérieur</p>
+  </div>
+
+  <!-- Sélection des documents -->
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">📌 Quel(s) document(s) souhaitez-vous signer ?</div>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:4px;">
+      <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;border:2px solid #c8e6c9;border-radius:10px;background:#f9f9f9;transition:all 0.2s;"
+             id="doc-sel-qs-label">
+        <input type="checkbox" id="doc-sel-qs" onchange="docMajAffichage()" style="width:20px;height:20px;" checked>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--dark);">🏥 Questionnaire de Santé</div>
+          <div style="font-size:12px;color:var(--gray);">Auto-questionnaire médical annuel obligatoire</div>
+        </div>
+      </label>
+      <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;border:2px solid #c8e6c9;border-radius:10px;background:#f9f9f9;transition:all 0.2s;"
+             id="doc-sel-ri-label">
+        <input type="checkbox" id="doc-sel-ri" onchange="docMajAffichage()" style="width:20px;height:20px;" checked>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--dark);">📋 Règlement Intérieur</div>
+          <div style="font-size:12px;color:var(--gray);">Acceptation du règlement du Foyer Rural</div>
+        </div>
+      </label>
+    </div>
   </div>
 
   <!-- N° de dossier -->
@@ -10891,7 +10962,7 @@ function remplirFormulaireAdherent(idx) {
       </div>
       <div class="field">
         <label>Date de naissance</label>
-        <input type="date" id="doc-ddn">
+        <input type="date" id="doc-ddn" onchange="initDocumentQS()">
       </div>
     </div>
   </div>
@@ -10907,13 +10978,35 @@ function remplirFormulaireAdherent(idx) {
 
   <!-- Règlement intérieur -->
   <div class="card" id="doc-ri-card" style="margin-bottom:16px;">
-    <div class="card-title">📋 Règlement Intérieur</div>
-    <div id="doc-ri-status" style="font-size:13px;color:var(--gray);margin-bottom:12px;">Non signé</div>
-    <canvas id="doc-ri-canvas" width="520" height="100"
-      style="border:2px solid #c8e6c9;border-radius:8px;cursor:crosshair;touch-action:none;background:white;display:block;max-width:100%;"></canvas>
-    <div style="display:flex;gap:10px;margin-top:10px;">
-      <button onclick="docEffacerRI()" class="btn btn-secondary" style="font-size:13px;">🗑 Effacer</button>
-      <button onclick="docSignerRI()" class="btn btn-primary" style="font-size:13px;">✅ Valider ma signature</button>
+    <div class="card-title">📋 Règlement Intérieur — Foyer Rural d'Isneauville</div>
+    <!-- Texte du RI -->
+    <div style="font-size:12px;color:#444;line-height:1.7;max-height:260px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:8px;padding:12px 14px;margin-bottom:14px;background:#fafafa;">
+      <p style="font-weight:700;color:var(--dark);margin:0 0 8px;">Article 1 — Cotisation</p>
+      <p style="margin:0 0 8px;">La cotisation est due dès l'inscription. Elle n'est remboursable qu'en cas de maladie grave ou d'accident, sur présentation d'un certificat médical, après avis du Conseil d'Administration. Un forfait de 30 € pour frais de secrétariat sera prélevé sur tout remboursement.</p>
+      <p style="font-weight:700;color:var(--dark);margin:8px 0 8px;">Article 2 — Responsabilité</p>
+      <p style="margin:0 0 8px;">Les élèves sont sous la responsabilité de l'animateur pendant les cours. Avant et après les cours, les parents des élèves mineurs en ont la pleine responsabilité. Les élèves mineurs doivent être accompagnés d'un adulte jusqu'à la porte du cours et récupérés à la fin.</p>
+      <p style="font-weight:700;color:var(--dark);margin:8px 0 8px;">Article 3 — Comportement</p>
+      <p style="margin:0 0 8px;">Tout comportement irrespectueux envers les animateurs, bénévoles ou autres adhérents pourra entraîner l'exclusion sans remboursement. Les téléphones portables doivent être éteints pendant les cours.</p>
+      <p style="font-weight:700;color:var(--dark);margin:8px 0 8px;">Article 4 — Locaux</p>
+      <p style="margin:0 0 8px;">Les adhérents s'engagent à respecter les locaux mis à disposition. Toute dégradation sera à la charge du responsable. La tenue et les chaussures adaptées à l'activité sont obligatoires.</p>
+      <p style="font-weight:700;color:var(--dark);margin:8px 0 8px;">Article 5 — Assurance</p>
+      <p style="margin:0 0 8px;">Tous les adhérents sont couverts par l'assurance FNSMR. Il est recommandé de souscrire une assurance complémentaire individuelle.</p>
+    </div>
+    <!-- Case à cocher -->
+    <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;margin-bottom:14px;padding:12px;background:#e8f5e9;border-radius:8px;border:1.5px solid #a5d6a7;">
+      <input type="checkbox" id="doc-ri-checkbox" onchange="docCheckRI()" style="margin-top:2px;width:18px;height:18px;flex-shrink:0;">
+      <span>J'ai lu et j'accepte le règlement intérieur du Foyer Rural d'Isneauville. Je m'engage à le respecter ainsi qu'à le faire respecter par les membres de ma famille.</span>
+    </label>
+    <!-- Signature -->
+    <div id="doc-ri-signature-zone" style="display:none;">
+      <div id="doc-ri-status" style="font-size:13px;color:var(--gray);margin-bottom:8px;">Non signé</div>
+      <p style="font-size:12px;color:#555;margin-bottom:8px;">Apposez votre signature ci-dessous :</p>
+      <canvas id="doc-ri-canvas" width="520" height="100"
+        style="border:2px solid #c8e6c9;border-radius:8px;cursor:crosshair;touch-action:none;background:white;display:block;max-width:100%;"></canvas>
+      <div style="display:flex;gap:10px;margin-top:10px;">
+        <button onclick="docEffacerRI()" class="btn btn-secondary" style="font-size:13px;">🗑 Effacer</button>
+        <button onclick="docSignerRI()" class="btn btn-primary" style="font-size:13px;">✅ Valider ma signature</button>
+      </div>
     </div>
   </div>
 
