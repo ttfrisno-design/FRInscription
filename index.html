@@ -1215,7 +1215,7 @@ function isSignatureRIVide() {
     _riCtx = _riCanvas.getContext('2d', { willReadFrequently: true });
   }
   try {
-    var data = _riCtx.getImageData(0, 0, _riCanvas.width, _riCanvas.height).data;
+    var data = _riCanvas.getContext('2d',{willReadFrequently:true}).getImageData(0, 0, _riCanvas.width, _riCanvas.height).data;
     for (var i = 3; i < data.length; i += 4) { if (data[i] > 10) return false; }
   } catch(e) { return true; }
   return true;
@@ -3502,7 +3502,7 @@ function isSignatureFFTTVide(memId) {
   const cv = _ffttCanvas[memId] || document.getElementById('fftt-sig-' + memId);
   if (!cv) return true;
   const ctx = cv.getContext('2d');
-  const d = ctx.getImageData(0, 0, cv.width, cv.height).data;
+  const d = cv.getContext('2d',{willReadFrequently:true}).getImageData(0, 0, cv.width, cv.height).data;
   for (let i = 3; i < d.length; i += 4) if (d[i] > 0) return false;
   return true;
 }
@@ -10167,7 +10167,7 @@ function cancelSignature() {
 }
 
 function isCanvasEmpty() {
-  const data = _sigCtx.getImageData(0, 0, _sigCanvas.width, _sigCanvas.height).data;
+  const data = _sigCanvas.getContext('2d',{willReadFrequently:true}).getImageData(0, 0, _sigCanvas.width, _sigCanvas.height).data;
   return !data.some(v => v !== 0);
 }
 
@@ -10866,7 +10866,7 @@ function docEffacerRI() {
 
 function docSignerRI() {
   if (!docRICanvas) return;
-  var imgData = docRICtx.getImageData(0, 0, docRICanvas.width, docRICanvas.height);
+  var imgData = docRICanvas.getContext('2d',{willReadFrequently:true}).getImageData(0, 0, docRICanvas.width, docRICanvas.height);
   var hasPixels = imgData.data.some(function(v, i) { return i % 4 === 3 && v > 0; });
   if (!hasPixels) { showToast('Veuillez signer dans le cadre ci-dessus', 'orange'); return; }
   docRISigné = true;
@@ -10966,6 +10966,11 @@ async function docEnregistrer() {
 
           // Peupler state temporairement
           state.codeDossierPreview = code;
+          // Construire m.qs (tableau indexé) comme attendu par _genererPDFAvecSignature
+          var qsArray = [];
+          var nbQA = Object.keys(qsAnswersDoc).length;
+          for (var qai=0; qai<nbQA; qai++) qsArray[qai] = qsAnswersDoc[qai] || 'non';
+
           state.members = [{
             id:        docMemberId,
             nom:       nom,
@@ -10973,6 +10978,7 @@ async function docEnregistrer() {
             ddn:       ddn,
             sexe:      '',
             activities: [],
+            qs:        qsArray,
             qsAnswers:  qsAnswersDoc
           }];
           state.responsable = {
