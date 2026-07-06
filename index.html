@@ -6231,12 +6231,21 @@ async function handleReturnFromHelloAsso() {
       if (gasUrlHA && qsPendingHA.length > 0) {
         for (const qsItem of qsPendingHA) {
           try {
+            // Calculer isMineur depuis la DDN stockée dans qsItem
+            var isMinQS = false;
+            if (qsItem.ddn) {
+              var dobQS = new Date(qsItem.ddn.split('/').reverse().join('-'));
+              var ageQS = new Date().getFullYear() - dobQS.getFullYear();
+              var moQS = new Date().getMonth() - dobQS.getMonth();
+              if (moQS < 0 || (moQS === 0 && new Date().getDate() < dobQS.getDate())) ageQS--;
+              isMinQS = ageQS < 18;
+            }
             await envoyerPDFParEmail(
               qsItem.filename, qsItem.pdfBase64,
               qsItem.prenom + ' ' + qsItem.nom,
               (reg.responsable?.prenom||'') + ' ' + (reg.responsable?.nom||''),
               qsItem.email || reg.responsable?.email1 || '',
-              false
+              isMinQS
             );
             console.log('[FRI] QS envoyé Drive (retour HA):', qsItem.prenom);
           } catch(eQSHA) { console.warn('Envoi QS HA KO:', eQSHA); }
