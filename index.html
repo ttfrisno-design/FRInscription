@@ -10840,42 +10840,99 @@ async function docEnregistrer() {
           }
           if (!jsPDFcls) throw new Error('jsPDF non disponible');
           var doc2 = new jsPDFcls({orientation:'portrait', unit:'mm', format:'a4'});
+          var M2=15, W2=210, TW2=180, VERT2=[29,106,79], GRIS2=[100,100,100], NOIR2=[30,30,30], BLANC2=[255,255,255];
           var numRef = isMineur ? 'N°25-10-2' : 'N°25-10-1';
-          doc2.setFontSize(13); doc2.setFont('helvetica','bold');
-          doc2.text('QUESTIONNAIRE DE SANTÉ FRI 2026/2027 — Formulaire '+numRef, 15, 18);
-          doc2.setFontSize(10); doc2.setFont('helvetica','normal');
-          doc2.text('Dossier : '+code+'  |  '+prenom+' '+nom+(isMineur?' (Mineur)':''), 15, 26);
-          doc2.text('Né(e) le : '+ddn+'  |  Email : '+email, 15, 32);
-          if (isMineur && respPrenom) doc2.text('Responsable légal : '+respPrenom+' '+respNom, 15, 38);
-          var y2 = isMineur ? 44 : 38;
-          // Questions
-          var allQ = document.querySelectorAll('[name^="doc-qs-"]');
-          var qLabels = [];
-          document.querySelectorAll('#doc-qs-container [name^="doc-qs-"]');
-          // Récupérer les labels depuis le DOM
-          var qDivs = document.querySelectorAll('#doc-qs-container > div');
-          qDivs.forEach(function(div, i) {
-            var labelEl = div.querySelector('div:first-child');
-            if (labelEl) qLabels.push(labelEl.textContent.trim());
-          });
-          qLabels.forEach(function(q, i) {
-            if (y2 > 270) { doc2.addPage(); y2 = 20; }
-            var rep = qsRep[i] || 'non';
-            doc2.setFont('helvetica', rep==='oui'?'bold':'normal');
-            doc2.setTextColor(rep==='oui'?200:60, rep==='oui'?0:60, rep==='oui'?0:60);
-            var lines = doc2.splitTextToSize((i+1)+'. '+q+' → '+rep.toUpperCase(), 175);
-            doc2.text(lines, 15, y2);
-            y2 += lines.length * 5 + 2;
-          });
-          doc2.setTextColor(0,0,0);
-          // Signature
-          y2 += 4;
-          doc2.setFont('helvetica','bold'); doc2.setFontSize(10);
-          var sigTxt = isMineur ? 'Signature enfant + responsable légal :' : 'Signature :';
-          doc2.text(sigTxt, 15, y2);
-          var qsSigUrl = cvQS.toDataURL('image/png');
-          doc2.addImage(qsSigUrl, 'PNG', 15, y2+3, 90, 25);
 
+          // ── En-tête ──
+          doc2.setFillColor(...VERT2);
+          doc2.rect(0, 0, W2, 26, 'F');
+          doc2.setFontSize(13); doc2.setFont('helvetica','bold');
+          doc2.setTextColor(...BLANC2);
+          doc2.text('QUESTIONNAIRE DE SANTÉ SPORTIVE FNSMR', W2/2, 11, {align:'center'});
+          doc2.setFontSize(9); doc2.setFont('helvetica','normal');
+          doc2.text('Formulaire '+numRef+' — Foyer Rural d\'Isneauville — Saison 2026/2027', W2/2, 17, {align:'center'});
+          doc2.text('Dossier : '+code, W2/2, 22, {align:'center'});
+          var y2 = 32;
+
+          // ── Identité ──
+          doc2.setFillColor(240, 248, 240);
+          doc2.rect(M2, y2, TW2, isMineur ? 22 : 16, 'F');
+          doc2.setDrawColor(...VERT2); doc2.rect(M2, y2, TW2, isMineur ? 22 : 16, 'S');
+          doc2.setFontSize(9); doc2.setFont('helvetica','bold'); doc2.setTextColor(...VERT2);
+          doc2.text('IDENTITÉ', M2+3, y2+5);
+          doc2.setFont('helvetica','normal'); doc2.setTextColor(...NOIR2);
+          doc2.setFontSize(8.5);
+          doc2.text('Nom & Prénom : '+prenom+' '+nom, M2+3, y2+11);
+          doc2.text('Date de naissance : '+ddn, M2+100, y2+11);
+          if (isMineur) {
+            doc2.setFont('helvetica','bold');
+            doc2.text('Responsable légal : '+(respPrenom||'')+' '+(respNom||''), M2+3, y2+17);
+            doc2.text('Email : '+email, M2+100, y2+17);
+          }
+          y2 += isMineur ? 28 : 22;
+
+          // ── Tableau questions ──
+          var COL_TXT2 = TW2 - 34;
+          var COL_W2 = 17;
+          var X_OUI2 = M2 + COL_TXT2 + 2;
+          var X_NON2 = M2 + COL_TXT2 + COL_W2 + 2;
+
+          // En-tête tableau
+          doc2.setFillColor(...VERT2);
+          doc2.rect(M2, y2, TW2, 8, 'F');
+          doc2.setFontSize(8.5); doc2.setFont('helvetica','bold'); doc2.setTextColor(...BLANC2);
+          doc2.text('RÉPONDEZ À CHAQUE QUESTION PAR OUI OU PAR NON', M2+3, y2+5.5);
+          doc2.text('OUI', X_OUI2+COL_W2/2-2, y2+5.5);
+          doc2.text('NON', X_NON2+COL_W2/2-2, y2+5.5);
+          y2 += 8;
+
+          // Collecter labels et réponses depuis le DOM
+          var qDivs2 = document.querySelectorAll('#doc-qs-container > div');
+          var nbQ = 0;
+          qDivs2.forEach(function(div, i) {
+            var labelEl = div.querySelector('div:first-child');
+            var q = labelEl ? labelEl.textContent.trim() : '';
+            if (!q) return;
+            var rep = qsRep[nbQ] || 'non';
+            nbQ++;
+            var bg2 = (nbQ % 2 === 0) ? [245,250,245] : [255,255,255];
+            doc2.setFontSize(8.5); doc2.setFont('helvetica','normal');
+            var lines2 = doc2.splitTextToSize((i+1)+'. '+q, COL_TXT2-4);
+            var rh2 = Math.max(10, lines2.length*4.8+4);
+            if (y2 + rh2 > 270) { doc2.addPage(); y2 = 15; }
+            doc2.setFillColor(...bg2); doc2.rect(M2, y2, TW2, rh2, 'F');
+            doc2.setDrawColor(200,220,200);
+            doc2.line(M2+COL_TXT2, y2, M2+COL_TXT2, y2+rh2);
+            doc2.line(M2+COL_TXT2+COL_W2, y2, M2+COL_TXT2+COL_W2, y2+rh2);
+            doc2.rect(M2, y2, TW2, rh2, 'S');
+            if(rep==='oui'){doc2.setTextColor(200,0,0);}else{doc2.setTextColor(...NOIR2);}
+            doc2.setFont('helvetica', rep==='oui'?'bold':'normal');
+            doc2.text(lines2, M2+2, y2+5);
+            doc2.setTextColor(...NOIR2); doc2.setFont('helvetica','normal');
+            doc2.text(rep==='oui'?'☑':'☐', X_OUI2+COL_W2/2-2, y2+rh2/2+1.5);
+            doc2.text(rep==='non'?'☑':'☐', X_NON2+COL_W2/2-2, y2+rh2/2+1.5);
+            y2 += rh2;
+          });
+
+          // ── Signature ──
+          y2 += 5;
+          if (y2 + 40 > 270) { doc2.addPage(); y2 = 15; }
+          doc2.setFillColor(...VERT2); doc2.rect(M2, y2, TW2, 7, 'F');
+          doc2.setFontSize(9); doc2.setFont('helvetica','bold'); doc2.setTextColor(...BLANC2);
+          var sigTxt2 = isMineur ? 'SIGNATURE DE L\'ENFANT ET DU PARENT / RESPONSABLE LÉGAL' : 'SIGNATURE DU PRATIQUANT';
+          doc2.text(sigTxt2, W2/2, y2+5, {align:'center'});
+          y2 += 10;
+          doc2.setFontSize(8.5); doc2.setFont('helvetica','normal'); doc2.setTextColor(...GRIS2);
+          doc2.text('J\'atteste sur l\'honneur l\'exactitude des réponses ci-dessus.', M2, y2);
+          doc2.text('Date : '+new Date().toLocaleDateString('fr-FR'), M2+120, y2);
+          y2 += 5;
+          var qsSigUrl2 = cvQS.toDataURL('image/png');
+          doc2.addImage(qsSigUrl2, 'PNG', M2, y2, 90, 28);
+          y2 += 32;
+
+          // ── Pied de page ──
+          doc2.setFontSize(7.5); doc2.setTextColor(...GRIS2);
+          doc2.text('Foyer Rural d\'Isneauville | frisneauville@orange.fr | 02.35.59.01.01', W2/2, 285, {align:'center'})
           var pdfB64 = doc2.output('datauristring').split(',')[1];
           var fnQS = code+'_'+prenom+'-'+nom+'_QS-Sante.pdf';
 
