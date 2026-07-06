@@ -10486,11 +10486,29 @@ function initSectionDocuments() {
   setTimeout(docMajAffichage, 50);
 }
 
+function docCheckMineur() {
+  var ddnVal = (document.getElementById('doc-ddn')?.value) || '';
+  var respZone  = document.getElementById('doc-resp-zone');
+  var alertMin  = document.getElementById('doc-resp-mineur-alert');
+  if (!ddnVal) return;
+  var dob = new Date(ddnVal);
+  var today = new Date();
+  var age = today.getFullYear() - dob.getFullYear();
+  var mo = today.getMonth() - dob.getMonth();
+  if (mo < 0 || (mo === 0 && today.getDate() < dob.getDate())) age--;
+  var isMineur = age < 18;
+  var wantRI = document.getElementById('doc-sel-ri')?.checked;
+  // Afficher le bloc responsable si mineur OU si RI coché
+  if (respZone) respZone.style.display = (isMineur || wantRI) ? 'block' : 'none';
+  if (alertMin) alertMin.style.display = isMineur ? 'block' : 'none';
+  initDocumentQS();
+}
+
 function initDocumentQS() {
   var container = document.getElementById('doc-qs-container');
   if (!container) return;
 
-  var ddnVal = (document.getElementById('doc-ddn') && document.getElementById('doc-ddn').value) || '';
+  var ddnVal = (document.getElementById('doc-ddn')?.value) || '';
   var isMineur = false;
   if (ddnVal) {
     var today = new Date(); var dob = new Date(ddnVal);
@@ -10500,84 +10518,69 @@ function initDocumentQS() {
     isMineur = age < 18;
   }
 
-  // Afficher/masquer le bloc responsable légal
-  var respZone = document.getElementById('doc-resp-zone');
-  if (respZone) respZone.style.display = isMineur ? 'block' : 'none';
-
-  // 24 questions mineur (formulaire 25-10-2) / 8 questions majeur
+  // Questions FNSMR (section documents uniquement)
   var questionsMaj = [
-    "Lors d'un effort inhabituel, ressentez-vous une douleur dans la poitrine ?",
-    "Avez-vous eu une douleur dans la poitrine au repos lors des 12 derniers mois ?",
-    "Perdez-vous parfois connaissance ou avez-vous des vertiges ?",
-    "Avez-vous des problèmes osseux, articulaires ou musculaires qui pourraient s'aggraver ?",
-    "Un médecin vous a-t-il prescrit des médicaments pour la pression ou le coeur ?",
-    "Avez-vous conscience d'une autre raison physique vous empêchant de faire de l'exercice ?",
-    "Avez-vous eu une chirurgie au cours de la dernière année ?",
-    "Souhaitez-vous signaler une information médicale à l'animateur ?"
+    "Votre médecin vous a dit que vous étiez atteint d'un problème cardiaque, d'une hypertension artérielle, d'une affection de longue durée (ALD) ou d'une autre maladie chronique",
+    "Avez-vous ressenti une douleur dans la poitrine, des palpitations, un essoufflement inhabituel ou un malaise durant les 12 derniers mois ?",
+    "Ressentez-vous une douleur, un manque de force ou une raideur suite à un problème osseux, articulaire ou musculaire survenu durant les 12 derniers mois ?",
+    "Un membre de votre famille est-il décédé subitement d'une cause cardiaque ou inexpliquée avant 60 ans ?",
+    "Avez-vous eu un épisode de respiration sifflante (asthme) durant les 12 derniers mois ?",
+    "Avez-vous eu une perte de connaissance durant les 12 derniers mois ?",
+    "Pensez-vous avoir besoin d'un avis médical pour poursuivre votre pratique sportive ?"
   ];
   var questionsMin = [
-    "1. Es-tu allé(e) à l'hôpital pendant toute une journée ou plusieurs jours ?",
-    "2. As-tu été opéré(e) ?",
-    "3. As-tu beaucoup plus grandi que les autres années ?",
-    "4. As-tu beaucoup maigri ou grossi ?",
-    "5. As-tu eu la tête qui tourne pendant un effort ?",
-    "6. As-tu perdu connaissance ou es-tu tombé sans te souvenir de ce qui s'était passé ?",
-    "7. As-tu reçu un ou plusieurs chocs violents qui t'ont obligé à interrompre une séance de sport ?",
-    "8. As-tu eu beaucoup de mal à respirer pendant un effort par rapport à d'habitude ?",
-    "9. As-tu eu beaucoup de mal à respirer après un effort ?",
-    "10. As-tu eu mal dans la poitrine ou des palpitations (le coeur qui bat très vite) ?",
-    "11. As-tu commencé à prendre un nouveau médicament tous les jours et pour longtemps ?",
-    "12. As-tu arrêté le sport à cause d'un problème de santé pendant un mois ou plus ?",
-    "13. Te sens-tu très fatigué(e) ? (plus de 2 semaines)",
-    "14. As-tu du mal à t'endormir ou te réveilles-tu souvent dans la nuit ?",
-    "15. Sens-tu que tu as moins faim ? que tu manges moins ?",
-    "16. Te sens-tu triste ou inquiet ?",
-    "17. Pleures-tu plus souvent ?",
-    "18. Ressens-tu une douleur ou un manque de force à cause d'une blessure cette année ?",
-    "19. Penses-tu quelquefois à arrêter de faire du sport ou à changer de sport ?",
-    "20. Penses-tu avoir besoin de voir ton médecin pour continuer le sport ?",
-    "21. Souhaites-tu signaler quelque chose de plus concernant ta santé ?",
-    "(Parents) 22. Quelqu'un dans votre famille proche a-t-il eu une maladie grave du coeur ou est-il décédé subitement avant 50 ans ?",
-    "(Parents) 23. Êtes-vous inquiet pour son poids ? Trouvez-vous qu'il se nourrit trop ou pas assez ?",
-    "(Parents) 24. Avez-vous manqué l'examen de santé prévu à l'âge de votre enfant chez le médecin ?"
+    "Es-tu allé(e) à l'hôpital pendant toute une journée ou plusieurs jours ?",
+    "As-tu été opéré(e) ?",
+    "As-tu beaucoup plus grandi que les autres années ?",
+    "As-tu beaucoup maigri ou grossi ?",
+    "As-tu eu la tête qui tourne pendant un effort ?",
+    "As-tu perdu connaissance ou es-tu tombé sans te souvenir de ce qui s'était passé ?",
+    "As-tu reçu un ou plusieurs chocs violents qui t'ont obligé à interrompre une séance de sport ?",
+    "As-tu eu beaucoup de mal à respirer pendant un effort par rapport à d'habitude ?",
+    "As-tu eu beaucoup de mal à respirer après un effort ?",
+    "As-tu eu mal dans la poitrine ou des palpitations ?",
+    "As-tu commencé à prendre un nouveau médicament tous les jours et pour longtemps ?",
+    "As-tu arrêté le sport à cause d'un problème de santé pendant un mois ou plus ?",
+    "Te sens-tu très fatigué(e) depuis plus de 2 semaines ?",
+    "As-tu du mal à t'endormir ou te réveilles-tu souvent dans la nuit ?",
+    "Ressens-tu une douleur ou un manque de force à cause d'une blessure cette année ?",
+    "Quelqu'un dans votre famille proche est-il décédé subitement avant 50 ans ? (parents)",
+    "Êtes-vous inquiet pour son poids ? (parents)",
+    "Avez-vous manqué l'examen de santé prévu à l'âge de votre enfant ? (parents)"
   ];
 
   var questions = isMineur ? questionsMin : questionsMaj;
-  var mention = isMineur
-    ? '👶 Mineur — Formulaire N°25-10-2 — rempli par l\'enfant avec le parent'
-    : '👤 Majeur — Formulaire N°25-10-1';
-  var couleur = isMineur ? '#fff3e0' : '#e8f5e9';
-  var txtColor = isMineur ? '#e65100' : '#2d6a4f';
+  var numRef    = isMineur ? 'N° 25-10-2' : 'N° 25-10-1';
+  var mention   = isMineur
+    ? '👶 Mineur — Formulaire FNSMR ' + numRef + ' (rempli avec le parent)'
+    : '👤 Majeur — Formulaire FNSMR ' + numRef;
+  var couleur   = isMineur ? '#fff3e0' : '#e8f5e9';
+  var txtColor  = isMineur ? '#e65100' : '#2d6a4f';
 
-  var html2 = '<div style="background:' + couleur + ';border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:600;color:' + txtColor + ';">' + mention + '</div>';
-  html2 += '<div style="font-size:13px;color:var(--gray);margin-bottom:12px;">Répondez à chaque question. Si vous répondez <strong>OUI</strong> à l\'une d\'elles, un certificat médical sera requis.</div>';
+  var h = '<div style="background:'+couleur+';border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:13px;font-weight:600;color:'+txtColor+';">'+mention+'</div>';
+  h += '<div style="font-size:12px;color:var(--gray);margin-bottom:10px;">Répondez à chaque question. Un seul <strong>OUI</strong> nécessite un certificat médical.</div>';
 
   questions.forEach(function(q, i) {
-    html2 += '<div style="margin-bottom:8px;padding:10px;background:#f9f9f9;border-radius:8px;">'           + '<div style="font-size:13px;color:var(--dark);margin-bottom:6px;">' + q + '</div>'           + '<div style="display:flex;gap:16px;">'           + '<label style="font-size:13px;cursor:pointer;"><input type="radio" name="doc-qs-' + i + '" value="non" checked style="margin-right:4px;"> Non</label>'           + '<label style="font-size:13px;cursor:pointer;"><input type="radio" name="doc-qs-' + i + '" value="oui" style="margin-right:4px;"> Oui</label>'           + '</div></div>';
+    h += '<div style="margin-bottom:8px;padding:9px 12px;background:#f9f9f9;border-radius:8px;">'       + '<div style="font-size:13px;color:var(--dark);margin-bottom:5px;">' + q + '</div>'       + '<div style="display:flex;gap:16px;">'       + '<label style="font-size:13px;cursor:pointer;"><input type="radio" name="doc-qs-'+i+'" value="non" checked style="margin-right:4px;"> Non</label>'       + '<label style="font-size:13px;cursor:pointer;"><input type="radio" name="doc-qs-'+i+'" value="oui" style="margin-right:4px;"> Oui</label>'       + '</div></div>';
   });
 
-  var sigLabel = isMineur
-    ? 'Signature de l\'enfant ET du parent / responsable légal'
-    : 'Signature du pratiquant';
-  html2 += '<div style="margin-top:14px;">'         + '<div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:8px;">✍️ ' + sigLabel + ' (attestation sur l\'honneur)</div>'         + '<canvas id="doc-qs-canvas" width="520" height="120" style="border:2px solid #c8e6c9;border-radius:8px;cursor:crosshair;touch-action:none;background:white;display:block;max-width:100%;"></canvas>'         + '<div style="display:flex;gap:10px;margin-top:8px;">'         + '<button onclick="docEffacerQS()" class="btn btn-secondary" style="font-size:13px;">🗑 Effacer</button>'         + '</div></div>';
-  container.innerHTML = html2;
+  var sigLabel = isMineur ? 'Signature enfant + parent/responsable légal' : 'Signature du pratiquant';
+  h += '<div style="margin-top:12px;">'     + '<div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:8px;">✍️ ' + sigLabel + ' (attestation sur l\'honneur)</div>'     + '<canvas id="doc-qs-canvas" width="520" height="110" style="border:2px solid #c8e6c9;border-radius:8px;cursor:crosshair;touch-action:none;background:white;display:block;max-width:100%;"></canvas>'     + '<div style="display:flex;gap:10px;margin-top:8px;">'     + '<button onclick="docEffacerQS()" class="btn btn-secondary" style="font-size:13px;">🗑 Effacer</button>'     + '</div></div>';
 
-  // Réinitialiser le canvas QS
+  container.innerHTML = h;
+
+  // Init canvas
   var cvs = document.getElementById('doc-qs-canvas');
   if (cvs) {
     var ctx = cvs.getContext('2d');
     ctx.strokeStyle = '#1b5e20'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
     var dwg = false;
-    function gpQS(e) {
-      var r = cvs.getBoundingClientRect();
-      var src = e.touches ? e.touches[0] : e;
-      return { x: (src.clientX-r.left)*cvs.width/r.width, y: (src.clientY-r.top)*cvs.height/r.height };
-    }
-    cvs.onmousedown  = function(e){dwg=true;var p=gpQS(e);ctx.beginPath();ctx.moveTo(p.x,p.y);};
-    cvs.onmousemove  = function(e){if(!dwg)return;var p=gpQS(e);ctx.lineTo(p.x,p.y);ctx.stroke();};
+    function gpQ(e) { var r=cvs.getBoundingClientRect(),s=e.touches?e.touches[0]:e; return {x:(s.clientX-r.left)*cvs.width/r.width,y:(s.clientY-r.top)*cvs.height/r.height}; }
+    cvs.onmousedown  = function(e){dwg=true;var p=gpQ(e);ctx.beginPath();ctx.moveTo(p.x,p.y);};
+    cvs.onmousemove  = function(e){if(!dwg)return;var p=gpQ(e);ctx.lineTo(p.x,p.y);ctx.stroke();};
     cvs.onmouseup    = function(){dwg=false;};
-    cvs.addEventListener('touchstart',function(e){e.preventDefault();dwg=true;var p=gpQS(e);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
-    cvs.addEventListener('touchmove', function(e){e.preventDefault();if(!dwg)return;var p=gpQS(e);ctx.lineTo(p.x,p.y);ctx.stroke();},{passive:false});
+    cvs.addEventListener('touchstart',function(e){e.preventDefault();dwg=true;var p=gpQ(e);ctx.beginPath();ctx.moveTo(p.x,p.y);},{passive:false});
+    cvs.addEventListener('touchmove', function(e){e.preventDefault();if(!dwg)return;var p=gpQ(e);ctx.lineTo(p.x,p.y);ctx.stroke();},{passive:false});
     cvs.addEventListener('touchend',  function(){dwg=false;});
   }
 }
@@ -10610,19 +10613,7 @@ async function docVerifierDossier() {
       var d = data.dossier;
       status.innerHTML = '<span style="color:#2d6a4f;font-weight:700;">✅ Dossier trouvé — '
         + d.prenom + ' ' + d.nom + '</span>';
-      // Pré-remplir depuis le Sheet
-      var setVal = function(id, val) { var el = document.getElementById(id); if (el && val) el.value = val; };
-      setVal('doc-resp-prenom', d.respPrenom);
-      setVal('doc-resp-nom',    d.respNom);
-      setVal('doc-email',       d.email);
-      setVal('doc-prenom',      d.membrePrenom);
-      setVal('doc-nom',         d.membreNom);
-      // DDN : convertir dd/MM/yyyy → yyyy-MM-dd pour input[type=date]
-      if (d.ddn && d.ddn.match(/\d{2}\/\d{2}\/\d{4}/)) {
-        var parts = d.ddn.split('/');
-        document.getElementById('doc-ddn').value = parts[2]+'-'+parts[1]+'-'+parts[0];
-        setTimeout(initDocumentQS, 100);
-      }
+      // Dossier vérifié — on n'affiche que la confirmation, pas de pré-remplissage
       // Déverrouiller le formulaire
       if (formBody) formBody.style.display = 'block';
       if (formLocked) formLocked.style.display = 'none';
@@ -10679,6 +10670,23 @@ function docMajAffichage() {
   var rien = !wantQS && !wantRI && !wantPJ;
   var btnEnv = document.getElementById('doc-btn-enregistrer');
   if (btnEnv) { btnEnv.disabled = rien; btnEnv.style.opacity = rien ? '0.4' : '1'; }
+
+  // Zone membre : visible si QS coché
+  var zQS = document.getElementById('doc-zone-qs-infos');
+  if (zQS) zQS.style.display = wantQS ? 'block' : 'none';
+
+  // Zone responsable : visible si RI coché OU si QS mineur
+  // Sera mis à jour par docCheckMineur() quand la DDN est saisie
+  if (wantRI && !wantQS) {
+    // RI seul : afficher resp immédiatement
+    var zResp = document.getElementById('doc-resp-zone');
+    if (zResp) zResp.style.display = 'block';
+    var alertMin = document.getElementById('doc-resp-mineur-alert');
+    if (alertMin) alertMin.style.display = 'none';
+  } else if (!wantRI && !wantQS) {
+    var zResp2 = document.getElementById('doc-resp-zone');
+    if (zResp2) zResp2.style.display = 'none';
+  }
 
   if (wantQS) { setTimeout(function() { if (typeof initDocumentQS === 'function') initDocumentQS(); }, 50); }
 }
@@ -10738,18 +10746,35 @@ function docSignerRI() {
 
 async function docEnregistrer() {
   var code   = (document.getElementById('doc-code-dossier')?.value || '').trim().toUpperCase();
-  var prenom = (document.getElementById('doc-prenom')?.value || '').trim();
-  var nom    = (document.getElementById('doc-nom')?.value || '').trim().toUpperCase();
-  var email  = (document.getElementById('doc-email')?.value || '').trim();
-  var ddn    = (document.getElementById('doc-ddn')?.value || '').trim();
-  var respPrenom = (document.getElementById('doc-resp-prenom')?.value || '').trim();
-  var respNom    = (document.getElementById('doc-resp-nom')?.value || '').trim().toUpperCase();
-
   if (!code || !code.match(/^FRI-[A-Z0-9]{4}$/)) {
     showToast('Numéro de dossier invalide (ex: FRI-AB12)', 'red'); return; }
-  if (!prenom || !nom) { showToast('Prénom et nom du membre obligatoires', 'red'); return; }
-  if (!email)          { showToast('Email obligatoire', 'red'); return; }
-  if (!ddn)            { showToast('Date de naissance obligatoire', 'red'); return; }
+
+  var selQS = document.getElementById('doc-sel-qs')?.checked;
+  var selRI = document.getElementById('doc-sel-ri')?.checked;
+  var selPJf = document.getElementById('doc-sel-pj')?.checked;
+
+  // QS : champs membre
+  var prenom = '', nom = '', ddn = '', email = '';
+  var respPrenom = '', respNom = '';
+  if (selQS) {
+    prenom = (document.getElementById('doc-prenom')?.value || '').trim();
+    nom    = (document.getElementById('doc-nom')?.value    || '').trim().toUpperCase();
+    ddn    = (document.getElementById('doc-ddn')?.value    || '').trim();
+    respPrenom = (document.getElementById('doc-resp-prenom')?.value || '').trim();
+    respNom    = (document.getElementById('doc-resp-nom')?.value    || '').trim().toUpperCase();
+    // Email : responsable si mineur, sinon champ mail responsable (ou pris depuis resp)
+    email = (document.getElementById('doc-email')?.value || '').trim();
+    if (!prenom || !nom)  { showToast('Prénom et nom du membre obligatoires (QS)', 'red'); return; }
+    if (!ddn)             { showToast('Date de naissance obligatoire (QS)', 'red'); return; }
+    if (!email)           { showToast('Email obligatoire', 'red'); return; }
+  }
+  // RI : champs responsable légal
+  // RI utilise le même bloc responsable que QS mineur
+  var riPrenom = (document.getElementById('doc-resp-prenom')?.value || '').trim();
+  var riNom    = (document.getElementById('doc-resp-nom')?.value    || '').trim().toUpperCase();
+  var riEmail  = (document.getElementById('doc-email')?.value       || '').trim();
+  if (selRI && (!riPrenom || !riNom || !riEmail)) {
+    showToast('Prénom, nom et email du responsable légal obligatoires (RI)', 'red'); return; }
 
   var url = getAppsScriptUrl();
   if (!url) return;
@@ -10855,8 +10880,8 @@ async function docEnregistrer() {
         var dateAuj = new Date().toLocaleDateString('fr-FR');
         var riP = JSON.stringify({
           action: 'saveReglement', _token: FRI_SECRET_TOKEN,
-          code: code, nom: nom, prenom: prenom,
-          email: email, date: dateAuj, signature: riSigUrl
+          code: code, nom: riNom || nom, prenom: riPrenom || prenom,
+          email: riEmail || email, date: dateAuj, signature: riSigUrl
         });
         var ifr = document.createElement('iframe');
         ifr.name = 'fri_ri_doc_'+Date.now(); ifr.style.display='none';
@@ -10878,7 +10903,7 @@ async function docEnregistrer() {
   }
 
   // ── Pièces justificatives ──
-  if (document.getElementById('doc-sel-pj')?.checked) {
+  if (selPJf) {
     var pjInput = document.getElementById('doc-pj-input');
     var pjStatus = document.getElementById('doc-pj-status');
     if (pjInput && pjInput.files && pjInput.files.length > 0) {
@@ -11134,38 +11159,48 @@ function remplirFormulaireAdherent(idx) {
       🔒 Vérifiez d'abord votre numéro de dossier ci-dessus
     </div>
     <div id="doc-form-body" style="display:none;">
-    <!-- Responsable légal -->
-    <div style="font-size:13px;font-weight:700;color:var(--dark);margin:14px 0 8px;">👤 Responsable légal</div>
-    <div class="form-grid">
-      <div class="field">
-        <label>Prénom</label>
-        <input type="text" id="doc-resp-prenom" placeholder="Jean">
-      </div>
-      <div class="field">
-        <label>Nom</label>
-        <input type="text" id="doc-resp-nom" placeholder="DUPONT">
-      </div>
-      <div class="field">
-        <label>Email <span class="req">*</span></label>
-        <input type="email" id="doc-email" placeholder="jean.dupont@exemple.fr">
-      </div>
-    </div>
-    <!-- Membre à inscrire -->
-    <div style="font-size:13px;font-weight:700;color:var(--dark);margin:14px 0 8px;">👶 Membre à inscrire</div>
-    <div class="form-grid">
-      <div class="field">
-        <label>Prénom <span class="req">*</span></label>
-        <input type="text" id="doc-prenom" placeholder="Marie">
-      </div>
-      <div class="field">
-        <label>Nom <span class="req">*</span></label>
-        <input type="text" id="doc-nom" placeholder="DUPONT">
-      </div>
-      <div class="field">
-        <label>Date de naissance <span class="req">*</span></label>
-        <input type="date" id="doc-ddn" onchange="initDocumentQS()">
+
+    <!-- Bloc membre (QS uniquement) -->
+    <div id="doc-zone-qs-infos" style="display:none;">
+      <div style="font-size:13px;font-weight:700;color:var(--dark);margin:14px 0 8px;">👤 Membre — Questionnaire de santé</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Prénom <span class="req">*</span></label>
+          <input type="text" id="doc-prenom" placeholder="Marie">
+        </div>
+        <div class="field">
+          <label>Nom <span class="req">*</span></label>
+          <input type="text" id="doc-nom" placeholder="DUPONT">
+        </div>
+        <div class="field">
+          <label>Date de naissance <span class="req">*</span></label>
+          <input type="date" id="doc-ddn" onchange="docCheckMineur()">
+        </div>
       </div>
     </div>
+
+    <!-- Bloc responsable légal (commun QS mineur + RI) -->
+    <div id="doc-resp-zone" style="display:none;">
+      <div id="doc-resp-titre" style="font-size:13px;font-weight:700;color:var(--dark);margin:14px 0 8px;">👤 Responsable légal</div>
+      <div id="doc-resp-mineur-alert" style="display:none;background:#fff3e0;border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;font-weight:600;color:#e65100;">
+        ⚠️ Membre mineur — informations du responsable légal requises
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Prénom <span class="req">*</span></label>
+          <input type="text" id="doc-resp-prenom" placeholder="Jean">
+        </div>
+        <div class="field">
+          <label>Nom <span class="req">*</span></label>
+          <input type="text" id="doc-resp-nom" placeholder="DUPONT">
+        </div>
+        <div class="field">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" id="doc-email" placeholder="jean.dupont@exemple.fr">
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- QS Santé -->
