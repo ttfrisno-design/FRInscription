@@ -6224,6 +6224,50 @@ async function handleReturnFromHelloAsso() {
       reg.responsable.modePaiement = haEntry && haEntry.echelonne ? 'helloasso3x' : 'helloasso';
       await sendToGoogleSheets(reg);
       console.log('[FRI] Dossier enregistré dans le Sheet');
+
+      // ── Envoyer QS et RI au Drive (depuis localStorage, navigation HA efface state) ──
+      const gasUrlHA = getAppsScriptUrl();
+      const qsPendingHA = JSON.parse(localStorage.getItem('fri_qs_pending') || '[]');
+      if (gasUrlHA && qsPendingHA.length > 0) {
+        for (const qsItem of qsPendingHA) {
+          try {
+            await envoyerPDFParEmail(
+              qsItem.filename, qsItem.pdfBase64,
+              qsItem.prenom + ' ' + qsItem.nom,
+              (reg.responsable?.prenom||'') + ' ' + (reg.responsable?.nom||''),
+              qsItem.email || reg.responsable?.email1 || '',
+              false
+            );
+            console.log('[FRI] QS envoyé Drive (retour HA):', qsItem.prenom);
+          } catch(eQSHA) { console.warn('Envoi QS HA KO:', eQSHA); }
+        }
+        localStorage.removeItem('fri_qs_pending');
+      }
+      const riPendingHA = JSON.parse(localStorage.getItem('fri_ri_pending') || 'null');
+      if (gasUrlHA && riPendingHA && riPendingHA.signature) {
+        try {
+          const riPHA = JSON.stringify({
+            action: 'saveReglement', _token: FRI_SECRET_TOKEN,
+            code: riPendingHA.code || code, nom: riPendingHA.nom,
+            prenom: riPendingHA.prenom, email: riPendingHA.email,
+            date: riPendingHA.date, signature: riPendingHA.signature
+          });
+          const ifrHA = document.createElement('iframe');
+          ifrHA.name = 'fri_ri_ha_' + Date.now(); ifrHA.style.display='none';
+          document.body.appendChild(ifrHA);
+          const frmHA = document.createElement('form');
+          frmHA.method='POST'; frmHA.action=gasUrlHA; frmHA.target=ifrHA.name; frmHA.style.display='none';
+          const inpHA = document.createElement('input');
+          inpHA.type='hidden'; inpHA.name='payload'; inpHA.value=riPHA;
+          frmHA.appendChild(inpHA); document.body.appendChild(frmHA); frmHA.submit();
+          await new Promise(r => setTimeout(r, 6000));
+          try{document.body.removeChild(frmHA);}catch(e){}
+          try{document.body.removeChild(ifrHA);}catch(e){}
+          localStorage.removeItem('fri_ri_pending');
+          console.log('[FRI] RI envoyé Drive (retour HA)');
+        } catch(eRIHA) { console.warn('Envoi RI HA KO:', eRIHA); }
+      }
+
       // Petite pause pour laisser Apps Script finir l'écriture
       await new Promise(r => setTimeout(r, 2000));
     }
