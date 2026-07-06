@@ -10498,6 +10498,9 @@ function docCheckMineur() {
   if (mo < 0 || (mo === 0 && today.getDate() < dob.getDate())) age--;
   var isMineur = age < 18;
   var wantRI = document.getElementById('doc-sel-ri')?.checked;
+  // Email membre : visible si majeur, masqué si mineur (email pris sur responsable)
+  var emailMembreZone = document.getElementById('doc-email-membre-zone');
+  if (emailMembreZone) emailMembreZone.style.display = isMineur ? 'none' : 'block';
   // Afficher le bloc responsable si mineur OU si RI coché
   if (respZone) respZone.style.display = (isMineur || wantRI) ? 'block' : 'none';
   if (alertMin) alertMin.style.display = isMineur ? 'block' : 'none';
@@ -10778,7 +10781,17 @@ async function docEnregistrer() {
     respPrenom = (document.getElementById('doc-resp-prenom')?.value || '').trim();
     respNom    = (document.getElementById('doc-resp-nom')?.value    || '').trim().toUpperCase();
     // Email : responsable si mineur, sinon champ mail responsable (ou pris depuis resp)
-    email = (document.getElementById('doc-email')?.value || '').trim();
+    // Email : responsable si mineur, membre si majeur
+    var ddnCheck = new Date(ddn);
+    var ageCheck = new Date().getFullYear() - ddnCheck.getFullYear();
+    var moCheck  = new Date().getMonth() - ddnCheck.getMonth();
+    if (moCheck < 0 || (moCheck === 0 && new Date().getDate() < ddnCheck.getDate())) ageCheck--;
+    var isMineurCheck = ddn && ageCheck < 18;
+    if (isMineurCheck) {
+      email = (document.getElementById('doc-email')?.value || '').trim(); // email responsable
+    } else {
+      email = (document.getElementById('doc-email-membre')?.value || '').trim(); // email membre
+    }
     if (!prenom || !nom)  { showToast('Prénom et nom du membre obligatoires (QS)', 'red'); return; }
     if (!ddn)             { showToast('Date de naissance obligatoire (QS)', 'red'); return; }
     if (!email)           { showToast('Email obligatoire', 'red'); return; }
@@ -11256,6 +11269,13 @@ function remplirFormulaireAdherent(idx) {
         <div class="field">
           <label>Date de naissance <span class="req">*</span></label>
           <input type="date" id="doc-ddn" onchange="docCheckMineur()">
+        </div>
+      </div>
+      <!-- Email membre (majeur) — masqué si mineur car dans le bloc responsable -->
+      <div id="doc-email-membre-zone" class="form-grid" style="margin-top:4px;">
+        <div class="field">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" id="doc-email-membre" placeholder="marie.dupont@exemple.fr">
         </div>
       </div>
     </div>
