@@ -10712,7 +10712,7 @@ function docValiderSignatureQS() {
   var cvs = document.getElementById('doc-qs-canvas');
   var st  = document.getElementById('doc-qs-sig-status');
   if (!cvs) return;
-  var hasPixels = cvs.getContext('2d').getImageData(0,0,cvs.width,cvs.height)
+  var hasPixels = cvs.getContext('2d', {willReadFrequently:true}).getImageData(0,0,cvs.width,cvs.height)
                      .data.some(function(v,i){ return i%4===3 && v>0; });
   if (!hasPixels) {
     if (st) { st.textContent = '⚠️ Veuillez apposer votre signature dans le cadre'; st.style.color='#c62828'; }
@@ -10932,11 +10932,22 @@ async function docEnregistrer() {
     var cvQS = document.getElementById('doc-qs-canvas');
     if (!cvQS) { erreurs.push('Canvas QS introuvable'); }
     else {
-      var hasQSSig = cvQS.getContext('2d').getImageData(0,0,cvQS.width,cvQS.height)
+      var hasQSSig = cvQS.getContext('2d', {willReadFrequently:true}).getImageData(0,0,cvQS.width,cvQS.height)
                          .data.some(function(v,i){ return i%4===3 && v>0; });
       if (!hasQSSig) { erreurs.push('Signature QS manquante'); }
       else {
         try {
+          // Calculer isMineur depuis la DDN du formulaire
+          var ddnDocVal = (document.getElementById('doc-ddn')?.value) || '';
+          var isMineur = false;
+          if (ddnDocVal) {
+            var dobDoc = new Date(ddnDocVal);
+            var ageDoc = new Date().getFullYear() - dobDoc.getFullYear();
+            var moDoc  = new Date().getMonth() - dobDoc.getMonth();
+            if (moDoc < 0 || (moDoc === 0 && new Date().getDate() < dobDoc.getDate())) ageDoc--;
+            isMineur = ageDoc < 18;
+          }
+
           // Utiliser la même fonction que le site principal (_genererPDFAvecSignature)
           var docMemberId = 'doc_membre_tmp';
           var savedMembers      = state.members ? state.members.slice() : [];
