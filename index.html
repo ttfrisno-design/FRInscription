@@ -10990,7 +10990,7 @@ async function docEnregistrer() {
           };
 
           // Appeler la vraie fonction (logo FNSMR, tableau, attestation)
-          window._docDossierQS = '21-QS santé corrigé';
+          window._docDossierQS = '21-QS Santé corrigés';
           await _genererPDFAvecSignature(docMemberId, cvQS.toDataURL('image/png'));
           window._docDossierQS = null;
 
@@ -11006,7 +11006,7 @@ async function docEnregistrer() {
 
           // Envoyer immédiatement au Drive
           if (pdfB64Doc) {
-            window._docDossierQS = '21-QS santé corrigé';
+            window._docDossierQS = '21-QS Santé corrigés';
             await envoyerPDFParEmail(fnDoc, pdfB64Doc, prenom+' '+nom,
               respPrenom ? respPrenom+' '+respNom : '', email, isMineur);
             window._docDossierQS = null;
