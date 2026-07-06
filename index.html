@@ -10627,8 +10627,8 @@ async function docVerifierDossier() {
     if (data && data.status === 'ok' && data.dossier) {
       var d = data.dossier;
       status.innerHTML = '<span style="color:#2d6a4f;font-weight:700;">✅ Dossier trouvé — '
-        + d.prenom + ' ' + d.nom + '</span>';
-      // Dossier vérifié — on n'affiche que la confirmation, pas de pré-remplissage
+      status.innerHTML = '<span style="color:#2d6a4f;font-weight:700;">✅ Dossier trouvé — '
+        + (d.respPrenom||d.membrePrenom||'') + ' ' + (d.respNom||d.membreNom||'') + '</span>';
       // Déverrouiller le formulaire
       if (formBody) formBody.style.display = 'block';
       if (formLocked) formLocked.style.display = 'none';
@@ -10827,8 +10827,17 @@ async function docEnregistrer() {
             qsRep.push(val);
           }
 
-          // Charger jsPDF via la fonction globale (avec lazy loading)
-          var jsPDFcls = await getJsPDF();
+          // Charger jsPDF (lazy loading)
+          var jsPDFcls = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+          if (!jsPDFcls) {
+            await new Promise(function(res, rej) {
+              var s = document.createElement('script');
+              s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+              s.onload = function() { jsPDFcls = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF; res(); };
+              s.onerror = function() { rej(new Error('Impossible de charger jsPDF')); };
+              document.head.appendChild(s);
+            });
+          }
           if (!jsPDFcls) throw new Error('jsPDF non disponible');
           var doc2 = new jsPDFcls({orientation:'portrait', unit:'mm', format:'a4'});
           var numRef = isMineur ? 'N°25-10-2' : 'N°25-10-1';
