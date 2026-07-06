@@ -6120,7 +6120,15 @@ async function lancerCheckoutHA(code, total, echelonne) {
     if (data && data.redirectUrl) {
       // Sauvegarder le dossier complet pour le retrouver au retour de HA
       const pendingHA = JSON.parse(localStorage.getItem('fri_pending_ha') || '{}');
-      pendingHA[code] = { total, timestamp: Date.now(), echelonne: !!echelonne, reg: reg };
+      // Épurer reg : supprimer les données volumineuses (PDF base64) avant stockage localStorage
+      const regLight = JSON.parse(JSON.stringify(reg));
+      if (regLight.members) regLight.members.forEach(function(m) {
+        delete m.qsPdfBase64;    // ~200Ko — stocké dans fri_qs_pending
+        delete m.qsPdfFilename;
+        delete m.signatureDataUrl;
+      });
+      if (regLight.riSignature) delete regLight.riSignature.signature; // signature base64
+      pendingHA[code] = { total, timestamp: Date.now(), echelonne: !!echelonne, reg: regLight };
       localStorage.setItem('fri_pending_ha', JSON.stringify(pendingHA));
       // Rediriger vers HA — l'inscription sera enregistrée AU RETOUR
       window.location.href = data.redirectUrl;
@@ -6135,7 +6143,11 @@ async function lancerCheckoutHA(code, total, echelonne) {
     const pendingFB = JSON.parse(localStorage.getItem('fri_pending') || '{}');
     const regFB = pendingFB[code] || {};
     const pendingHAFB = JSON.parse(localStorage.getItem('fri_pending_ha') || '{}');
-    pendingHAFB[code] = { total, timestamp: Date.now(), echelonne: !!echelonne, reg: regFB };
+    const regLightFB = JSON.parse(JSON.stringify(regFB));
+    if (regLightFB.members) regLightFB.members.forEach(function(m) {
+      delete m.qsPdfBase64; delete m.qsPdfFilename; delete m.signatureDataUrl;
+    });
+    pendingHAFB[code] = { total, timestamp: Date.now(), echelonne: !!echelonne, reg: regLightFB };
     localStorage.setItem('fri_pending_ha', JSON.stringify(pendingHAFB));
     const errDetail = (e && e.message) ? e.message : String(e);
     const zone = document.getElementById('ha-checkout-zone');
@@ -6340,8 +6352,14 @@ async function finaliserInscription(code) {
     delete pending[code];
     clearCodeSession(); // Libérer le code session après enregistrement
     localStorage.setItem('fri_pending', JSON.stringify(pending));
+    // fri_registrations : stocker sans les PDF base64
+    const regForStorage = JSON.parse(JSON.stringify(reg));
+    if (regForStorage.members) regForStorage.members.forEach(function(m) {
+      delete m.qsPdfBase64; delete m.qsPdfFilename;
+    });
+    delete regForStorage.riSignature;
     const existing = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
-    if (!existing.find(r => r.id === reg.id)) existing.push(reg);
+    if (!existing.find(r => r.id === regForStorage.id)) existing.push(regForStorage);
     localStorage.setItem('fri_registrations', JSON.stringify(existing));
     state.registrations = existing;
 
