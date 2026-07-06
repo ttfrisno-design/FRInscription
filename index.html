@@ -10990,17 +10990,36 @@ async function docEnregistrer() {
           };
 
           // Appeler la vraie fonction (logo FNSMR, tableau, attestation)
-          // Surcharger envoyerPDFParEmail pour utiliser le dossier corrigé
-          const _origEnvoyerPDF = envoyerPDFParEmail;
           window._docDossierQS = '21-QS santé corrigé';
           await _genererPDFAvecSignature(docMemberId, cvQS.toDataURL('image/png'));
           window._docDossierQS = null;
 
+          // Récupérer le PDF généré depuis state
+          var tmpMember = state.members.find(function(m){ return m.id === docMemberId; });
+          var pdfB64Doc = tmpMember ? tmpMember.qsPdfBase64 : null;
+          var fnDoc     = tmpMember ? tmpMember.qsPdfFilename : (code+'_'+prenom+'-'+nom+'_QS-Sante.pdf');
+
           // Restaurer state
-          state.members          = savedMembers;
-          state.responsable      = savedResponsable;
+          state.members            = savedMembers;
+          state.responsable        = savedResponsable;
           state.codeDossierPreview = savedCodePreview;
-          nb++;
+
+          // Envoyer immédiatement au Drive
+          if (pdfB64Doc) {
+            window._docDossierQS = '21-QS santé corrigé';
+            await envoyerPDFParEmail(fnDoc, pdfB64Doc, prenom+' '+nom,
+              respPrenom ? respPrenom+' '+respNom : '', email, isMineur);
+            window._docDossierQS = null;
+            // Nettoyer fri_qs_pending
+            try {
+              var qsP2 = JSON.parse(localStorage.getItem('fri_qs_pending')||'[]');
+              qsP2 = qsP2.filter(function(q){ return q.filename !== fnDoc; });
+              localStorage.setItem('fri_qs_pending', JSON.stringify(qsP2));
+            } catch(eLSC){}
+            nb++;
+          } else {
+            erreurs.push('PDF QS non généré (base64 vide)');
+          }
         } catch(eQS) {
           console.error('QS doc KO:', eQS);
           erreurs.push('QS : '+eQS.message);
