@@ -10565,7 +10565,7 @@ function initDocumentQS() {
   });
 
   var sigLabel = isMineur ? 'Signature enfant + parent/responsable légal' : 'Signature du pratiquant';
-  h += '<div style="margin-top:12px;">'     + '<div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:8px;">✍️ ' + sigLabel + ' (attestation sur l\'honneur)</div>'     + '<canvas id="doc-qs-canvas" width="520" height="110" style="border:2px solid #c8e6c9;border-radius:8px;cursor:crosshair;touch-action:none;background:white;display:block;max-width:100%;"></canvas>'     + '<div style="display:flex;gap:10px;margin-top:8px;">'     + '<button onclick="docEffacerQS()" class="btn btn-secondary" style="font-size:13px;">🗑 Effacer</button>'     + '</div></div>';
+  h += '<div style="margin-top:12px;">'     + '<div style="font-size:13px;font-weight:700;color:var(--dark);margin-bottom:8px;">✍️ ' + sigLabel + ' (attestation sur l\'honneur)</div>'     + '<canvas id="doc-qs-canvas" width="520" height="110" style="border:2px solid #c8e6c9;border-radius:8px;cursor:crosshair;touch-action:none;background:white;display:block;max-width:100%;"></canvas>'     + '<div style="display:flex;gap:10px;margin-top:8px;">'     + '<button onclick="docEffacerQS()" class="btn btn-secondary" style="font-size:13px;">🗑 Effacer</button>'     + '<button onclick="docValiderSignatureQS()" class="btn btn-primary" style="font-size:13px;">✅ Valider la signature</button>'     + '</div>'     + '<div id="doc-qs-sig-status" style="font-size:12px;margin-top:6px;min-height:16px;"></div>'     + '</div>';
 
   container.innerHTML = h;
 
@@ -10588,6 +10588,21 @@ function initDocumentQS() {
 function docEffacerQS() {
   var cvs = document.getElementById('doc-qs-canvas');
   if (cvs) cvs.getContext('2d').clearRect(0, 0, cvs.width, cvs.height);
+  var st = document.getElementById('doc-qs-sig-status');
+  if (st) { st.textContent = ''; st.style.color = ''; }
+}
+
+function docValiderSignatureQS() {
+  var cvs = document.getElementById('doc-qs-canvas');
+  var st  = document.getElementById('doc-qs-sig-status');
+  if (!cvs) return;
+  var hasPixels = cvs.getContext('2d').getImageData(0,0,cvs.width,cvs.height)
+                     .data.some(function(v,i){ return i%4===3 && v>0; });
+  if (!hasPixels) {
+    if (st) { st.textContent = '⚠️ Veuillez apposer votre signature dans le cadre'; st.style.color='#c62828'; }
+    return;
+  }
+  if (st) { st.textContent = '✅ Signature validée'; st.style.color='#2d6a4f'; st.style.fontWeight='700'; }
 }
 
 async function docVerifierDossier() {
@@ -10812,8 +10827,8 @@ async function docEnregistrer() {
             qsRep.push(val);
           }
 
-          // Générer PDF via jsPDF
-          var jsPDFcls = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+          // Charger jsPDF via la fonction globale (avec lazy loading)
+          var jsPDFcls = await getJsPDF();
           if (!jsPDFcls) throw new Error('jsPDF non disponible');
           var doc2 = new jsPDFcls({orientation:'portrait', unit:'mm', format:'a4'});
           var numRef = isMineur ? 'N°25-10-2' : 'N°25-10-1';
