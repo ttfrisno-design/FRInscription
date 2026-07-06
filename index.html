@@ -1277,6 +1277,10 @@ window.validerReglementInterieur = async function() {
       date:      dateStr,
       signature: sigBase64
     };
+    // Persister dans localStorage pour survivre à la navigation vers HA
+    try {
+      localStorage.setItem('fri_ri_pending', JSON.stringify(state.riSignature));
+    } catch(eLSRI) { console.warn('Persist RI LS KO:', eLSRI); }
     console.log('[FRI] RI stocké localement — sera envoyé au Drive lors de la validation');
     const result = { status: 'ok' }; // continuer dans tous les cas
 
@@ -5944,9 +5948,23 @@ async function _genererPDFAvecSignature(memberId, signatureDataUrl) {
     // Stocker dans le membre pour envoi lors de sendToGoogleSheets
     const mIdx = state.members.findIndex(mb => mb.id === memberId);
     if (mIdx >= 0) {
-      state.members[mIdx].qsPdfBase64  = pdfBase64;
+      state.members[mIdx].qsPdfBase64   = pdfBase64;
       state.members[mIdx].qsPdfFilename = filename;
     }
+    // Persister dans localStorage pour survivre à la navigation vers HA
+    try {
+      const qsPending = JSON.parse(localStorage.getItem('fri_qs_pending') || '[]');
+      qsPending.push({
+        memberId: memberId,
+        filename: filename,
+        pdfBase64: pdfBase64,
+        prenom: state.members[mIdx]?.prenom || '',
+        nom:    state.members[mIdx]?.nom    || '',
+        ddn:    state.members[mIdx]?.ddn    || '',
+        email:  state.responsable?.email1   || ''
+      });
+      localStorage.setItem('fri_qs_pending', JSON.stringify(qsPending));
+    } catch(eLSQS) { console.warn('Persist QS LS KO:', eLSQS); }
     console.log('[FRI] QS PDF stocké localement (' + pdfUint8.length + ' bytes) — sera envoyé au Drive lors de la validation');
     showToast('✅ QS Santé signé et enregistré — sera transmis au FRI à la validation', 'green', 5000);
   } catch(e) { console.warn('Stockage PDF QS KO:', e); }
@@ -6333,35 +6351,57 @@ async function finaliserInscription(code) {
     const regCode = code || reg.code || '';
     const gasUrl = getAppsScriptUrl();
 
-    // Envoyer les QS de chaque membre
-    if (gasUrl && state.members) {
+    // Envoyer les QS — depuis state.members ET depuis localStorage (retour HA)
+    const qsPendingLS = JSON.parse(localStorage.getItem('fri_qs_pending') || '[]');
+    const qsMembersToSend = [];
+    // D'abord les membres de state
+    if (state.members) {
       for (const mb of state.members) {
         if (mb.qsPdfBase64 && mb.qsPdfFilename) {
-          try {
-            await envoyerPDFParEmail(
-              mb.qsPdfFilename, mb.qsPdfBase64,
-              mb.prenom + ' ' + mb.nom,
-              (state.responsable.prenom||'') + ' ' + (state.responsable.nom||''),
-              state.responsable.email1 || '',
-              getAge(mb.ddn) < 18
-            );
-            console.log('[FRI] QS envoyé au Drive pour', mb.prenom);
-          } catch(eQS) { console.warn('Envoi QS Drive KO:', eQS); }
+          qsMembersToSend.push({
+            filename: mb.qsPdfFilename, pdfBase64: mb.qsPdfBase64,
+            prenom: mb.prenom, nom: mb.nom, ddn: mb.ddn,
+            email: state.responsable?.email1 || ''
+          });
         }
       }
     }
+    // Ajouter ceux du localStorage non déjà présents
+    for (const qsLS of qsPendingLS) {
+      if (!qsMembersToSend.find(m => m.filename === qsLS.filename)) {
+        qsMembersToSend.push(qsLS);
+      }
+    }
+    if (gasUrl) {
+      for (const qsItem of qsMembersToSend) {
+        try {
+          await envoyerPDFParEmail(
+            qsItem.filename, qsItem.pdfBase64,
+            qsItem.prenom + ' ' + qsItem.nom,
+            (state.responsable?.prenom||'') + ' ' + (state.responsable?.nom||''),
+            qsItem.email || state.responsable?.email1 || '',
+            getAge(qsItem.ddn) < 18
+          );
+          console.log('[FRI] QS envoyé au Drive pour', qsItem.prenom);
+        } catch(eQS) { console.warn('Envoi QS Drive KO:', eQS); }
+      }
+      // Nettoyer le localStorage QS
+      localStorage.removeItem('fri_qs_pending');
+    }
 
-    // Envoyer le RI
-    if (gasUrl && state.riSignature) {
+    // Envoyer le RI — depuis state.riSignature ET depuis localStorage (retour HA)
+    const riPendingLS = JSON.parse(localStorage.getItem('fri_ri_pending') || 'null');
+    const riToSend = state.riSignature || riPendingLS;
+    if (gasUrl && riToSend) {
       try {
         const riPayload = JSON.stringify({
           action: 'saveReglement', _token: FRI_SECRET_TOKEN,
-          code:      state.riSignature.code || regCode,
-          nom:       state.riSignature.nom,
-          prenom:    state.riSignature.prenom,
-          email:     state.riSignature.email,
-          date:      state.riSignature.date,
-          signature: state.riSignature.signature
+          code:      riToSend.code || regCode,
+          nom:       riToSend.nom,
+          prenom:    riToSend.prenom,
+          email:     riToSend.email,
+          date:      riToSend.date,
+          signature: riToSend.signature
         });
         const iframeRI = document.createElement('iframe');
         iframeRI.name = 'fri_ri_final_' + Date.now();
@@ -6380,6 +6420,7 @@ async function finaliserInscription(code) {
           try { document.body.removeChild(iframeRI); } catch(e) {}
           console.log('[FRI] RI envoyé au Drive ✅');
           state.riSignature = null;
+          localStorage.removeItem('fri_ri_pending');
         }, 10000);
       } catch(eRI) { console.warn('Envoi RI Drive KO:', eRI); }
     }
