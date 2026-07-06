@@ -511,7 +511,7 @@
   <div style="margin-top:16px;">
     <button onclick="afficherSectionDocuments()"
       style="background:var(--gold);color:var(--dark);border:none;border-radius:10px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,0.3);">
-      📄 J'ai déjà un dossier<br><span style="font-size:12px;font-weight:500;">Envoyer QS santé, Règlement intérieur ou Pièces justificatives</span>
+      📄 J'ai déjà un dossier 2026-2027<br><span style="font-size:12px;font-weight:500;">Envoyer QS santé, Règlement intérieur ou Pièces justificatives</span>
     </button>
   </div>
 </div>
@@ -5987,7 +5987,8 @@ function envoyerPDFViaForm(filename, dataUri, membre, responsable, email, type) 
     membre: membre,
     responsable: responsable,
     email: email,
-    type: type
+    type: type,
+    dossierOverride: dossierOverride || window._docDossierQS || ''
   };
   const params = new URLSearchParams();
   params.set('payload', JSON.stringify(payload));
@@ -6018,7 +6019,7 @@ function envoyerPDFViaForm(filename, dataUri, membre, responsable, email, type) 
 }
 
 // Envoi du PDF QS Santé vers Drive — via formulaire HTML caché (POST réel)
-async function envoyerPDFParEmail(filename, pdfBase64, membre, responsable, email, isMineur) {
+async function envoyerPDFParEmail(filename, pdfBase64, membre, responsable, email, isMineur, dossierOverride) {
   const url = getAppsScriptUrl();
   if (!url || url === 'VOTRE_URL_APPS_SCRIPT_ICI') return;
 
@@ -10901,7 +10902,11 @@ async function docEnregistrer() {
           };
 
           // Appeler la vraie fonction (logo FNSMR, tableau, attestation)
+          // Surcharger envoyerPDFParEmail pour utiliser le dossier corrigé
+          const _origEnvoyerPDF = envoyerPDFParEmail;
+          window._docDossierQS = '21-QS santé corrigé';
           await _genererPDFAvecSignature(docMemberId, cvQS.toDataURL('image/png'));
+          window._docDossierQS = null;
 
           // Restaurer state
           state.members          = savedMembers;
@@ -10933,7 +10938,8 @@ async function docEnregistrer() {
         var riP = JSON.stringify({
           action: 'saveReglement', _token: FRI_SECRET_TOKEN,
           code: code, nom: riNomFin, prenom: riPrenomFin,
-          email: riEmailFin, date: dateAuj, signature: riSigUrl
+          email: riEmailFin, date: dateAuj, signature: riSigUrl,
+          dossierOverride: '31-RI corrigé'
         });
         var ifr = document.createElement('iframe');
         ifr.name = 'fri_ri_doc_'+Date.now(); ifr.style.display='none';
@@ -11162,7 +11168,7 @@ function remplirFormulaireAdherent(idx) {
 
   <!-- Sélection des documents -->
   <div class="card" style="margin-bottom:16px;">
-    <div class="card-title">📌 Quel(s) document(s) souhaitez-vous signer ?</div>
+    <div class="card-title">📌 Quel(s) document(s) souhaitez-vous envoyer ?</div>
     <div style="display:flex;flex-direction:column;gap:12px;margin-top:4px;">
       <label style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:12px 14px;border:2px solid #c8e6c9;border-radius:10px;background:#f9f9f9;" id="doc-sel-qs-label">
         <input type="checkbox" id="doc-sel-qs" onchange="docMajAffichage()" style="width:20px;height:20px;">
