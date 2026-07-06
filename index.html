@@ -5240,6 +5240,8 @@ function clearCodeSession() {
   localStorage.removeItem('fri_code_session');
   localStorage.removeItem('fri_qs_signe');
   localStorage.removeItem('fri_ri_signe');
+  localStorage.removeItem('fri_qs_pending');
+  localStorage.removeItem('fri_ri_pending');
 }
 
 // ── Nettoyage des fichiers orphelins si l'inscription est abandonnée ──
@@ -11058,6 +11060,7 @@ async function docEnregistrer() {
         await new Promise(function(r){ setTimeout(r, 8000); });
         try{document.body.removeChild(frm);}catch(e){}
         try{document.body.removeChild(ifr);}catch(e){}
+        localStorage.removeItem('fri_ri_pending');
         nb++;
       } catch(eRI) {
         console.error('RI doc KO:', eRI);
