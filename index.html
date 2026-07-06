@@ -10990,9 +10990,7 @@ async function docEnregistrer() {
           };
 
           // Appeler la vraie fonction (logo FNSMR, tableau, attestation)
-          window._docDossierQS = '21-QS Santé corrigés';
           await _genererPDFAvecSignature(docMemberId, cvQS.toDataURL('image/png'));
-          window._docDossierQS = null;
 
           // Récupérer le PDF généré depuis state
           var tmpMember = state.members.find(function(m){ return m.id === docMemberId; });
@@ -11004,12 +11002,11 @@ async function docEnregistrer() {
           state.responsable        = savedResponsable;
           state.codeDossierPreview = savedCodePreview;
 
-          // Envoyer immédiatement au Drive
+          // Envoyer immédiatement au Drive (dossier override direct en 7ème param)
           if (pdfB64Doc) {
-            window._docDossierQS = '21-QS Santé corrigés';
             await envoyerPDFParEmail(fnDoc, pdfB64Doc, prenom+' '+nom,
-              respPrenom ? respPrenom+' '+respNom : '', email, isMineur);
-            window._docDossierQS = null;
+              respPrenom ? respPrenom+' '+respNom : '', email, isMineur,
+              '21-QS Santé corrigés');
             // Nettoyer fri_qs_pending
             try {
               var qsP2 = JSON.parse(localStorage.getItem('fri_qs_pending')||'[]');
