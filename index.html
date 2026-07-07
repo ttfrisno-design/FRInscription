@@ -581,7 +581,7 @@
   </div>
 
   <div class="card">
-    <div class="card-title"><span class="icon">📋</span> Coordonnées</div>
+    <div class="card-title"><span class="icon">📋</span> Coordonnées du responsable légal</div>
     <div class="form-grid ville-tarif-grid" style="align-items:end;">
       <div class="field">
         <label>Nom <span class="req">*</span></label>
@@ -11211,8 +11211,7 @@ function remplirFormulaireAdherent(idx) {
     const el = document.getElementById(id);
     if (el && val) { el.value = val; el.dispatchEvent(new Event('input')); }
   }
-  set('rl-nom',     (a.nom||'').toUpperCase());
-  set('rl-prenom',  a.prenom||'');
+  // Ne pas pré-remplir nom/prénom (saisie manuelle obligatoire)
   set('rl-adresse', a.adresse||'');
   set('rl-cp',      a.cp||'');
   set('rl-ville',   (a.ville||'').toUpperCase());
@@ -11223,9 +11222,7 @@ function remplirFormulaireAdherent(idx) {
   // Pre-remplir membre 0 (responsable legal = membre 1) avec nom, prenom, DDN
   var _m0auto = state.members[0];
   if (_m0auto) {
-    // Toujours pre-remplir nom et prenom
-    _m0auto.nom    = (a.nom||'').toUpperCase();
-    _m0auto.prenom = a.prenom||'';
+    // Ne pas pré-remplir nom/prénom du membre (saisie manuelle)
     // DDN : convertir dd/mm/yyyy en yyyy-mm-dd si besoin
     if (a.ddn) {
       var ddnRaw = String(a.ddn).trim();
@@ -11245,8 +11242,7 @@ function remplirFormulaireAdherent(idx) {
       var elNom    = document.getElementById('m-'+idM+'-nom');
       var elPrenom = document.getElementById('m-'+idM+'-prenom');
       var elDdn    = document.getElementById('m-'+idM+'-ddn');
-      if (elNom)    { elNom.value    = _m0auto.nom;    elNom.dispatchEvent(new Event('input')); }
-      if (elPrenom) { elPrenom.value = _m0auto.prenom; elPrenom.dispatchEvent(new Event('input')); }
+      // Nom et prénom non pré-remplis (saisie obligatoire)
       if (elDdn && _m0auto.ddn) { elDdn.value = _m0auto.ddn; elDdn.dispatchEvent(new Event('input')); }
     }, 50);
   }
