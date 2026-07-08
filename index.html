@@ -1525,6 +1525,7 @@ const ACTIVITIES = {
 // ============================================================
 let state = {
   step: 1,
+  stepsValidated: 1, // étapes accessibles (max validé + 1)
   responsable: {},
   members: [],
   registrations: JSON.parse(localStorage.getItem('fri_registrations') || '[]'),
@@ -1548,6 +1549,55 @@ function afficherSectionDocuments() {
 }
 
 function goStep(n) {
+  // ── Bloquer accès aux étapes non encore atteintes ──
+  const cur = state.step || 1;
+  const maxAllowed = state.stepsValidated || 1;
+  if (n > maxAllowed + 1) {
+    showToast('⚠️ Veuillez compléter les étapes précédentes', 'orange');
+    return;
+  }
+  if (n > cur) {
+    // Étape 1 → 2 : responsable légal complet
+    if (cur === 1 && n > 1) {
+      const nom    = document.getElementById('rl-nom')?.value.trim();
+      const prenom = document.getElementById('rl-prenom')?.value.trim();
+      const email  = document.getElementById('rl-email1')?.value.trim();
+      const tel    = document.getElementById('rl-tel1')?.value.trim();
+      const adresse= document.getElementById('rl-adresse')?.value.trim();
+      const cp     = document.getElementById('rl-cp')?.value.trim();
+      const ville  = document.getElementById('rl-ville')?.value.trim();
+      if (!nom || !prenom) { showToast('⚠️ Veuillez saisir le nom et prénom du responsable légal', 'red'); return; }
+      if (!email) { showToast('⚠️ L\'adresse email est obligatoire', 'red'); return; }
+      if (!tel)   { showToast('⚠️ Le numéro de téléphone est obligatoire', 'red'); return; }
+      if (!adresse || !cp || !ville) { showToast('⚠️ L\'adresse complète est obligatoire (rue, CP, ville)', 'red'); return; }
+      if (!checkRgpdConsent()) { showToast('⚠️ Veuillez accepter les conditions RGPD', 'red'); return; }
+    }
+    // Étape 2 → 3 : au moins un membre avec une activité
+    if (cur === 2 && n > 2) {
+      const hasActivity = state.members && state.members.some(m => m.activities && m.activities.length > 0);
+      if (!hasActivity) { showToast('⚠️ Veuillez sélectionner au moins une activité', 'red'); return; }
+      const missingInfo = state.members && state.members.find(m =>
+        (m.activities && m.activities.length > 0) && (!m.nom || !m.prenom || !m.ddn)
+      );
+      if (missingInfo) { showToast('⚠️ Veuillez compléter nom, prénom et date de naissance de chaque membre', 'red'); return; }
+    }
+    // Étape 3 → 4 : QS santé complété OU certificat médical envoyé
+    if (cur === 3 && n > 3) {
+      const qsIncomplet = state.members && state.members.find(m => {
+        if (!m.activities || m.activities.length === 0) return false;
+        // Accepté : attestation signée, certificat requis (médecin), certificat envoyé
+        const qsOk = m.qsResult === 'attestation_ok'
+                  || m.qsResult === 'certificat_requis'
+                  || m.certifMedEnvoye === true;
+        return !qsOk;
+      });
+      if (qsIncomplet) {
+        showToast('⚠️ Veuillez compléter le questionnaire de santé pour ' + (qsIncomplet.prenom || 'chaque membre') + ' (ou envoyer un certificat médical)', 'red');
+        return;
+      }
+    }
+  }
+
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.getElementById('section-' + n).classList.add('active');
   document.querySelectorAll('.step-item').forEach((el,i) => {
@@ -1557,6 +1607,14 @@ function goStep(n) {
   });
   document.getElementById('progress-fill').style.width = Math.round(n*100/6) + '%';
   state.step = n;
+  if (n > (state.stepsValidated || 1)) state.stepsValidated = n;
+  // Mettre à jour l'apparence des onglets nav (griser les étapes non atteintes)
+  document.querySelectorAll('.step-item').forEach((el, i) => {
+    const stepN = i + 1;
+    el.style.opacity = stepN <= (state.stepsValidated || 1) + 1 ? '1' : '0.35';
+    el.style.pointerEvents = stepN <= (state.stepsValidated || 1) + 1 ? 'auto' : 'none';
+    el.title = stepN > (state.stepsValidated || 1) + 1 ? 'Complétez les étapes précédentes' : '';
+  });
   window.scrollTo({top:0, behavior:'smooth'});
   if (n === 1) setTimeout(detectCommune, 300); // détecter autofill navigateur
   if (n === 2) {
@@ -7950,9 +8008,28 @@ function renderAdmin() {
   const filterPay = document.getElementById('filter-paiement')?.value || '';
   const c = document.getElementById('admin-table-container');
 
-  const validRegs = regs.filter(r =>
-    r.code && /^FRI-[A-Z0-9]{4}$/.test(r.code.trim()) && r.responsable && r.responsable.nom
-  );
+  const validRegs = regs.filter(r => {
+    if (!r.code || !/^FRI-[A-Z0-9]{4}$/.test(r.code.trim())) return false;
+    if (!r.responsable) return false;
+    // Accepter si nom responsable OU nom membre présent
+    const hasNom = r.responsable.nom || r.responsable.prenom ||
+                   (r.members && r.members.length > 0 && r.members[0].nom);
+    return !!hasNom;
+  });
+  // Trier par date décroissante (plus récent en premier)
+  validRegs.sort(function(a, b) {
+    function parseDate(d) {
+      if (!d) return 0;
+      var m = d.match(/(\d{2})\/(\d{2})\/(\d{4}).*?(\d{2}):(\d{2})/);
+      if (!m) return 0;
+      return new Date(m[3]+'-'+m[2]+'-'+m[1]+'T'+m[4]+':'+m[5]).getTime();
+    }
+    // Priorité : dateDossier > date (gère les dossiers localStorage vs Sheet)
+    var ta = parseDate(a.dateDossier || a.date);
+    var tb = parseDate(b.dateDossier || b.date);
+    return tb - ta;
+  });
+
   const searchDossier = (document.getElementById('search-dossier')?.value || '').toUpperCase().trim();
   let filtered = validRegs.filter(r => {
     // Filtre par N° dossier
@@ -9051,6 +9128,21 @@ function mergerDossiersSheet(dossiers) {
     }
 
     const reg = byCode[d.code];
+
+    // Prendre la date la plus récente parmi toutes les lignes du dossier
+    if (d.date) {
+      function parseDateFRI(s) {
+        if (!s) return 0;
+        const m = s.match(/(\d{2})\/(\d{2})\/(\d{4}).*?(\d{2}):(\d{2})/);
+        if (!m) return 0;
+        return new Date(m[3]+'-'+m[2]+'-'+m[1]+'T'+m[4]+':'+m[5]).getTime();
+      }
+      if (!reg.date || parseDateFRI(d.date) > parseDateFRI(reg.date)) {
+        reg.date = d.date;
+      }
+      // dateDossier = même que date pour les dossiers Sheet
+      if (!reg.dateDossier) reg.dateDossier = reg.date;
+    }
 
     // Toujours prendre le total du Sheet (col AF fait foi)
     if (Number(d.total) > 0) {
