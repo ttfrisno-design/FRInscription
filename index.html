@@ -1570,7 +1570,7 @@ function goStep(n) {
       if (!email) { showToast('⚠️ L\'adresse email est obligatoire', 'red'); return; }
       if (!tel)   { showToast('⚠️ Le numéro de téléphone est obligatoire', 'red'); return; }
       if (!adresse || !cp || !ville) { showToast('⚠️ L\'adresse complète est obligatoire (rue, CP, ville)', 'red'); return; }
-      if (!checkRgpdConsent()) { showToast('⚠️ Veuillez accepter les conditions RGPD', 'red'); return; }
+
     }
     // Étape 2 → 3 : au moins un membre avec une activité
     if (cur === 2 && n > 2) {
