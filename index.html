@@ -5323,7 +5323,8 @@ async function nettoyerFichiersOrphelins(code) {
   window._friQSSigné = false;
   window._friRISigné = false;
 
-  window.addEventListener('beforeunload', function() {
+  // pagehide fonctionne sur iOS Safari, beforeunload non
+  window.addEventListener('pagehide', function() {
     const code = localStorage.getItem('fri_code_session');
     // Si un code existe et que le dossier n'a pas été enregistré → signaler l'abandon
     const pendingKeys = Object.keys(JSON.parse(localStorage.getItem('fri_pending') || '{}'));
@@ -7428,7 +7429,12 @@ function exportAllExcel(format) {
     const data = buildExcelData(regs);
     const csv = data.map(row => row.map(cell => `"${String(cell||'').replace(/"/g,'""')}"`).join(';')).join('\n');
     const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    const isIOS2 = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const a = document.createElement('a');
+    if (isIOS2) {
+      const fr = new FileReader(); fr.onload = function(){ window.open(fr.result,'_blank'); }; fr.readAsDataURL(blob); return;
+    }
+    a.href = URL.createObjectURL(blob);
     a.download = filename + '.csv'; a.click();
   } else {
     doExport(regs, filename + '.xlsx');
@@ -8682,14 +8688,17 @@ async function genererPDFInscriptionAdmin(code) {
         const byteArr = new Uint8Array(byteChars.length);
         for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
         const blob = new Blob([byteArr], { type: 'application/pdf' });
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = data.filename || (code + '_Inscription.pdf');
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => { try { document.body.removeChild(a); } catch(e){} URL.revokeObjectURL(blobUrl); }, 3000);
-        showAdminToast('✅ PDF téléchargé', 'green');
+        const fname2 = data.filename || (code + '_Inscription.pdf');
+        const isIOS3 = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIOS3) {
+          const fr3 = new FileReader(); fr3.onload = function(){ window.open(fr3.result,'_blank'); }; fr3.readAsDataURL(blob);
+        } else {
+          const blobUrl3 = URL.createObjectURL(blob);
+          const a3 = document.createElement('a'); a3.href = blobUrl3; a3.download = fname2;
+          document.body.appendChild(a3); a3.click();
+          setTimeout(() => { try{document.body.removeChild(a3);}catch(e){} URL.revokeObjectURL(blobUrl3); }, 3000);
+        }
+        showAdminToast('✅ PDF généré', 'green');
       } catch(eB64) {
         showAdminToast('⚠️ Erreur ouverture locale : ' + eB64.message, 'orange');
       }
