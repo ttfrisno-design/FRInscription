@@ -3371,6 +3371,16 @@ function renderHealth() {
   const notice = document.getElementById('qs-important-notice');
   if (notice) notice.style.display = someNeedQS ? 'block' : 'none';
 
+  // Si aucun membre n'a besoin de QS → activer directement le bouton "Continuer"
+  if (!someNeedQS) {
+    const btnNext = document.getElementById('btn-next-step3');
+    if (btnNext) {
+      btnNext.disabled = false;
+      btnNext.style.opacity = '1';
+      btnNext.style.pointerEvents = 'auto';
+    }
+  }
+
   c.innerHTML = state.members.map(m => {
     // Si toutes les activités sont non-sportives → pas de QS pour ce membre
     if (!membreNecessiteQS(m)) {
@@ -3876,6 +3886,7 @@ function buildRows(reg) {
           fftt_price: (m.ffttWant && m.ffttPrice) ? Number(m.ffttPrice) : 0,
           qs_sante: m.qsResult === 'attestation_ok' ? 'Attestation OK'
                   : m.qsResult === 'certificat_requis' ? 'Certificat requis'
+                  : m.qsResult === 'no_qs_needed' ? 'Pas de QS (activité non sportive)'
                   : m.qsResult === 'qs_answers_ok' ? 'Non signé' : 'Non rempli',
           pass_aide: (function(){
             const parts = [];
@@ -3947,7 +3958,8 @@ function buildRows(reg) {
         atout_code:          reg.responsable.atoutCode || '',
         fftt_price: (m.ffttWant && m.ffttPrice) ? Number(m.ffttPrice) : 0,
         qs_sante: m.qsResult === 'attestation_ok' ? 'Attestation OK'
-                : m.qsResult === 'certificat_requis' ? 'Certificat requis' : 'Non rempli',
+                : m.qsResult === 'certificat_requis' ? 'Certificat requis'
+                : m.qsResult === 'no_qs_needed' ? 'Pas de QS (activité non sportive)' : 'Non rempli',
         pass_aide: (function(){
             const parts = [];
             if (passAide) parts.push(passAide);
@@ -4079,7 +4091,7 @@ function renderSummary() {
     <div class="card">
       <div class="card-title">🏥 Résultats questionnaires santé</div>
       ${state.members.map(m => `<p style="font-size:14px;margin-bottom:8px;padding:8px 12px;border-radius:6px;${m.qsResult==='attestation_ok'?'background:var(--green-pale);':m.qsResult==='certificat_requis'?'background:#ffeeed;':'background:#fff9e6;'}">
-        <strong>${m.prenom} ${m.nom} :</strong> ${m.qsResult==='attestation_ok'?'✅ Questionnaire santé signé électroniquement — rien à apporter':m.qsResult==='certificat_requis'?'⚠️ Certificat médical obligatoire à apporter':m.qsResult==='qs_answers_ok'?'⚠️ Questionnaire rempli mais pas encore signé':'⏳ Questionnaire non complété'}
+        <strong>${m.prenom} ${m.nom} :</strong> ${m.qsResult==='no_qs_needed'?'✅ Pas de QS (activité non sportive)':m.qsResult==='attestation_ok'?'✅ QS signé électroniquement':m.qsResult==='certificat_requis'?'⚠️ Certificat médical obligatoire':m.qsResult==='qs_answers_ok'?'⚠️ QS rempli non signé':'⏳ QS non complété'}
       </p>`).join('')}
     </div>`;
 }
@@ -6158,7 +6170,10 @@ function showConfirmation(reg, offlineOnly = false, isPaid = false) {
       <div class="card" style="max-width:480px;margin:0 auto 24px;text-align:left">
         <div class="card-title">📎 Documents à apporter</div>
         <ul style="list-style:none;padding:0;font-size:14px;">
-          ${reg.members.map(m=>'<li style="padding:5px 0;border-bottom:1px solid var(--border)"><strong>'+m.prenom+' '+m.nom+'</strong> — '+(m.qsResult==='attestation_ok'?'✅ QS signé électroniquement — rien à apporter':m.qsResult==='certificat_requis'?'⚠️ Certificat médical obligatoire':'❓ QS non rempli')+'</li>').join('')}
+          ${reg.members.map(m=>{
+            if (m.qsResult === 'no_qs_needed') return '<li style="padding:5px 0;border-bottom:1px solid var(--border)"><strong>'+m.prenom+' '+m.nom+'</strong> — ✅ Pas de QS requis (activité non sportive)</li>';
+            return '<li style="padding:5px 0;border-bottom:1px solid var(--border)"><strong>'+m.prenom+' '+m.nom+'</strong> — '+(m.qsResult==='attestation_ok'?'✅ QS signé électroniquement — rien à apporter':m.qsResult==='certificat_requis'?'⚠️ Certificat médical obligatoire':'❓ QS à compléter')+'</li>';
+          }).join('')}
           ${reg.responsable.passJeunes==='oui'?'<li style="padding:5px 0">📎 Attestation Pass\'jeunes 76</li>':''}
           ${reg.responsable.atoutNormandie==='oui'?'<li style="padding:5px 0">📎 QR Code Atout Normandie</li>':''}
           ${reg.responsable.passSport==='oui'?'<li style="padding:5px 0">📎 Justificatif Pass\'sport État</li>':''}
