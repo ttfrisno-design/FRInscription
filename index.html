@@ -3371,13 +3371,18 @@ function renderHealth() {
   const notice = document.getElementById('qs-important-notice');
   if (notice) notice.style.display = someNeedQS ? 'block' : 'none';
 
-  // Si aucun membre n'a besoin de QS → activer directement le bouton "Continuer"
+  // Si aucun membre n'a besoin de QS → activer et pointer directement vers goStep(4)
   if (!someNeedQS) {
+    // Marquer tous les membres comme no_qs_needed dans state
+    state.members.forEach(function(mb) {
+      if (!membreNecessiteQS(mb)) mb.qsResult = 'no_qs_needed';
+    });
     const btnNext = document.getElementById('btn-next-step3');
     if (btnNext) {
       btnNext.disabled = false;
       btnNext.style.opacity = '1';
       btnNext.style.pointerEvents = 'auto';
+      btnNext.onclick = function() { goStep(4); };
     }
   }
 
