@@ -681,7 +681,7 @@
 
   <div class="btn-nav">
     <button class="btn btn-secondary" onclick="goStep(2)">← Retour</button>
-    <button class="btn btn-primary" id="btn-next-step3" onclick="nextStep(3)" style="opacity:0.5;pointer-events:none;" disabled>Continuer → Récapitulatif</button>
+    <button class="btn btn-primary" id="btn-next-step3" onclick="btnNextStep3()" style="opacity:0.5;pointer-events:none;" disabled>Continuer → Récapitulatif</button>
   </div>
 </div>
 
@@ -1647,6 +1647,17 @@ function goStep(n) {
     }
   }
   if (n === 5) { renderPayment(); recalcSolde(); }
+}
+
+function btnNextStep3() {
+  // Si aucun membre ne nécessite de QS → aller directement au récapitulatif
+  var someNeedQS = state.members.some(function(m){ return membreNecessiteQS(m); });
+  if (!someNeedQS) {
+    state.members.forEach(function(m){ if (!membreNecessiteQS(m)) m.qsResult = 'no_qs_needed'; });
+    goStep(4);
+  } else {
+    nextStep(3);
+  }
 }
 
 function nextStep(from) {
@@ -3382,7 +3393,7 @@ function renderHealth() {
       btnNext.disabled = false;
       btnNext.style.opacity = '1';
       btnNext.style.pointerEvents = 'auto';
-      btnNext.onclick = function() { goStep(4); };
+      // onclick géré par btnNextStep3()
     }
   }
 
