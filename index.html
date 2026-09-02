@@ -3547,9 +3547,11 @@ function checkHealthContinuerBtn() {
   const members = state.members || [];
   if (members.length === 0) { btn.style.opacity='0.5'; btn.style.pointerEvents='none'; btn.disabled=true; return; }
   const allOk = members.every(m => {
-    if (m.qsResult === 'attestation_ok') return true; // QS signé et envoyé au FRI
-    if (m.qsResult === 'certificat_requis' && m.certifMedEnvoye) return true; // certificat envoyé pour ce membre
-    // 'qs_answers_ok' = réponses NON mais signature pas encore faite → insuffisant
+    if (!m.activities || m.activities.length === 0) return true; // pas d'activité
+    if (!membreNecessiteQS(m)) return true; // activité non-sportive → pas de QS requis
+    if (m.qsResult === 'no_qs_needed') return true;
+    if (m.qsResult === 'attestation_ok') return true;
+    if (m.qsResult === 'certificat_requis' && m.certifMedEnvoye) return true;
     return false;
   });
   if (allOk) {
