@@ -673,7 +673,7 @@
   <div class="section-title">🏥 Questionnaire de santé</div>
   <div class="section-sub">Obligatoire pour toute pratique sportive ou culturelle (FNSMR)</div>
 
-  <div class="alert alert-warn">
+  <div class="alert alert-warn" id="qs-important-notice" style="display:none;">
     ⚕️ <strong>Important :</strong> Si vous répondez OUI à au moins une question, un certificat médical de non contre-indication à la pratique sportive est requis. Seule l'attestation (si toutes réponses NON) est à remettre au Foyer Rural — ne pas joindre le questionnaire.
   </div>
 
@@ -2288,7 +2288,6 @@ function inscrireListeAttente(memberId, primaryId, primaryLink) {
   refreshSemainierSlots(memberId);
   updateMemberTotal(memberId);
   updateSelectedBadge(memberId);
-  refreshFfttBlocks();
 
   showToast(`⏳ Inscrit sur liste d'attente : ${getActById(primaryId)?.name.replace(/\n/g,' — ')}`, '#0d6e6e', 5000);
 }
@@ -3029,7 +3028,6 @@ function toggleSlot(memberId, actId) {
   refreshSemainierSlots(memberId);
   updateMemberTotal(memberId);
   updateSelectedBadge(memberId);
-  refreshFfttBlocks();
   afficherMessagesCountry(memberId, primaryId);
 }
 
@@ -3368,6 +3366,11 @@ function getAge(ddn) {
 
 function renderHealth() {
   const c = document.getElementById('health-container');
+  // Afficher la notice "Important" uniquement si au moins un membre a besoin du QS
+  const someNeedQS = state.members.some(m => membreNecessiteQS(m));
+  const notice = document.getElementById('qs-important-notice');
+  if (notice) notice.style.display = someNeedQS ? 'block' : 'none';
+
   c.innerHTML = state.members.map(m => {
     // Si toutes les activités sont non-sportives → pas de QS pour ce membre
     if (!membreNecessiteQS(m)) {
@@ -4884,20 +4887,20 @@ async function _genererPDFAvecSignature(memberId, signatureDataUrl) {
       state.members[mIdx].qsPdfBase64   = pdfBase64;
       state.members[mIdx].qsPdfFilename = filename;
     }
-    // Persister dans localStorage pour survivre à la navigation vers HA
+    // Persister dans localStorage (métadonnées seulement, pas le PDF base64)
     try {
       const qsPending = JSON.parse(localStorage.getItem('fri_qs_pending') || '[]');
       qsPending.push({
         memberId: memberId,
         filename: filename,
-        pdfBase64: pdfBase64,
+        // pdfBase64 NON stocké (trop volumineux ~800Ko) — récupéré depuis state au retour HA
         prenom: state.members[mIdx]?.prenom || '',
         nom:    state.members[mIdx]?.nom    || '',
         ddn:    state.members[mIdx]?.ddn    || '',
         email:  state.responsable?.email1   || ''
       });
       localStorage.setItem('fri_qs_pending', JSON.stringify(qsPending));
-    } catch(eLSQS) { console.warn('Persist QS LS KO:', eLSQS); }
+    } catch(eLSQS) { console.warn('Persist QS LS KO (non bloquant):', eLSQS); }
     console.log('[FRI] QS PDF stocké localement (' + pdfUint8.length + ' bytes) — sera envoyé au Drive lors de la validation');
     showToast('✅ QS Santé signé et enregistré — sera transmis au FRI à la validation', 'green', 5000);
   } catch(e) { console.warn('Stockage PDF QS KO:', e); }
@@ -5166,7 +5169,13 @@ async function handleReturnFromHelloAsso() {
       if (gasUrlHA && qsPendingHA.length > 0) {
         for (const qsItem of qsPendingHA) {
           try {
-            // Calculer isMineur depuis la DDN stockée dans qsItem
+            // Récupérer le base64 depuis state.members (pas stocké dans fri_qs_pending)
+            const mbState = state.members && state.members.find(m =>
+              m.id === qsItem.memberId ||
+              (m.prenom === qsItem.prenom && m.nom === qsItem.nom)
+            );
+            const pdfB64HA = (mbState && mbState.qsPdfBase64) || qsItem.pdfBase64 || null;
+            if (!pdfB64HA) { console.warn('[FRI] QS base64 introuvable pour', qsItem.prenom); continue; }
             var isMinQS = false;
             if (qsItem.ddn) {
               var dobQS = new Date(qsItem.ddn.split('/').reverse().join('-'));
@@ -5176,7 +5185,7 @@ async function handleReturnFromHelloAsso() {
               isMinQS = ageQS < 18;
             }
             await envoyerPDFParEmail(
-              qsItem.filename, qsItem.pdfBase64,
+              qsItem.filename, pdfB64HA,
               qsItem.prenom + ' ' + qsItem.nom,
               (reg.responsable?.prenom||'') + ' ' + (reg.responsable?.nom||''),
               qsItem.email || reg.responsable?.email1 || '',
@@ -8977,14 +8986,12 @@ async function deleteRegistration(codeOrId, id) {
   // Déterminer le code dossier
   const code = (typeof codeOrId === 'string' && codeOrId.startsWith('FRI-')) ? codeOrId : null;
 
-  // Trouver dans les dossiers admin chargés (depuis Sheet)
-  const adminReg = adminDossiers && adminDossiers.find(r => r.code === code || r.id === codeOrId || r.id === id);
-  // Fallback localStorage
+  // Le code est suffisant pour la suppression — pas besoin de chercher le dossier
   const regs = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
   const lsReg = regs.find(r => r.id === id || r.code === code);
-  const reg = adminReg || lsReg;
-
-  const nom  = reg && reg.responsable ? (reg.responsable.nom + ' ' + reg.responsable.prenom) : (code || 'inconnu');
+  const nom = lsReg && lsReg.responsable
+    ? (lsReg.responsable.nom + ' ' + lsReg.responsable.prenom)
+    : (code || 'inconnu');
 
   const confirme1 = confirm(
     '⚠️ SUPPRESSION DU DOSSIER\n\n' +
