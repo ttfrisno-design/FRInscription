@@ -3786,8 +3786,8 @@ function calcTotals() {
     discount,
     afterDiscount: totalBeforeDiscount - discount,
     fnsmr: totalFNSMR,
-    fftt: totalFftt(),
-    grandTotal: totalBeforeDiscount - discount + totalFNSMR + totalFftt(),
+    fftt: 0,
+    grandTotal: totalBeforeDiscount - discount + totalFNSMR,
     familyActCount
   };
 }
