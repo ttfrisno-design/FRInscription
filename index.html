@@ -3757,7 +3757,7 @@ function siteToPlacesId(actId) {
     'tt-comp-entrain':'PINGL1945/ME1945','tt-comp-entrain-me':'PINGL1945/ME1945',
     'tt-comp-sans':'PINGM1930/ME21','tt-comp-sans-me':'PINGM1930/ME21',
     'ping-bienetre':'PINGJ1530',
-    'sophro-ma':'SOPHM11','sophro-me':'SOPHM1830',
+    'sophro-ma':'SOPHM11','sophro-me':'SOPHME1830',
     
     'marche-nordic':'MNOME/S10',
     'apa-lu':'APAL15','apa-je':'APAJ14','apa-ve':'APAV1730','yoga-doux':'YOGAM1430',
@@ -3774,7 +3774,7 @@ function siteToPlacesId(actId) {
     'danse-classique-pointes-je':'CLASSJ1430',
     'tt-jeunes-comp':'PINGL18/J17','tt-jeunes-comp-je':'PINGL18/J17',
     'tt-debu-1':'PINGME1730',
-    'tt-debu-2':'PINGME1830','tt-debu-2-me':'PINGME1830',
+    'tt-debu-2':'PINGL1745ME1830','tt-debu-2-me':'PINGL1745ME1830',
     'gym-eveil':'GYMME10','gym-parent-3-5':'GYMME1045','gym-3-5':'GYMME1130',
     'gym-inter-av1':'GYMME1215','gym-debu-6-8-1':'GYMME1315',
     'gym-debu-6-8-2':'GYMME1415','gym-inter-av2':'GYMME1515',
@@ -6951,7 +6951,6 @@ async function ouvrirModifierActivite(code) {
   const url = getAppsScriptUrl();
   if (!url) return;
 
-  // Récupérer les lignes du dossier
   showAdminToast('⏳ Chargement du dossier...', 'blue');
   const result = await callAppsScriptFetch(url, { action: 'getDossierDetail', _token: FRI_SECRET_TOKEN, code });
   const data = result && result.data ? result.data : result;
@@ -6960,64 +6959,75 @@ async function ouvrirModifierActivite(code) {
   const lignes = (data.lignes || []).filter(r => !(r.statut||'').toLowerCase().includes('supprim'));
   if (!lignes.length) { showAdminToast('Aucune activité trouvée pour ' + code, 'red'); return; }
 
-  const isno = (data.commune || '').includes('isno') || (data.ville || '').toUpperCase().includes('ISNEAUVILLE');
-  const resp = data.responsable || {};
+  const isno = (data.commune||'').includes('isno') || (data.ville||'').toUpperCase().includes('ISNEAUVILLE');
+  const totalActuel = data.total || 0;
+  const modePaiement = data.mode_paiement || '';
 
-  // Construire la liste des activités disponibles
+  // Toutes les activités disponibles avec leur ID Sheet
   const allActs = [];
   (window.placesData || []).forEach(function(p) {
     const actDef = getActById(p.id);
     if (!actDef) return;
+    // Trouver l'ID Sheet via le mapping placesId
+    const sheetId = siteToPlacesId(p.id) || p.id;
     allActs.push({
-      id: p.id, nom: actDef.name.replace('\n', ' — '), jour: actDef.jour,
-      heure: actDef.heure, dispo: p.dispo, isno: actDef.isno, hc: actDef.hc
+      htmlId: p.id, sheetId: sheetId,
+      nom: actDef.name.replace('\n', ' — '),
+      jour: actDef.jour, heure: actDef.heure, lieu: actDef.lieu || '',
+      animateur: actDef.animateur || '',
+      dispo: p.dispo, isno: actDef.isno, hc: actDef.hc
     });
   });
 
-  // Construire la modale
   const modal = document.createElement('div');
   modal.id = 'modal-modifier-activite';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
   modal.innerHTML = `
-    <div style="background:white;border-radius:16px;padding:28px;max-width:600px;width:90%;max-height:90vh;overflow-y:auto;">
-      <h3 style="margin:0 0 16px;color:var(--dark);">🔄 Modifier une activité — ${code}</h3>
+    <div style="background:white;border-radius:16px;padding:28px;max-width:640px;width:92%;max-height:90vh;overflow-y:auto;">
+      <h3 style="margin:0 0 4px;color:var(--dark);">🔄 Modifier une activité</h3>
+      <div style="font-size:12px;color:var(--gray);margin-bottom:16px;">Dossier ${code} — Total actuel : <strong>${totalActuel.toFixed(2)} €</strong></div>
+
       <div style="margin-bottom:14px;">
         <label style="font-size:13px;font-weight:700;color:var(--dark);display:block;margin-bottom:6px;">Activité à remplacer :</label>
         <select id="mod-act-ancienne" style="width:100%;padding:8px;border:1.5px solid #c8e6c9;border-radius:8px;font-size:13px;">
-          ${lignes.map(r => `<option value="${r.activite_id}|${r.membre_nom}|${r.membre_prenom}|${r.ligne_index||''}">${r.membre_prenom} ${r.membre_nom} — ${r.activite||r.activite_id} (${r.tarif_brut||0} €)</option>`).join('')}
+          ${lignes.map((r,i) => `<option value="${i}">${r.membre_prenom} ${r.membre_nom} — ${r.activite||r.activite_id} — ${r.jour||''} ${r.heure||''} (${r.tarif_brut||0} €)</option>`).join('')}
         </select>
       </div>
+
       <div style="margin-bottom:14px;">
-        <label style="font-size:13px;font-weight:700;color:var(--dark);display:block;margin-bottom:6px;">Nouvelle activité :</label>
+        <label style="font-size:13px;font-weight:700;color:var(--dark);display:block;margin-bottom:6px;">Nouvelle activité / nouveau créneau :</label>
         <select id="mod-act-nouvelle" style="width:100%;padding:8px;border:1.5px solid #c8e6c9;border-radius:8px;font-size:13px;">
-          ${allActs.map(a => `<option value="${a.id}" data-isno="${a.isno}" data-hc="${a.hc}">${a.nom} — ${a.jour} ${a.heure} (${isno ? a.isno : a.hc} € — ${a.dispo > 0 ? a.dispo + ' places' : '⛔ Complet'})</option>`).join('')}
+          ${allActs.map((a,i) => `<option value="${i}">${a.nom} — ${a.jour} ${a.heure} (${isno ? a.isno : a.hc} € — ${a.dispo > 0 ? a.dispo + ' places' : '⛔ Complet'})</option>`).join('')}
         </select>
       </div>
-      <div id="mod-act-diff" style="padding:10px;background:#e8f5e9;border-radius:8px;font-size:13px;margin-bottom:14px;display:none;"></div>
+
+      <div id="mod-act-diff" style="padding:12px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none;"></div>
+
       <div style="display:flex;gap:10px;justify-content:flex-end;">
         <button onclick="document.getElementById('modal-modifier-activite').remove()" class="btn btn-secondary">Annuler</button>
-        <button onclick="confirmerModifierActivite('${code}')" class="btn btn-primary" style="background:var(--green);">✅ Appliquer la modification</button>
+        <button onclick="confirmerModifierActivite('${code}')" class="btn btn-primary" style="background:var(--green);">✅ Appliquer</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
 
-  // Stocker les données pour confirmerModifierActivite
-  window._modifierActData = { code, lignes, isno, resp, totalActuel: data.total || 0 };
+  window._modifierActData = { code, lignes, allActs, isno, totalActuel, modePaiement };
 
-  // Calculer la diff tarifaire en temps réel
   function updateDiff() {
-    const [oldActId, oldNom, oldPrenom] = (document.getElementById('mod-act-ancienne').value || '').split('|');
-    const newSel = document.getElementById('mod-act-nouvelle');
-    const newActId = newSel.value;
-    const newOpt = newSel.options[newSel.selectedIndex];
-    const oldLigne = lignes.find(r => r.activite_id === oldActId && r.membre_nom === oldNom);
-    const oldTarif = oldLigne ? (Number(oldLigne.tarif_brut) || 0) : 0;
-    const newTarif = isno ? Number(newOpt.dataset.isno || 0) : Number(newOpt.dataset.hc || 0);
+    const oldIdx = parseInt(document.getElementById('mod-act-ancienne').value) || 0;
+    const newIdx = parseInt(document.getElementById('mod-act-nouvelle').value) || 0;
+    const oldLigne = lignes[oldIdx];
+    const newAct   = allActs[newIdx];
+    if (!oldLigne || !newAct) return;
+    const oldTarif = Number(oldLigne.tarif_brut) || 0;
+    const newTarif = isno ? Number(newAct.isno||0) : Number(newAct.hc||0);
     const diff = newTarif - oldTarif;
     const diffEl = document.getElementById('mod-act-diff');
     diffEl.style.display = 'block';
     diffEl.style.background = diff > 0 ? '#fff3e0' : diff < 0 ? '#e8f5e9' : '#f5f5f5';
-    diffEl.innerHTML = `Ancienne : <strong>${oldTarif} €</strong> → Nouvelle : <strong>${newTarif} €</strong> — Différence : <strong style="color:${diff>0?'#e65100':diff<0?'#2d6a4f':'#555'}">${diff>0?'+':''}${diff} €</strong>${diff > 0 ? ' <span style="color:#e65100;font-weight:700;">⚠️ Complément à régler</span>' : ''}`;
+    diffEl.innerHTML = `<strong>${oldLigne.activite}</strong> (${oldTarif} €) → <strong>${newAct.nom}</strong> — ${newAct.jour} ${newAct.heure} (${newTarif} €)<br>`
+      + `Différence : <strong style="color:${diff>0?'#e65100':diff<0?'#2d6a4f':'#555'}">${diff>0?'+':''}${diff} €</strong>`
+      + (diff > 0 ? ' <span style="color:#e65100;font-weight:700;">⚠️ Complément à régler</span>' : '')
+      + (diff < 0 ? ' <span style="color:#2d6a4f;font-weight:700;">✅ Avoir</span>' : '');
   }
   document.getElementById('mod-act-ancienne').addEventListener('change', updateDiff);
   document.getElementById('mod-act-nouvelle').addEventListener('change', updateDiff);
@@ -7028,41 +7038,46 @@ async function confirmerModifierActivite(code) {
   const d = window._modifierActData;
   if (!d) return;
   const url = getAppsScriptUrl();
-  const [oldActId, oldNom, oldPrenom, ligneIdx] = (document.getElementById('mod-act-ancienne').value || '').split('|');
-  const newSel = document.getElementById('mod-act-nouvelle');
-  const newActId = newSel.value;
-  const newOpt = newSel.options[newSel.selectedIndex];
-  const newActNom = newOpt.text.split(' — ')[0];
-  const oldLigne = d.lignes.find(r => r.activite_id === oldActId && r.membre_nom === oldNom);
-  const oldTarif = oldLigne ? (Number(oldLigne.tarif_brut) || 0) : 0;
-  const newTarif = d.isno ? Number(newOpt.dataset.isno || 0) : Number(newOpt.dataset.hc || 0);
-  const actDef = getActById(newActId);
 
-  if (!confirm(`Remplacer "${oldLigne ? oldLigne.activite : oldActId}" par "${newActNom}" pour ${oldPrenom} ${oldNom} ?\n\nDifférence de tarif : ${newTarif - oldTarif > 0 ? '+' : ''}${newTarif - oldTarif} €`)) return;
+  const oldIdx  = parseInt(document.getElementById('mod-act-ancienne').value) || 0;
+  const newIdx  = parseInt(document.getElementById('mod-act-nouvelle').value) || 0;
+  const oldLigne = d.lignes[oldIdx];
+  const newAct   = d.allActs[newIdx];
+  if (!oldLigne || !newAct) return;
+
+  const oldTarif = Number(oldLigne.tarif_brut) || 0;
+  const newTarif = d.isno ? Number(newAct.isno||0) : Number(newAct.hc||0);
+  const diff = newTarif - oldTarif;
+
+  if (!confirm(`Remplacer "${oldLigne.activite}" par "${newAct.nom}" (${newAct.jour} ${newAct.heure}) pour ${oldLigne.membre_prenom} ${oldLigne.membre_nom} ?\n\nDifférence : ${diff > 0 ? '+' : ''}${diff} €`)) return;
 
   document.getElementById('modal-modifier-activite').remove();
   showAdminToast('⏳ Modification en cours...', 'orange');
 
   try {
     const result = await callAppsScriptFetch(url, {
-      action:       'modifierActivite',
-      _token:       FRI_SECRET_TOKEN,
+      action:        'modifierActivite',
+      _token:        FRI_SECRET_TOKEN,
       code,
-      oldActId,
-      newActId,
-      newActNom,
-      membreNom:    oldNom,
-      membrePrenom: oldPrenom,
+      oldActId:      oldLigne.activite_id,   // ID Sheet de l'ancienne activité
+      newActId:      newAct.sheetId,          // ID Sheet de la nouvelle activité
+      newActHtmlId:  newAct.htmlId,           // ID HTML pour info
+      newActNom:     newAct.nom,
+      membreNom:     oldLigne.membre_nom,
+      membrePrenom:  oldLigne.membre_prenom,
       newTarif,
       oldTarif,
-      jour:         actDef ? actDef.jour : '',
-      heure:        actDef ? actDef.heure : '',
-      lieu:         actDef ? actDef.lieu : '',
-      animateur:    actDef ? actDef.animateur : ''
+      diff,
+      jour:          newAct.jour,
+      heure:         newAct.heure,
+      lieu:          newAct.lieu,
+      animateur:     newAct.animateur,
+      totalActuel:   d.totalActuel,
+      modePaiement:  d.modePaiement
     });
     const data = result && result.data ? result.data : result;
     if (data && data.status === 'ok') {
-      showAdminToast('✅ Activité modifiée — ' + (data.message || ''), 'green');
+      showAdminToast('✅ ' + (data.message || 'Activité modifiée'), 'green');
       state.placesLoaded = false;
       await loadPlaces(true);
       await chargerDossiersDepuisSheet();
@@ -7072,6 +7087,8 @@ async function confirmerModifierActivite(code) {
     }
   } catch(e) { showAdminToast('⚠️ Erreur : ' + e.message, 'red'); }
 }
+
+
 
 // ══════════════════════════════════════════════════════════════
 // ADMIN — Envoi manuel du rappel de règlement
