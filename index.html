@@ -1540,8 +1540,13 @@ let state = {
 // ============================================================
 // Retourne true si l'activité nécessite un QS santé
 function actNecessiteQS(actId) {
-  const NON_SPORT = ['couture-','peinture-','theatre-','guitare-','tt-'];
-  return !NON_SPORT.some(function(prefix){ return actId.startsWith(prefix); });
+  // Activités non-sportives : pas de QS requis
+  const NON_SPORT = ['couture-','peinture-','theatre-','guitare-'];
+  if (NON_SPORT.some(function(prefix){ return actId.startsWith(prefix); })) return false;
+  // TT adultes compétiteurs avec entraîneur (PINGL1945/ME1945) : pas de QS
+  const TT_SANS_QS = ['tt-comp-entrain', 'tt-comp-entrain-me'];
+  if (TT_SANS_QS.indexOf(actId) >= 0) return false;
+  return true; // Tous les autres TT et activités sportives nécessitent un QS
 }
 
 // Retourne true si le membre a au moins une activité sportive nécessitant un QS
