@@ -6196,21 +6196,8 @@ async function recupererDossiersPerdus() {
     }
   } catch(e) {}
 
-  // 3. fri_registrations : UNIQUEMENT les dossiers récents (< 7 jours) non confirmés
-  try {
-    const regRaw = localStorage.getItem('fri_registrations');
-    if (regRaw) {
-      const regList = JSON.parse(regRaw);
-      const sevenDaysAgo = Date.now() - 7 * 24 * 3600 * 1000;
-      (Array.isArray(regList) ? regList : []).forEach(function(reg) {
-        if (!reg || !reg.code || !/^FRI-[A-Z0-9]{4}$/.test(reg.code)) return;
-        // Seulement les dossiers récents (id = timestamp) et non confirmés
-        if (reg.id && Number(reg.id) < sevenDaysAgo) return;
-        if (reg.status === 'confirmed' || reg.status === 'paid') return;
-        if (!candidats.find(function(c){ return c.code === reg.code; })) candidats.push(reg);
-      });
-    }
-  } catch(e) {}
+  // fri_registrations volontairement exclu : c'est un miroir du Sheet, pas une file d'envoi
+  // Seuls fri_retry_queue et fri_pending contiennent des dossiers en attente réelle
 
   if (candidats.length === 0) {
     showAdminToast('Aucun dossier en attente dans le localStorage', 'green');
@@ -9386,52 +9373,75 @@ async function confirmerSupprActivite(code, ligneIdx) {
 async function deleteRegistration(codeOrId, id) {
   if (!requireAdmin()) return;
 
-  // Déterminer le code dossier
   const code = (typeof codeOrId === 'string' && codeOrId.startsWith('FRI-')) ? codeOrId : null;
 
-  // Le code est suffisant pour la suppression — pas besoin de chercher le dossier
-  const regs = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
-  const lsReg = regs.find(r => r.id === id || r.code === code);
+  // Chercher dans toutes les sources localStorage
+  const regs     = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
+  const pending   = JSON.parse(localStorage.getItem('fri_pending')       || '{}');
+  const retry     = JSON.parse(localStorage.getItem('fri_retry_queue')   || '[]');
+  const lsReg     = regs.find(r => r.id === id || r.code === code)
+                 || Object.values(pending).find(r => r.code === code)
+                 || retry.find(r => r.code === code);
   const nom = lsReg && lsReg.responsable
     ? (lsReg.responsable.nom + ' ' + lsReg.responsable.prenom)
     : (code || 'inconnu');
 
-  const confirme1 = confirm(
-    '⚠️ SUPPRESSION DU DOSSIER\n\n' +
-    'Dossier : ' + code + ' — ' + nom + '\n\n' +
-    'Cette action va supprimer définitivement :\n' +
-    '  • Toutes les lignes d\'inscription dans le Sheet\n' +
-    '  • Les entrées dans les onglets Chèques, Aides, HelloAsso\n' +
-    '  • Les avoirs et licences FFTT liés\n\n' +
-    'Êtes-vous sûr de vouloir supprimer ce dossier ?'
+  // ── Demander ce qu'on veut supprimer ──
+  const choix = confirm(
+    '⚠️ SUPPRESSION — Dossier ' + code + ' (' + nom + ')\n\n' +
+    'OK = Supprimer PARTOUT (localStorage + Sheet Google)\n' +
+    'Annuler = Annuler'
   );
-  if (!confirme1) return;
-  const confirme2 = confirm('Dernière confirmation — Supprimer définitivement le dossier ' + code + ' ?');
-  if (!confirme2) return;
+  if (!choix) return;
 
-  // 1. Supprimer du localStorage (si présent)
-  const updated = regs.filter(r => r.id !== id && r.code !== code);
-  localStorage.setItem('fri_registrations', JSON.stringify(updated));
+  const sheetAussi = confirm(
+    'Supprimer aussi dans le Sheet Google ?\n\n' +
+    'OK = Oui, supprimer dans le Sheet\n' +
+    'Annuler = Non, supprimer uniquement dans le localStorage'
+  );
 
-  // 2. Supprimer du Google Sheet via GAS
+  // ── 1. Supprimer de TOUTES les clés localStorage ──
+  const updatedRegs = regs.filter(r => r.id !== id && r.code !== code);
+  localStorage.setItem('fri_registrations', JSON.stringify(updatedRegs));
+
+  const updatedPending = Object.fromEntries(
+    Object.entries(pending).filter(([k, r]) => k !== code && r.code !== code)
+  );
+  localStorage.setItem('fri_pending', JSON.stringify(updatedPending));
+
+  const updatedRetry = retry.filter(r => r.code !== code);
+  localStorage.setItem('fri_retry_queue', JSON.stringify(updatedRetry));
+
+  // Nettoyer aussi fri_pending_ha si présent
+  try {
+    const pendingHA = JSON.parse(localStorage.getItem('fri_pending_ha') || '{}');
+    if (pendingHA[code]) {
+      delete pendingHA[code];
+      localStorage.setItem('fri_pending_ha', JSON.stringify(pendingHA));
+    }
+  } catch(e) {}
+
+  // ── 2. Supprimer du Sheet si demandé ──
   const url = getAppsScriptUrl();
-  const codeToDelete = code || (reg && reg.code) || '—';
-  if (url && url !== 'VOTRE_URL_APPS_SCRIPT_ICI' && codeToDelete && codeToDelete !== '—') {
+  if (sheetAussi && url && code) {
     try {
-      await callAppsScriptFetch(url, {
-        action: 'supprimerDossier',
-        _token: FRI_SECRET_TOKEN,
-        code:   codeToDelete
+      const result = await callAppsScriptFetch(url, {
+        action: 'supprimerDossier', _token: FRI_SECRET_TOKEN, code
       });
-      showToast(`✅ Dossier ${codeToDelete} supprimé`, 'green');
+      const d = result && result.data ? result.data : result;
+      if (d && d.status === 'ok') {
+        showAdminToast('✅ Dossier ' + code + ' supprimé (localStorage + Sheet)', 'green');
+      } else {
+        showAdminToast('⚠️ Supprimé localement — Sheet : ' + (d && d.message || 'vérifier'), 'orange');
+      }
     } catch(e) {
-      console.warn('Suppression GAS KO:', e);
-      showToast(`⚠️ Dossier supprimé localement — Sheet à vérifier`, 'orange');
+      showAdminToast('⚠️ Supprimé localement — erreur Sheet : ' + e.message, 'orange');
     }
   } else {
-    showToast(`✅ Dossier ${code} supprimé localement`, 'green');
+    showAdminToast('✅ Dossier ' + code + ' supprimé du localStorage', 'green');
   }
 
+  await chargerDossiersDepuisSheet();
   renderAdmin();
   renderAdminStats();
 }
