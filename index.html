@@ -1082,6 +1082,9 @@
       <button onclick="chargerDossiersDepuisSheet()" style="background:rgba(82,183,136,0.2);color:var(--green-light);border:1px solid rgba(82,183,136,0.4);border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">
         🔄 Rafraîchir
       </button>
+      <button onclick="recupererDossiersPerdus()" id="btn-recuperer" style="background:rgba(230,81,0,0.2);color:#ffab40;border:1px solid rgba(230,81,0,0.4);border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;" title="Renvoyer les dossiers en attente dans le localStorage">
+        🛟 Récupérer dossiers
+      </button>
       <button id="btn-export-gestaffil" class="btn btn-export" onclick="exportGestafillDepuisSheet()" style="font-size:13px;padding:9px 18px;background:var(--gold);color:var(--dark);">
         📊 Exporter Gestafill (Sheet)
       </button>
@@ -6157,6 +6160,107 @@ async function sendToGoogleSheets(reg) {
 }
 
 // File d'attente locale
+async function recupererDossiersPerdus() {
+  if (!requireAdmin()) return;
+  const btn = document.getElementById('btn-recuperer');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Récupération...'; }
+
+  const url = getAppsScriptUrl();
+  if (!url) { showAdminToast('URL GAS non configurée', 'red'); return; }
+
+  // ── Collecter tous les dossiers en attente depuis localStorage ──
+  const sources = [
+    { key: 'fri_retry_queue', label: 'File retry' },
+    { key: 'fri_pending',     label: 'Dossiers pending' },
+    { key: 'fri_registrations', label: 'Inscriptions locales' }
+  ];
+
+  const candidats = [];
+  sources.forEach(function(s) {
+    try {
+      const raw = localStorage.getItem(s.key);
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      const list = Array.isArray(data) ? data : Object.values(data);
+      list.forEach(function(reg) {
+        if (!reg || !reg.code) return;
+        if (!/^FRI-[A-Z0-9]{4}$/.test(reg.code)) return;
+        // Éviter les doublons
+        if (!candidats.find(function(c){ return c.code === reg.code; })) {
+          candidats.push(reg);
+        }
+      });
+    } catch(e) {}
+  });
+
+  if (candidats.length === 0) {
+    showAdminToast('Aucun dossier en attente dans le localStorage', 'green');
+    if (btn) { btn.disabled = false; btn.textContent = '🛟 Récupérer dossiers'; }
+    return;
+  }
+
+  // ── Vérifier lesquels sont absents du Sheet ──
+  showAdminToast('⏳ Vérification de ' + candidats.length + ' dossier(s)...', 'blue');
+  const sheetResult = await callAppsScriptFetch(url, {
+    action: 'verifierDossiersPerdus', _token: FRI_SECRET_TOKEN,
+    codes: candidats.map(function(c){ return c.code; })
+  });
+  const sheetData = sheetResult && sheetResult.data ? sheetResult.data : sheetResult;
+  const codesPresents = (sheetData && sheetData.codes_presents) || [];
+
+  const manquants = candidats.filter(function(c){
+    return codesPresents.indexOf(c.code) < 0;
+  });
+
+  if (manquants.length === 0) {
+    showAdminToast('✅ Tous les dossiers sont déjà dans le Sheet (' + candidats.length + ' vérifiés)', 'green');
+    if (btn) { btn.disabled = false; btn.textContent = '🛟 Récupérer dossiers'; }
+    return;
+  }
+
+  // ── Afficher la liste et demander confirmation ──
+  const liste = manquants.map(function(r) {
+    const nom = r.responsable ? (r.responsable.nom + ' ' + r.responsable.prenom) : r.code;
+    const acts = r.members ? r.members.reduce(function(acc,m){ return acc + (m.activities||[]).length; }, 0) : '?';
+    return r.code + ' — ' + nom + ' (' + acts + ' activités)';
+  }).join('\n');
+
+  if (!confirm(manquants.length + ' dossier(s) manquant(s) detecte(s). Reenvoi au Sheet ?')) {
+    if (btn) { btn.disabled = false; btn.textContent = '🛟 Récupérer dossiers'; }
+    return;
+  }
+
+  // ── Réenvoyer les dossiers manquants ──
+  let ok = 0, ko = 0;
+  for (let i = 0; i < manquants.length; i++) {
+    const reg = manquants[i];
+    showAdminToast('⏳ Envoi ' + (i+1) + '/' + manquants.length + ' — ' + reg.code, 'blue');
+    try {
+      const rows = buildRows(reg);
+      if (!rows || rows.length === 0) { ko++; continue; }
+      const result = await callAppsScriptFetch(url, {
+        action: 'addRegistration', _token: FRI_SECRET_TOKEN,
+        rows: rows, status: reg.status || 'pending'
+      });
+      const d = result && result.data ? result.data : result;
+      if (d && (d.inserted > 0 || d.status === 'ok' || d.already_exists)) { ok++; }
+      else { ko++; console.warn('Récupération KO pour', reg.code, d); }
+    } catch(e) { ko++; console.error('Récupération erreur', reg.code, e); }
+    // Pause entre envois pour éviter les conflits
+    await new Promise(function(r){ setTimeout(r, 2000); });
+  }
+
+  // ── Rapport final ──
+  const msg = '🛟 Récupération terminée : ' + ok + ' dossier(s) réenvoyé(s)' + (ko > 0 ? ', ' + ko + ' échec(s)' : '');
+  showAdminToast(msg, ok > 0 ? 'green' : 'red', 8000);
+  if (btn) { btn.disabled = false; btn.textContent = '🛟 Récupérer dossiers'; }
+  if (ok > 0) {
+    await new Promise(function(r){ setTimeout(r, 3000); });
+    await chargerDossiersDepuisSheet();
+    renderAdmin();
+  }
+}
+
 function queueForRetry(reg) {
   const q = JSON.parse(localStorage.getItem('fri_retry_queue') || '[]');
   if (!q.find(r => r.id === reg.id)) q.push(reg);
