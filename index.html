@@ -6104,36 +6104,42 @@ async function sendToGoogleSheets(reg) {
     console.log('[FRI] sendToGoogleSheets payload size:', payloadSize);
 
     let result;
-    if (payloadSize > 6000) {
-      // Payload trop grand pour JSONP GET → POST via iframe (même méthode que QS santé/RI)
-      // Apps Script reçoit via doPost → traiterRequete → addRegistration → emails envoyés
-      console.log('[FRI] Payload > 6Ko (' + payloadSize + ') : envoi par iframe POST');
-      await new Promise(function(resolvePost) {
-        const iframe = document.createElement('iframe');
-        iframe.name = 'fri_reg_' + Date.now();
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = url;
-        form.target = iframe.name;
-        form.style.display = 'none';
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'payload';
-        input.value = payloadStr;
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
-        // Attendre que GAS traite (doPost ~3-5s)
-        setTimeout(function() {
-          try { document.body.removeChild(form); } catch(e) {}
-          try { document.body.removeChild(iframe); } catch(e) {}
-          resolvePost();
-        }, 8000);
+    // Toujours utiliser callAppsScriptFetch (POST fetch) — plus fiable que JSONP ou iframe
+    // pour les gros payloads et les inscriptions multiples simultanées
+    try {
+      const fetchResult = await callAppsScriptFetch(url, {
+        ...payloadObj,
+        _token: FRI_SECRET_TOKEN
       });
-      result = { ok: true };
-    } else {
+      const fd = fetchResult && fetchResult.data ? fetchResult.data : fetchResult;
+      if (fd && (fd.status === 'ok' || fd.status === 'added' || fd.added > 0)) {
+        result = { ok: true };
+      } else if (payloadSize > 6000) {
+        // Fallback iframe POST si fetch échoue et payload trop grand pour JSONP
+        console.log('[FRI] Fallback iframe POST (' + payloadSize + ' bytes)');
+        await new Promise(function(resolvePost) {
+          const iframe = document.createElement('iframe');
+          iframe.name = 'fri_reg_' + Date.now();
+          iframe.style.display = 'none';
+          document.body.appendChild(iframe);
+          const form = document.createElement('form');
+          form.method = 'POST'; form.action = url;
+          form.target = iframe.name; form.style.display = 'none';
+          const input = document.createElement('input');
+          input.type = 'hidden'; input.name = 'payload'; input.value = payloadStr;
+          form.appendChild(input); document.body.appendChild(form); form.submit();
+          setTimeout(function() {
+            try{document.body.removeChild(form);}catch(e){}
+            try{document.body.removeChild(iframe);}catch(e){}
+            resolvePost();
+          }, 10000);
+        });
+        result = { ok: true };
+      } else {
+        result = await callAppsScript(payloadObj);
+      }
+    } catch(eFetch) {
+      console.warn('[FRI] callAppsScriptFetch KO, fallback JSONP:', eFetch.message);
       result = await callAppsScript(payloadObj);
     }
     if (result.ok) {
