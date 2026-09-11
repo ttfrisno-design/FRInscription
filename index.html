@@ -6169,29 +6169,48 @@ async function recupererDossiersPerdus() {
   if (!url) { showAdminToast('URL GAS non configurée', 'red'); return; }
 
   // ── Collecter tous les dossiers en attente depuis localStorage ──
-  const sources = [
-    { key: 'fri_retry_queue', label: 'File retry' },
-    { key: 'fri_pending',     label: 'Dossiers pending' },
-    { key: 'fri_registrations', label: 'Inscriptions locales' }
-  ];
-
+  // N'examiner que les files d'attente (pas fri_registrations qui contient TOUS les dossiers historiques)
   const candidats = [];
-  sources.forEach(function(s) {
-    try {
-      const raw = localStorage.getItem(s.key);
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      const list = Array.isArray(data) ? data : Object.values(data);
-      list.forEach(function(reg) {
-        if (!reg || !reg.code) return;
-        if (!/^FRI-[A-Z0-9]{4}$/.test(reg.code)) return;
-        // Éviter les doublons
-        if (!candidats.find(function(c){ return c.code === reg.code; })) {
-          candidats.push(reg);
-        }
+
+  // 1. fri_retry_queue : dossiers explicitement en échec d'envoi
+  try {
+    const retryRaw = localStorage.getItem('fri_retry_queue');
+    if (retryRaw) {
+      const retryList = JSON.parse(retryRaw);
+      (Array.isArray(retryList) ? retryList : []).forEach(function(reg) {
+        if (!reg || !reg.code || !/^FRI-[A-Z0-9]{4}$/.test(reg.code)) return;
+        if (!candidats.find(function(c){ return c.code === reg.code; })) candidats.push(reg);
       });
-    } catch(e) {}
-  });
+    }
+  } catch(e) {}
+
+  // 2. fri_pending : dossiers sauvegardés localement (keyed by code)
+  try {
+    const pendingRaw = localStorage.getItem('fri_pending');
+    if (pendingRaw) {
+      const pendingObj = JSON.parse(pendingRaw);
+      Object.values(pendingObj).forEach(function(reg) {
+        if (!reg || !reg.code || !/^FRI-[A-Z0-9]{4}$/.test(reg.code)) return;
+        if (!candidats.find(function(c){ return c.code === reg.code; })) candidats.push(reg);
+      });
+    }
+  } catch(e) {}
+
+  // 3. fri_registrations : UNIQUEMENT les dossiers récents (< 7 jours) non confirmés
+  try {
+    const regRaw = localStorage.getItem('fri_registrations');
+    if (regRaw) {
+      const regList = JSON.parse(regRaw);
+      const sevenDaysAgo = Date.now() - 7 * 24 * 3600 * 1000;
+      (Array.isArray(regList) ? regList : []).forEach(function(reg) {
+        if (!reg || !reg.code || !/^FRI-[A-Z0-9]{4}$/.test(reg.code)) return;
+        // Seulement les dossiers récents (id = timestamp) et non confirmés
+        if (reg.id && Number(reg.id) < sevenDaysAgo) return;
+        if (reg.status === 'confirmed' || reg.status === 'paid') return;
+        if (!candidats.find(function(c){ return c.code === reg.code; })) candidats.push(reg);
+      });
+    }
+  } catch(e) {}
 
   if (candidats.length === 0) {
     showAdminToast('Aucun dossier en attente dans le localStorage', 'green');
