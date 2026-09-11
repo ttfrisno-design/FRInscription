@@ -6219,41 +6219,79 @@ async function recupererDossiersPerdus() {
   }
 
   // ── Vérifier lesquels sont absents du Sheet ──
-  showAdminToast('⏳ Vérification de ' + candidats.length + ' dossier(s)...', 'blue');
+  showAdminToast('⏳ Vérification de ' + candidats.length + ' dossier(s) dans le Sheet...', 'blue');
   const sheetResult = await callAppsScriptFetch(url, {
     action: 'verifierDossiersPerdus', _token: FRI_SECRET_TOKEN,
     codes: candidats.map(function(c){ return c.code; })
   });
   const sheetData = sheetResult && sheetResult.data ? sheetResult.data : sheetResult;
   const codesPresents = (sheetData && sheetData.codes_presents) || [];
+  const manquants = candidats.filter(function(c){ return codesPresents.indexOf(c.code) < 0; });
 
-  const manquants = candidats.filter(function(c){
-    return codesPresents.indexOf(c.code) < 0;
-  });
+  if (btn) { btn.disabled = false; btn.textContent = '🛟 Récupérer dossiers'; }
 
   if (manquants.length === 0) {
-    showAdminToast('✅ Tous les dossiers sont déjà dans le Sheet (' + candidats.length + ' vérifiés)', 'green');
-    if (btn) { btn.disabled = false; btn.textContent = '🛟 Récupérer dossiers'; }
+    showAdminToast('✅ Tous les dossiers locaux sont présents dans le Sheet (' + candidats.length + ' vérifiés)', 'green');
     return;
   }
 
-  // ── Afficher la liste et demander confirmation ──
-  const liste = manquants.map(function(r) {
-    const nom = r.responsable ? (r.responsable.nom + ' ' + r.responsable.prenom) : r.code;
-    const acts = r.members ? r.members.reduce(function(acc,m){ return acc + (m.activities||[]).length; }, 0) : '?';
-    return r.code + ' — ' + nom + ' (' + acts + ' activités)';
-  }).join('\n');
+  // ── Afficher modale de sélection ──
+  const modal = document.createElement('div');
+  modal.id = 'modal-recuperation';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  const lignes = manquants.map(function(reg, i) {
+    const nom = reg.responsable ? (reg.responsable.nom + ' ' + reg.responsable.prenom) : '—';
+    const email = reg.responsable ? (reg.responsable.email1 || '') : '';
+    const nb = reg.members ? reg.members.reduce(function(acc,m){ return acc+(m.activities||[]).length; },0) : '?';
+    const date = (reg.date || reg.dateDossier || '').substring(0,10);
+    return '<tr style="border-bottom:1px solid #e0e0e0;">'
+      + '<td style="padding:6px 8px;"><input type="checkbox" class="rec-cb" data-idx="'+i+'" checked style="width:16px;height:16px;"></td>'
+      + '<td style="padding:6px 8px;font-family:monospace;font-weight:700;color:#1b5e20;">'+reg.code+'</td>'
+      + '<td style="padding:6px 8px;font-size:13px;">'+nom+'</td>'
+      + '<td style="padding:6px 8px;font-size:12px;color:#666;">'+email+'</td>'
+      + '<td style="padding:6px 8px;text-align:center;">'+nb+'</td>'
+      + '<td style="padding:6px 8px;font-size:11px;color:#888;">'+date+'</td>'
+      + '</tr>';
+  }).join('');
+  modal.innerHTML = '<div style="background:white;border-radius:16px;padding:24px;max-width:820px;width:95%;max-height:85vh;overflow-y:auto;">'
+    + '<h3 style="margin:0 0 6px;color:#c62828;">🛟 Dossiers absents du Sheet</h3>'
+    + '<p style="font-size:13px;color:#555;margin:0 0 12px;">'+candidats.length+' vérifiés — <strong>'+codesPresents.length+' présents</strong> — <strong style="color:#c62828;">'+manquants.length+' absents</strong>.<br>'
+    + 'Cochez les dossiers à réenvoyer. Les doublons seront ignorés automatiquement par le Sheet.</p>'
+    + '<div style="display:flex;gap:8px;margin-bottom:10px;">'
+    + '<button onclick="_recToutCocher(true)" style="font-size:12px;padding:4px 10px;border:1px solid #ccc;border-radius:6px;cursor:pointer;">✅ Tout cocher</button>'
+    + '<button onclick="_recToutCocher(false)" style="font-size:12px;padding:4px 10px;border:1px solid #ccc;border-radius:6px;cursor:pointer;">☐ Tout décocher</button>'
+    + '</div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+    + '<thead><tr style="background:#f5f5f5;"><th style="padding:6px;">✓</th><th style="padding:6px;text-align:left;">Code</th><th style="padding:6px;text-align:left;">Responsable</th><th style="padding:6px;text-align:left;">Email</th><th style="padding:6px;">Acts</th><th style="padding:6px;text-align:left;">Date</th></tr></thead>'
+    + '<tbody>'+lignes+'</tbody></table>'
+    + '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">'
+    + '<button onclick="_fermerModaleRecup()" class="btn btn-secondary">Annuler</button>'
+    + '<button onclick="_lancerReenvoi()" class="btn btn-primary" style="background:#c62828;">🛟 Réenvoyer les cochés</button>'
+    + '</div></div>';
+  document.body.appendChild(modal);
+  window._manquantsRecup = manquants;
+  window._urlRecup = url;
+}
 
-  if (!confirm(manquants.length + ' dossier(s) manquant(s) detecte(s). Reenvoi au Sheet ?')) {
-    if (btn) { btn.disabled = false; btn.textContent = '🛟 Récupérer dossiers'; }
-    return;
-  }
+async function _fermerModaleRecup() { var m=document.getElementById('modal-recuperation'); if(m)m.remove(); }
+function _recToutCocher(checked) {
+  document.querySelectorAll('.rec-cb').forEach(function(c){ c.checked = checked; });
+}
 
-  // ── Réenvoyer les dossiers manquants ──
-  let ok = 0, ko = 0;
-  for (let i = 0; i < manquants.length; i++) {
-    const reg = manquants[i];
-    showAdminToast('⏳ Envoi ' + (i+1) + '/' + manquants.length + ' — ' + reg.code, 'blue');
+async function _lancerReenvoi() {
+  const manquants = window._manquantsRecup || [];
+  const url = window._urlRecup;
+  const cbs = document.querySelectorAll('.rec-cb');
+  const aEnvoyer = manquants.filter(function(reg, i) {
+    return cbs[i] && cbs[i].checked;
+  });
+  document.getElementById('modal-recuperation').remove();
+  if (aEnvoyer.length === 0) { showAdminToast('Aucun dossier sélectionné', 'orange'); return; }
+
+  let ok = 0, ko = 0, doublon = 0;
+  for (let i = 0; i < aEnvoyer.length; i++) {
+    const reg = aEnvoyer[i];
+    showAdminToast('⏳ ' + (i+1) + '/' + aEnvoyer.length + ' — ' + reg.code, 'blue');
     try {
       const rows = buildRows(reg);
       if (!rows || rows.length === 0) { ko++; continue; }
@@ -6262,23 +6300,22 @@ async function recupererDossiersPerdus() {
         rows: rows, status: reg.status || 'pending'
       });
       const d = result && result.data ? result.data : result;
-      if (d && (d.inserted > 0 || d.status === 'ok' || d.already_exists)) { ok++; }
-      else { ko++; console.warn('Récupération KO pour', reg.code, d); }
-    } catch(e) { ko++; console.error('Récupération erreur', reg.code, e); }
-    // Pause entre envois pour éviter les conflits
+      if (d && d.already_exists) doublon++;
+      else if (d && (d.inserted > 0 || d.status === 'ok')) ok++;
+      else { ko++; console.warn('KO', reg.code, d); }
+    } catch(e) { ko++; console.error(reg.code, e); }
     await new Promise(function(r){ setTimeout(r, 2000); });
   }
-
-  // ── Rapport final ──
-  const msg = '🛟 Récupération terminée : ' + ok + ' dossier(s) réenvoyé(s)' + (ko > 0 ? ', ' + ko + ' échec(s)' : '');
-  showAdminToast(msg, ok > 0 ? 'green' : 'red', 8000);
-  if (btn) { btn.disabled = false; btn.textContent = '🛟 Récupérer dossiers'; }
+  let msg = '🛟 Terminé : ' + ok + ' réenvoyé(s)';
+  if (doublon > 0) msg += ', ' + doublon + ' déjà présent(s) (ignorés)';
+  if (ko > 0) msg += ', ' + ko + ' erreur(s)';
+  showAdminToast(msg, ok > 0 ? 'green' : 'orange', 10000);
   if (ok > 0) {
     await new Promise(function(r){ setTimeout(r, 3000); });
-    await chargerDossiersDepuisSheet();
-    renderAdmin();
+    await chargerDossiersDepuisSheet(); renderAdmin();
   }
 }
+
 
 function queueForRetry(reg) {
   const q = JSON.parse(localStorage.getItem('fri_retry_queue') || '[]');
