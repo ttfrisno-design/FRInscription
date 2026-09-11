@@ -7281,6 +7281,7 @@ async function confirmerModifierActivite(code) {
       _token:        FRI_SECRET_TOKEN,
       code,
       oldActId:      oldLigne.activite_id,   // ID Sheet de l'ancienne activité
+      oldActNom:     oldLigne.activite,       // Nom ancienne activité (fallback matching)
       newActId:      newAct.sheetId,          // ID Sheet de la nouvelle activité
       newActHtmlId:  newAct.htmlId,           // ID HTML pour info
       newActNom:     newAct.nom,
