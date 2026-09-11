@@ -7184,21 +7184,28 @@ async function ouvrirModifierActivite(code) {
   const totalActuel = data.total || 0;
   const modePaiement = data.mode_paiement || '';
 
-  // Toutes les activités disponibles avec leur ID Sheet
+  // Toutes les activités disponibles — via getAllActs() + state.places pour les dispos
   const allActs = [];
-  (window.placesData || []).forEach(function(p) {
-    const actDef = getActById(p.id);
-    if (!actDef) return;
-    // Trouver l'ID Sheet via le mapping placesId
-    const sheetId = siteToPlacesId(p.id) || p.id;
+  getAllActs().forEach(function(actDef) {
+    if (!actDef || !actDef.id) return;
+    const sheetId = siteToPlacesId(actDef.id) || actDef.id;
+    const placeInfo = state.places && state.places[actDef.id];
+    const dispo = placeInfo ? (placeInfo.available !== undefined ? placeInfo.available : placeInfo.dispo) : 99;
     allActs.push({
-      htmlId: p.id, sheetId: sheetId,
-      nom: actDef.name.replace('\n', ' — '),
-      jour: actDef.jour, heure: actDef.heure, lieu: actDef.lieu || '',
+      htmlId:    actDef.id,
+      sheetId:   sheetId,
+      nom:       actDef.name.replace('\n', ' — '),
+      jour:      actDef.jour    || '',
+      heure:     actDef.heure   || '',
+      lieu:      actDef.lieu    || '',
       animateur: actDef.animateur || '',
-      dispo: p.dispo, isno: actDef.isno, hc: actDef.hc
+      dispo:     dispo,
+      isno:      actDef.isno || 0,
+      hc:        actDef.hc   || 0
     });
   });
+  // Trier par activité puis jour/heure
+  allActs.sort(function(a,b){ return a.nom.localeCompare(b.nom) || a.heure.localeCompare(b.heure); });
 
   const modal = document.createElement('div');
   modal.id = 'modal-modifier-activite';
