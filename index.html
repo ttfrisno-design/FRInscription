@@ -1085,6 +1085,9 @@
       <button onclick="recupererDossiersPerdus()" id="btn-recuperer" style="background:rgba(230,81,0,0.2);color:#ffab40;border:1px solid rgba(230,81,0,0.4);border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;" title="Renvoyer les dossiers en attente dans le localStorage">
         🛟 Récupérer dossiers
       </button>
+      <button onclick="afficherJournalSauvegardes()" style="background:rgba(21,101,192,0.2);color:#90caf9;border:1px solid rgba(21,101,192,0.4);border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;" title="Historique des tentatives d'enregistrement">
+        📋 Journal
+      </button>
       <button id="btn-export-gestaffil" class="btn btn-export" onclick="exportGestafillDepuisSheet()" style="font-size:13px;padding:9px 18px;background:var(--gold);color:var(--dark);">
         📊 Exporter Gestafill (Sheet)
       </button>
@@ -6260,7 +6263,67 @@ async function recupererDossiersPerdus() {
   window._urlRecup = url;
 }
 
-async function _fermerModaleRecup() { var m=document.getElementById('modal-recuperation'); if(m)m.remove(); }
+async function afficherJournalSauvegardes() {
+  if (!requireAdmin()) return;
+  const url = getAppsScriptUrl();
+  if (!url) return;
+  showAdminToast('⏳ Chargement du journal...', 'blue');
+  try {
+    const result = await callAppsScriptFetch(url, {
+      action: 'getJournalSauvegardes', _token: FRI_SECRET_TOKEN
+    });
+    const data = result && result.data ? result.data : result;
+    const journal = (data && data.journal) || [];
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-journal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+    const lignes = journal.length === 0
+      ? '<tr><td colspan="4" style="text-align:center;padding:20px;color:#888;">Aucune tentative enregistrée</td></tr>'
+      : journal.map(function(e) {
+          const couleur = e.status === 'ok' ? '#2d6a4f' : e.status === 'doublon' ? '#888' : '#c62828';
+          const badge = e.status === 'ok'
+            ? '<span style="background:#e8f5e9;color:#2d6a4f;border-radius:4px;padding:2px 6px;font-size:11px;">✅ Enregistré</span>'
+            : e.status === 'doublon'
+            ? '<span style="background:#f5f5f5;color:#888;border-radius:4px;padding:2px 6px;font-size:11px;">↩ Doublon (ignoré)</span>'
+            : '<span style="background:#ffebee;color:#c62828;border-radius:4px;padding:2px 6px;font-size:11px;">⚠️ Erreur</span>';
+          return '<tr style="border-bottom:1px solid #f0f0f0;">'
+            + '<td style="padding:7px 10px;font-size:12px;color:#666;white-space:nowrap;">' + e.ts + '</td>'
+            + '<td style="padding:7px 10px;font-family:monospace;font-weight:700;color:' + couleur + ';">' + e.code + '</td>'
+            + '<td style="padding:7px 10px;text-align:center;">' + badge + '</td>'
+            + '<td style="padding:7px 10px;text-align:center;font-size:12px;color:#888;">' + (e.inserted || 0) + ' ligne(s)</td>'
+            + '</tr>';
+        }).join('');
+
+    modal.innerHTML = '<div style="background:white;border-radius:16px;padding:24px;max-width:700px;width:92%;max-height:85vh;overflow-y:auto;">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+      + '<h3 style="margin:0;color:var(--dark);">📋 Journal des sauvegardes GAS</h3>'
+      + '<div style="display:flex;gap:8px;">'
+      + '<button onclick="viderJournalSauvegardes()" style="font-size:12px;padding:5px 12px;background:#ffebee;color:#c62828;border:1px solid #ef9a9a;border-radius:6px;cursor:pointer;">🗑 Vider</button>'
+      + '<button onclick="_fermerModalJournal()" style="font-size:12px;padding:5px 12px;background:#f5f5f5;border:1px solid #ddd;border-radius:6px;cursor:pointer;">✕ Fermer</button>'
+      + '</div></div>'
+      + '<p style="font-size:12px;color:#888;margin:0 0 12px;">' + journal.length + ' tentative(s) enregistrée(s) — les 200 plus récentes</p>'
+      + '<table style="width:100%;border-collapse:collapse;">'
+      + '<thead><tr style="background:#f9f9f9;"><th style="padding:7px 10px;text-align:left;font-size:12px;">Date/heure</th><th style="padding:7px 10px;text-align:left;font-size:12px;">Dossier</th><th style="padding:7px 10px;font-size:12px;">Statut</th><th style="padding:7px 10px;font-size:12px;">Lignes</th></tr></thead>'
+      + '<tbody>' + lignes + '</tbody></table>'
+      + '</div>';
+    document.body.appendChild(modal);
+  } catch(e) {
+    showAdminToast('⚠️ Erreur chargement journal : ' + e.message, 'red');
+  }
+}
+
+function _fermerModalJournal(){var m=document.getElementById('modal-journal');if(m)m.remove();}
+async function viderJournalSauvegardes() {
+  if (!confirm('Vider tout le journal des sauvegardes ?')) return;
+  const url = getAppsScriptUrl();
+  await callAppsScriptFetch(url, { action: 'viderJournalSauvegardes', _token: FRI_SECRET_TOKEN });
+  document.getElementById('modal-journal').remove();
+  showAdminToast('✅ Journal vidé', 'green');
+}
+
+function _fermerModaleRecup() { var m=document.getElementById('modal-recuperation'); if(m)m.remove(); }
 function _recToutCocher(checked) {
   document.querySelectorAll('.rec-cb').forEach(function(c){ c.checked = checked; });
 }
