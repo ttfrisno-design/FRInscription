@@ -2225,7 +2225,9 @@ async function loadPlaces(force = false) {
     const res = await callAppsScriptFetch(url, { action: 'getPlacesRestantes' });
     const data = (res && res.data) ? res.data : res;
     if (!data || !data.places || Object.keys(data.places).length === 0) {
-      console.warn('[FRI] loadPlaces: aucune place retourned par GAS');
+      console.warn('[FRI] loadPlaces: aucune place retourned par GAS — retry dans 3s');
+      // Retry automatique après 3s
+      setTimeout(function(){ state.placesLoaded = false; loadPlaces(true).catch(function(){}); }, 3000);
       state.placesLoaded = true; state.placesLoadedAt = now; return;
     }
     let updated = 0;
@@ -6011,7 +6013,7 @@ async function callAppsScriptFetch(url, payload) {
       cleanup();
       console.warn('[FRI] JSONP timeout:', action, '— Apps Script a probablement traité la requête');
       resolve({ ok: true });
-    }, 20000);
+    }, 30000); // 30s pour laisser le temps aux actions lentes (getStatsTresorier, getPlacesRestantes)
 
     const s = document.createElement('script');
     s.src = fullUrl;
@@ -6441,7 +6443,7 @@ async function afficherPiecesManquantes() {
 // ══════════════════════════════════════════════════════════════
 // CONSOLE TRÉSORIER
 // ══════════════════════════════════════════════════════════════
-const TRESORIER_PWD = 'FRI2026TRES'; // Mot de passe trésorier
+const TRESORIER_PWD = '!FRI!2026!TRES!'; // Mot de passe trésorier
 
 function showTresorierLogin() {
   const pwd = prompt('Mot de passe Trésorier :');
