@@ -6017,7 +6017,8 @@ async function callAppsScriptFetch(url, payload) {
     s.src = fullUrl;
     // Actions attendant des données : ne pas résoudre sur onerror
     const DATA_ACTIONS = ['getPlacesRestantes','getDossiers','getLicenceFFTT',
-                          'rechercherLicencieFFTT','verifierCodeAvoir'];
+                          'rechercherLicencieFFTT','verifierCodeAvoir','getStatsTresorier',
+                          'getJournalSauvegardes','getDossierDetail','verifierDossiersPerdus'];
     s.onerror = () => {
       if (done) return;
       if (DATA_ACTIONS.includes(action)) {
