@@ -6447,7 +6447,7 @@ function showTresorierLogin() {
   if (!pwd) return;
   if (pwd.trim() !== TRESORIER_PWD) { alert('Mot de passe incorrect.'); return; }
   // Masquer les autres sections
-  document.getElementById('main').style.display = 'none';
+  document.querySelector('.main').style.display = 'none';
   const adminCons = document.getElementById('admin-panel');
   if (adminCons) adminCons.style.display = 'none';
   const tresCons = document.getElementById('tresorier-console');
@@ -6573,7 +6573,7 @@ function renderTresorier(d) {
 
 function closeTresorier() {
   document.getElementById('tresorier-console').style.display = 'none';
-  document.getElementById('main').style.display = 'block';
+  document.querySelector('.main').style.display = 'block';
 }
 
 function _fermerModalPieces(){var m=document.getElementById('modal-pieces');if(m)m.remove();}
