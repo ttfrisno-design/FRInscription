@@ -6448,7 +6448,7 @@ function showTresorierLogin() {
   if (pwd.trim() !== TRESORIER_PWD) { alert('Mot de passe incorrect.'); return; }
   // Masquer les autres sections
   document.getElementById('main').style.display = 'none';
-  const adminCons = document.getElementById('admin-console');
+  const adminCons = document.getElementById('admin-panel');
   if (adminCons) adminCons.style.display = 'none';
   const tresCons = document.getElementById('tresorier-console');
   tresCons.style.display = 'block';
