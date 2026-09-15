@@ -370,7 +370,7 @@
   .sem-tab {
     padding:3px 6px; border-radius:20px; border:1.5px solid var(--border);
     background:var(--white); cursor:pointer; font-size:13px; font-weight:600;
-    font-family:'DM Sans',sans-serif; transition:all 0.15s; color:var(--dark);
+    font-family:sans-serif; transition:all 0.15s; color:var(--dark);
     white-space:nowrap;
   }
   .sem-tab.active { background:var(--dark); color:white; border-color:var(--dark); }
@@ -985,9 +985,15 @@
 
 </div><!-- /main -->
 
+<!-- TRESORIER CONSOLE -->
+<div id="tresorier-console" style="display:none;max-width:1100px;margin:0 auto;padding:0 24px 40px;">
+  <div id="tresorier-content"></div>
+</div>
+
 <!-- ADMIN TRIGGER BUTTON (discreet) -->
 <div style="max-width:900px;margin:0 auto 16px;padding:0 24px;text-align:right">
-  <button onclick="showAdminLogin()" style="background:none;border:none;color:var(--gray);font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;opacity:0.5;" title="Accès administration">⚙ Administration</button>
+  <button onclick="showAdminLogin()" style="background:none;border:none;color:var(--gray);font-size:12px;cursor:pointer;font-family:sans-serif;opacity:0.5;" title="Accès administration">⚙ Administration</button>
+  <button onclick="showTresorierLogin()" style="background:none;border:none;color:var(--gray);font-size:12px;cursor:pointer;font-family:sans-serif;opacity:0.5;margin-left:8px;" title="Accès trésorier">💰 Trésorier</button>
 </div>
 
 <!-- ADMIN LOGIN MODAL -->
@@ -1053,7 +1059,7 @@
       </div>
       <div style="display:flex;gap:10px;align-items:center">
         <span style="font-size:12px;color:rgba(255,255,255,0.5)" id="admin-logged-as"></span>
-        <button onclick="adminLogout()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;">Déconnexion</button>
+        <button onclick="adminLogout()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:sans-serif;">Déconnexion</button>
       </div>
     </div>
 
@@ -1063,7 +1069,7 @@
     <!-- Search & Actions -->
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
       <input type="text" id="search-admin" placeholder="🔍 Rechercher un adhérent..." 
-        style="padding:9px 14px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;width:220px;outline:none;background:rgba(255,255,255,0.08);color:white;" 
+        style="padding:9px 14px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:sans-serif;font-size:13px;width:220px;outline:none;background:rgba(255,255,255,0.08);color:white;" 
         oninput="renderAdmin()">
       <input type="text" id="search-dossier" placeholder="FRI-" maxlength="8"
         style="padding:9px 14px;border:1.5px solid rgba(255,165,0,0.4);border-radius:8px;font-family:monospace;font-size:14px;font-weight:700;width:100px;outline:none;background:rgba(255,255,255,0.08);color:#ffd700;letter-spacing:2px;text-transform:uppercase;"
@@ -1071,7 +1077,7 @@
         onfocus="if(!this.value)this.value='FRI-'"
         onblur="if(this.value==='FRI-')this.value=''">
       <select id="filter-paiement" onchange="renderAdmin()"
-        style="padding:9px 14px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;background:rgba(255,255,255,0.08);color:white;outline:none;">
+        style="padding:9px 14px;border:1.5px solid rgba(255,255,255,0.15);border-radius:8px;font-family:sans-serif;font-size:13px;background:rgba(255,255,255,0.08);color:white;outline:none;">
         <option value="" style="background:#1a2e22;color:white;">Tous les dossiers</option>
         <option value="pending" style="background:#1a2e22;color:white;">⏳ En cours de validation</option>
         <option value="helloasso" style="background:#1a2e22;color:white;">HelloAsso ✅</option>
@@ -1079,14 +1085,17 @@
         <option value="especes" style="background:#1a2e22;color:white;">Espèces</option>
         <option value="ancv" style="background:#1a2e22;color:white;">ANCV</option>
       </select>
-      <button onclick="chargerDossiersDepuisSheet()" style="background:rgba(82,183,136,0.2);color:var(--green-light);border:1px solid rgba(82,183,136,0.4);border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;">
+      <button onclick="chargerDossiersDepuisSheet()" style="background:rgba(82,183,136,0.2);color:var(--green-light);border:1px solid rgba(82,183,136,0.4);border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:sans-serif;font-weight:600;">
         🔄 Rafraîchir
       </button>
-      <button onclick="recupererDossiersPerdus()" id="btn-recuperer" style="background:rgba(230,81,0,0.2);color:#ffab40;border:1px solid rgba(230,81,0,0.4);border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;" title="Renvoyer les dossiers en attente dans le localStorage">
+      <button onclick="recupererDossiersPerdus()" id="btn-recuperer" style="background:rgba(230,81,0,0.2);color:#ffab40;border:1px solid rgba(230,81,0,0.4);border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:sans-serif;font-weight:600;" title="Renvoyer les dossiers en attente dans le localStorage">
         🛟 Récupérer dossiers
       </button>
-      <button onclick="afficherJournalSauvegardes()" style="background:rgba(21,101,192,0.2);color:#90caf9;border:1px solid rgba(21,101,192,0.4);border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;font-weight:600;" title="Historique des tentatives d'enregistrement">
+      <button onclick="afficherJournalSauvegardes()" style="background:rgba(21,101,192,0.2);color:#90caf9;border:1px solid rgba(21,101,192,0.4);border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:sans-serif;font-weight:600;" title="Historique des tentatives d'enregistrement">
         📋 Journal
+      </button>
+      <button onclick="afficherPiecesManquantes()" id="btn-pieces" style="background:rgba(198,40,40,0.2);color:#ef9a9a;border:1px solid rgba(198,40,40,0.4);border-radius:8px;padding:9px 16px;font-size:13px;cursor:pointer;font-family:sans-serif;font-weight:600;" title="Dossiers avec pièces manquantes">
+        ⚠️ Pièces manquantes
       </button>
       <button id="btn-export-gestaffil" class="btn btn-export" onclick="exportGestafillDepuisSheet()" style="font-size:13px;padding:9px 18px;background:var(--gold);color:var(--dark);">
         📊 Exporter Gestafill (Sheet)
@@ -1122,7 +1131,7 @@
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <select id="salle-select" onchange="renderSemainierSalle()"
-            style="padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--white);color:var(--dark);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;font-weight:600;">
+            style="padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--white);color:var(--dark);font-family:sans-serif;font-size:13px;outline:none;font-weight:600;">
             <option value="CM">Salle Claude Monet (CM)</option>
             <option value="MB">Salle Maurice Béjart (MB)</option>
             <option value="GSF">Grande Salle des Fêtes (GSF)</option>
@@ -1166,7 +1175,7 @@ function calcCountryForfait(membre, isno) {
 // ============================================================
 // CONFIGURATION — À REMPLIR APRÈS DÉPLOIEMENT DU APPS SCRIPT
 // ============================================================
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzuCu8xvIwctu0TEbsDC7_F75hWAoFExR2erf7N-vn65SJrNDF64oMySVG3RI7T7CNz/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzKtQ37rT-TXNIObe-Ps86sstG0UV4IpJyn-emucrrNFq-8C0KNdyx5jWi4KS8yR48/exec';
 
 
 // ══════════════════════════════════════════════════════════════
@@ -1491,7 +1500,7 @@ const ACTIVITIES = {
         acts: [
           { id:"gym-eveil",      name:"Baby Gym Parents\n20 mois - 3 ans", lieu:"CM", jour:"Mercredi", heure:"10h00/10h45", isno:120, hc:150, animateur:"G. LEBOURG" },
           { id:"gym-parent-3-5", name:"Gym Parent-Enfant\n3-5 ans", lieu:"CM", jour:"Mercredi", heure:"10h45/11h30", isno:120, hc:150, animateur:"G. LEBOURG" },
-          { id:"gym-3-5",        name:"Gym\n3-5 ans", lieu:"CM", jour:"Mercredi", heure:"11h30/12h15", isno:160, hc:190, animateur:"G. LEBOURG/J. BREMAUD" },
+          { id:"gym-3-5",        name:"Gym\n3-5 ans", lieu:"CM", jour:"Mercredi", heure:"11h30/12h15", isno:120, hc:150, animateur:"G. LEBOURG/J. BREMAUD" },
           { id:"gym-inter-av1",  name:"Gym\nInter/Avancés 1", lieu:"CM", jour:"Mercredi", heure:"12h15/13h15", isno:160, hc:190, animateur:"J. BREMAUD" },
           { id:"gym-debu-6-8-1", name:"Gym Débutants\n6-8 ans (1)", lieu:"CM", jour:"Mercredi", heure:"13h15/14h15", isno:160, hc:190, animateur:"J. BREMAUD" },
           { id:"gym-debu-6-8-2", name:"Gym Débutants\n6-8 ans (2)", lieu:"CM", jour:"Mercredi", heure:"14h15/15h15", isno:160, hc:190, animateur:"G. LEBOURG" },
@@ -3167,7 +3176,7 @@ function afficherConflitHoraire(nouvelleAct, actEnConflit) {
       <!-- Bouton -->
       <div style="padding:0 24px 22px;">
         <button onclick="document.getElementById('modal-conflit-horaire').remove()"
-          style="width:100%;padding:13px;background:#1a2e22;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">
+          style="width:100%;padding:13px;background:#1a2e22;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:sans-serif;">
           Compris — je choisis une autre activité
         </button>
       </div>
@@ -3497,7 +3506,7 @@ function renderHealth() {
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
         <div class="qs-name" style="margin-bottom:0">👤 ${m.prenom} ${m.nom} — ${isMineur ? 'Mineur ('+age+' ans)' : 'Majeur ('+age+' ans)'}</div>
         <button type="button" onclick="repondreNonATout(${m.id})"
-          style="background:var(--green);color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;">
+          style="background:var(--green);color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:sans-serif;">
           ✅ Répondre NON à toutes les questions
         </button>
       </div>
@@ -6312,6 +6321,283 @@ async function afficherJournalSauvegardes() {
   } catch(e) {
     showAdminToast('⚠️ Erreur chargement journal : ' + e.message, 'red');
   }
+}
+
+async function afficherPiecesManquantes() {
+  if (!requireAdmin()) return;
+  const url = getAppsScriptUrl();
+  if (!url) return;
+
+  const btn = document.getElementById('btn-pieces');
+  if (btn) btn.textContent = '⏳ Analyse...';
+
+  // Récupérer les dossiers du Sheet
+  const result = await callAppsScriptFetch(url, { action: 'getDossiers', _token: FRI_SECRET_TOKEN });
+  const data = result && result.data ? result.data : result;
+  const dossiers = data && data.dossiers ? data.dossiers : [];
+  const checks = JSON.parse(localStorage.getItem('fri_admin_checks') || '{}');
+
+  if (btn) btn.textContent = '⚠️ Pièces manquantes';
+
+  // Analyser chaque dossier
+  const analyses = [];
+  const dosSeen = {};
+
+  dossiers.forEach(function(d) {
+    const code = d.code || d.code_dossier;
+    if (!code || dosSeen[code]) return;
+    const statut = (d.statut_inscription || d.statut || '').toLowerCase();
+    if (statut.includes('supprim')) return;
+    dosSeen[code] = true;
+
+    const chk = checks[code] || {};
+    const rows = d._rows || [];
+    const members = {};
+    rows.forEach(function(r) {
+      const k = (r.membre_prenom||'') + ' ' + (r.membre_nom||'');
+      if (!members[k]) members[k] = { nom: r.membre_nom, prenom: r.membre_prenom, qs: r.qs_sante||'' };
+    });
+
+    const manques = [];
+
+    // Vérifier QS pour chaque membre
+    Object.values(members).forEach(function(m) {
+      const nomK = (m.prenom||'') + ' ' + (m.nom||'');
+      const qsChk = chk['qs_' + nomK] || chk['qs_sante_' + nomK] || '';
+      const qsSheet = m.qs || '';
+      const qsOk = qsChk === 'recu'
+        || qsSheet.toLowerCase().includes('attestation')
+        || qsSheet.toLowerCase().includes('non sportive')
+        || qsSheet.toLowerCase().includes('certificat');
+      if (!qsOk) manques.push('QS Santé — ' + (m.prenom||'') + ' ' + (m.nom||''));
+    });
+
+    // Vérifier RI
+    const riKey = Object.keys(chk).find(function(k){ return k.toLowerCase().includes('ri') || k.toLowerCase().includes('reglement_int'); });
+    const riOk = riKey && chk[riKey] === 'recu';
+    if (!riOk) manques.push('Règlement Intérieur');
+
+    // Vérifier règlement financier
+    const reglOk = statut.includes('règlement reçu') || statut.includes('reglement recu')
+      || statut.includes('validé') || statut.includes('helloasso');
+    const reglChk = Object.keys(chk).find(function(k){ return k.startsWith('pay_'); });
+    const reglChkOk = reglChk && chk[reglChk] === 'recu';
+    if (!reglOk && !reglChkOk) manques.push('Règlement financier');
+
+    if (manques.length > 0) {
+      analyses.push({
+        code: code,
+        nom: (d.responsable_prenom||d.prenom_responsable||'') + ' ' + (d.responsable_nom||d.nom_responsable||''),
+        email: d.email1 || d.email || '',
+        manques: manques
+      });
+    }
+  });
+
+  // Afficher la modale
+  const modal = document.createElement('div');
+  modal.id = 'modal-pieces';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+  const lignes = analyses.length === 0
+    ? '<tr><td colspan="4" style="text-align:center;padding:20px;color:#2d6a4f;font-weight:700;">✅ Tous les dossiers sont complets !</td></tr>'
+    : analyses.map(function(a, i) {
+        const badges = a.manques.map(function(m) {
+          const color = m.includes('QS') ? '#e65100' : m.includes('RI') ? '#1565c0' : '#c62828';
+          const bg    = m.includes('QS') ? '#fff3e0' : m.includes('RI') ? '#e3f2fd' : '#ffebee';
+          return '<span style="background:'+bg+';color:'+color+';border-radius:4px;padding:2px 6px;font-size:11px;font-weight:700;margin:1px;display:inline-block;">'+m+'</span>';
+        }).join(' ');
+        return '<tr style="border-bottom:1px solid #f0f0f0;">'
+          + '<td style="padding:7px 10px;font-family:monospace;font-weight:700;color:#1b5e20;font-size:12px;">'+a.code+'</td>'
+          + '<td style="padding:7px 10px;font-size:13px;">'+a.nom+'</td>'
+          + '<td style="padding:7px 10px;font-size:12px;color:#666;">'+a.email+'</td>'
+          + '<td style="padding:7px 10px;">'+badges+'</td>'
+          + '</tr>';
+      }).join('');
+
+  modal.innerHTML = '<div style="background:white;border-radius:16px;padding:24px;max-width:900px;width:95%;max-height:85vh;overflow-y:auto;">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+    + '<div><h3 style="margin:0;color:#c62828;">⚠️ Dossiers incomplets</h3>'
+    + '<p style="font-size:12px;color:#888;margin:4px 0 0;">'+dossiers.length+' dossiers analysés — <strong style="color:#c62828;">'+analyses.length+' incomplets</strong></p></div>'
+    + '<button onclick="_fermerModalPieces()" style="font-size:13px;padding:6px 14px;background:#f5f5f5;border:1px solid #ddd;border-radius:8px;cursor:pointer;">✕ Fermer</button>'
+    + '</div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+    + '<thead><tr style="background:#f9f9f9;">'
+    + '<th style="padding:7px 10px;text-align:left;font-size:12px;">Code</th>'
+    + '<th style="padding:7px 10px;text-align:left;font-size:12px;">Responsable</th>'
+    + '<th style="padding:7px 10px;text-align:left;font-size:12px;">Email</th>'
+    + '<th style="padding:7px 10px;text-align:left;font-size:12px;">Pièces manquantes</th>'
+    + '</tr></thead>'
+    + '<tbody>'+lignes+'</tbody></table>'
+    + (analyses.length > 0 ? '<div style="margin-top:14px;text-align:right;">'
+      + '<button onclick="_envoyerRappelsTous()" class="btn btn-primary" style="background:#c62828;font-size:13px;">📧 Envoyer rappels à tous</button>'
+      + '</div>' : '')
+    + '</div>';
+  document.body.appendChild(modal);
+  window._piecesManquantes = analyses;
+}
+
+// ══════════════════════════════════════════════════════════════
+// CONSOLE TRÉSORIER
+// ══════════════════════════════════════════════════════════════
+const TRESORIER_PWD = 'FRI2026TRES'; // Mot de passe trésorier
+
+function showTresorierLogin() {
+  const pwd = prompt('Mot de passe Trésorier :');
+  if (!pwd) return;
+  if (pwd.trim() !== TRESORIER_PWD) { alert('Mot de passe incorrect.'); return; }
+  // Masquer les autres sections
+  document.getElementById('main').style.display = 'none';
+  const adminCons = document.getElementById('admin-console');
+  if (adminCons) adminCons.style.display = 'none';
+  const tresCons = document.getElementById('tresorier-console');
+  tresCons.style.display = 'block';
+  chargerStatsTresorier();
+}
+
+async function chargerStatsTresorier() {
+  const url = getAppsScriptUrl();
+  if (!url) { document.getElementById('tresorier-content').innerHTML = '<p style="color:red">URL GAS non configurée.</p>'; return; }
+  document.getElementById('tresorier-content').innerHTML = '<p style="color:#555;text-align:center;padding:40px;">⏳ Chargement des statistiques...</p>';
+  try {
+    const res = await callAppsScriptFetch(url, { action: 'getStatsTresorier', _token: FRI_SECRET_TOKEN });
+    const d = res && res.data ? res.data : res;
+    if (!d || d.status === 'error') { document.getElementById('tresorier-content').innerHTML = '<p style="color:red">Erreur : ' + (d && d.message || 'inconnue') + '</p>'; return; }
+    renderTresorier(d);
+  } catch(e) {
+    document.getElementById('tresorier-content').innerHTML = '<p style="color:red">Erreur : ' + e.message + '</p>';
+  }
+}
+
+function renderTresorier(d) {
+  const r = d.recettes || {};
+  const acts = d.activites || [];
+
+  function eur(v) { return Number(v||0).toFixed(2) + ' €'; }
+  function card(titre, valeur, couleur, icon) {
+    return '<div style="background:white;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);border-left:4px solid '+couleur+';">'
+      + '<div style="font-size:12px;color:#888;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">'+icon+' '+titre+'</div>'
+      + '<div style="font-size:24px;font-weight:800;color:'+couleur+';">'+valeur+'</div>'
+      + '</div>';
+  }
+
+  // Lignes recettes
+  function ligne(label, val, bold) {
+    return '<tr style="border-bottom:1px solid #f0f0f0;">'
+      + '<td style="padding:9px 14px;font-size:13px;'+(bold?'font-weight:700;':'')+'">'+label+'</td>'
+      + '<td style="padding:9px 14px;text-align:right;font-size:13px;font-weight:'+(bold?'800':'600')+';color:'+(bold?'#1a237e':'#333')+';">'+eur(val)+'</td>'
+      + '</tr>';
+  }
+
+  // Lignes activités
+  const actsLignes = acts.map(function(a) {
+    return '<tr style="border-bottom:1px solid #f0f0f0;">'
+      + '<td style="padding:7px 12px;font-size:12px;color:#555;">'+a.nom+'</td>'
+      + '<td style="padding:7px 12px;text-align:center;font-size:12px;">'+a.inscrits+'</td>'
+      + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:600;color:#2d6a4f;">'+eur(a.coutMoyen)+'</td>'
+      + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;color:#1a237e;">'+eur(a.tarifTotal)+'</td>'
+      + '</tr>';
+  }).join('');
+
+  const totalDepenses = acts.reduce(function(s,a){ return s + a.tarifTotal; }, 0);
+
+  document.getElementById('tresorier-content').innerHTML =
+    '<div style="font-family:sans-serif;padding:20px 0;">'
+    // ── En-tête
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">'
+    + '<div><h2 style="margin:0;color:#1a237e;font-size:22px;">💰 Console Trésorier — FRI 2026/2027</h2>'
+    + '<p style="margin:4px 0 0;font-size:12px;color:#888;">Données issues uniquement du fichier Google Sheets FRI Inscription</p></div>'
+    + '<button onclick="closeTresorier()" style="background:#f5f5f5;border:1px solid #ddd;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:13px;">✕ Fermer</button>'
+    + '</div>'
+
+    // ── KPIs
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:28px;">'
+    + card('Dossiers', d.nbDossiers, '#1a237e', '📁')
+    + card('Adhérents', d.nbAdherents, '#2d6a4f', '👤')
+    + card('Activités', d.nbActivites, '#e65100', '🏃')
+    + card('Total recettes', eur(r.total), '#c0392b', '💶')
+    + '</div>'
+
+    // ── Recettes
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;">'
+
+    + '<div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">'
+    + '<div style="background:#1a237e;color:white;padding:12px 16px;font-weight:700;font-size:14px;">💶 Recettes par moyen de paiement</div>'
+    + '<table style="width:100%;border-collapse:collapse;">'
+    + ligne('HelloAsso 1×', r.ha1x)
+    + ligne('Chèques n°1', r.cheq1)
+    + ligne('Chèques n°2', r.cheq2)
+    + ligne('Chèques n°3', r.cheq3)
+    + ligne('Espèces', r.especes)
+    + ligne('Aides ANCV', r.ancv)
+    + ligne('Aides Atout Normandie', r.atout)
+    + ligne('Aides Pass Jeunes', r.passJ)
+    + ligne('Aides Pass Sport', r.passS)
+    + '<tr style="border-top:2px solid #1a237e;background:#e8eaf6;">'
+    + '<td style="padding:10px 14px;font-weight:800;font-size:14px;">TOTAL RECETTES</td>'
+    + '<td style="padding:10px 14px;text-align:right;font-weight:800;font-size:16px;color:#1a237e;">'+eur(r.total)+'</td>'
+    + '</tr>'
+    + '</table></div>'
+
+    // ── FNSMR
+    + '<div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;">'
+    + '<div style="background:#2d6a4f;color:white;padding:12px 16px;font-weight:700;font-size:14px;">🏥 FNSMR & Totaux</div>'
+    + '<table style="width:100%;border-collapse:collapse;">'
+    + ligne('Total FNSMR (col AE)', d.fnsmrTotal)
+    + ligne('Total cotisations brutes (col AB)', totalDepenses)
+    + ligne('Ratio recettes / cotisations', (r.total > 0 && totalDepenses > 0) ? (r.total / totalDepenses * 100).toFixed(1) + ' %' : '—')
+    + '</table>'
+    + '<div style="padding:12px 16px;font-size:11px;color:#888;border-top:1px solid #f0f0f0;">'
+    + 'Col AB = Tarif brut inscriptions · Col AE = FNSMR (col 31 index 30)'
+    + '</div></div>'
+    + '</div>'
+
+    // ── Dépenses par activité
+    + '<div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;margin-bottom:28px;">'
+    + '<div style="background:#e65100;color:white;padding:12px 16px;font-weight:700;font-size:14px;">🏃 Cotisations par activité (col AB — tarif brut)</div>'
+    + '<table style="width:100%;border-collapse:collapse;">'
+    + '<thead><tr style="background:#f9f9f9;"><th style="padding:7px 12px;text-align:left;font-size:12px;font-weight:700;">Activité</th><th style="padding:7px 12px;text-align:center;font-size:12px;font-weight:700;">Inscrits</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Coût moyen</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Total</th></tr></thead>'
+    + '<tbody>'+actsLignes+'</tbody>'
+    + '<tfoot><tr style="background:#fff3e0;border-top:2px solid #e65100;">'
+    + '<td colspan="2" style="padding:9px 12px;font-weight:800;font-size:13px;">TOTAL</td>'
+    + '<td style="padding:9px 12px;"></td>'
+    + '<td style="padding:9px 12px;text-align:right;font-weight:800;font-size:15px;color:#e65100;">'+eur(totalDepenses)+'</td>'
+    + '</tr></tfoot>'
+    + '</table></div>'
+
+    + '<div style="text-align:center;padding:16px 0;">'
+    + '<button onclick="chargerStatsTresorier()" style="background:#1a237e;color:white;border:none;border-radius:8px;padding:10px 24px;font-size:13px;cursor:pointer;font-weight:600;">🔄 Actualiser</button>'
+    + '</div>'
+    + '</div>';
+}
+
+function closeTresorier() {
+  document.getElementById('tresorier-console').style.display = 'none';
+  document.getElementById('main').style.display = 'block';
+}
+
+function _fermerModalPieces(){var m=document.getElementById('modal-pieces');if(m)m.remove();}
+async function _envoyerRappelsTous() {
+  const analyses = window._piecesManquantes || [];
+  if (!analyses.length) return;
+  const url = getAppsScriptUrl();
+  if (!confirm('Envoyer un rappel à ' + analyses.length + ' adhérent(s) ?')) return;
+  document.getElementById('modal-pieces').remove();
+  let ok = 0, ko = 0;
+  for (let i = 0; i < analyses.length; i++) {
+    showAdminToast('📧 Envoi ' + (i+1) + '/' + analyses.length + ' — ' + analyses[i].code, 'blue');
+    try {
+      const res = await callAppsScriptFetch(url, {
+        action: 'envoyerRappelManuel', _token: FRI_SECRET_TOKEN,
+        code: analyses[i].code
+      });
+      const d = res && res.data ? res.data : res;
+      if (d && d.status === 'ok') ok++;
+      else ko++;
+    } catch(e) { ko++; }
+    await new Promise(function(r){ setTimeout(r, 1500); });
+  }
+  showAdminToast('📧 Rappels envoyés : ' + ok + ' OK' + (ko > 0 ? ', ' + ko + ' erreur(s)' : ''), ok > 0 ? 'green' : 'red', 8000);
 }
 
 function _fermerModalJournal(){var m=document.getElementById('modal-journal');if(m)m.remove();}
