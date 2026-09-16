@@ -2221,13 +2221,27 @@ async function loadPlaces(force = false) {
   if (!url) { state.placesLoaded = true; state.placesLoadedAt = now; return; }
 
   try {
-    // Charger via GAS (pas besoin de Sheet public)
+    // Charger via GAS — si places dans le cache local, utiliser d'abord
+    const cached = localStorage.getItem('fri_places_local_cache');
+    const cachedTs = parseInt(localStorage.getItem('fri_places_local_cache_ts') || '0');
+    if (cached && (Date.now() - cachedTs) < 3600000) { // 1h localStorage
+      try {
+        const cachedPlaces = JSON.parse(cached);
+        if (cachedPlaces && Object.keys(cachedPlaces).length > 0) {
+          Object.keys(cachedPlaces).forEach(function(actId) {
+            const p = cachedPlaces[actId];
+            state.places[actId] = { capacity: p.capacite || p.capacity || 30, registered: p.inscrits || 0, available: p.restantes !== undefined ? p.restantes : (p.capacite || 30) };
+          });
+          console.log('[FRI] loadPlaces: ' + Object.keys(cachedPlaces).length + ' places depuis cache local');
+          state.placesLoaded = true; state.placesLoadedAt = now;
+        }
+      } catch(eCc) {}
+    }
+
     const res = await callAppsScriptFetch(url, { action: 'getPlacesRestantes' });
     const data = (res && res.data) ? res.data : res;
     if (!data || !data.places || Object.keys(data.places).length === 0) {
-      console.warn('[FRI] loadPlaces: aucune place retourned par GAS — retry dans 3s');
-      // Retry automatique après 3s
-      setTimeout(function(){ state.placesLoaded = false; loadPlaces(true).catch(function(){}); }, 3000);
+      console.warn('[FRI] loadPlaces: aucune place retourned par GAS');
       state.placesLoaded = true; state.placesLoadedAt = now; return;
     }
     let updated = 0;
@@ -2245,6 +2259,11 @@ async function loadPlaces(force = false) {
       updated++;
     });
     console.log('[FRI] loadPlaces GAS: ' + updated + ' activités');
+    // Mettre en cache localStorage pour les prochains chargements
+    try {
+      localStorage.setItem('fri_places_local_cache', JSON.stringify(data.places));
+      localStorage.setItem('fri_places_local_cache_ts', String(Date.now()));
+    } catch(eLs) {}
     state.placesLoaded = true;
     state.placesLoadedAt = now;
   } catch(err) {
