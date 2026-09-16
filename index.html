@@ -6585,34 +6585,42 @@ async function chargerStatsTresorier() {
     }
   });
 
-  // Lire P2/Q2/(R2 pour ping) de chaque onglet activité
-  const isnoCounts = {}; // placesId → { isno, hc }
-  const sheetIds = Object.keys(placesSheetNames);
-  // Lire tous les onglets activité en parallèle (max 2 lignes suffisent)
-  const ongletActRows = await Promise.all(sheetIds.map(function(sid) {
-    return lireOnglet(sid, 18).catch(function(){ return []; });
+  // Lire Isno/HC : les onglets activité ont les données en ligne 2 (O=nbre, P=Isno, Q=HC)
+  // Dans gviz, ligne 1 = en-tête (exclue) → rows[0] = ligne 2 = données
+  // Mais certains onglets n'existent pas sous ce nom → on lit chaque onglet individuellement
+  const isnoCounts = {};
+  const sheetIds2 = Object.keys(placesSheetNames);
+  const ongletActRows2 = await Promise.all(sheetIds2.map(function(sid) {
+    // tq= : sélectionner seulement les 2 premières lignes pour perf
+    const u = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:json&sheet='
+      + encodeURIComponent(sid) + '&range=O1:R2';
+    return fetch(u).then(function(r){ return r.text(); }).then(function(t){
+      try {
+        const j = JSON.parse(t.replace(/^[^(]+\(/,'').replace(/\);?$/,''));
+        return (j.table && j.table.rows) || [];
+      } catch(e){ return []; }
+    }).catch(function(){ return []; });
   }));
-  sheetIds.forEach(function(sid, i) {
-    const rows = ongletActRows[i];
-    if (!rows || rows.length < 2) return;
-    const row1 = rows[1]; // 2e ligne du gviz = ligne 2 du sheet
-    const isPing = sid.toLowerCase().indexOf('ping') >= 0;
-    // Toutes activités : P2(index 15)=Isno, Q2(index 16)=HC
-    // Ping uniquement  : Q2(index 16)=Isno, R2(index 17)=HC
-    let isno = 0, hc = 0;
-    if (row1.c) {
-      // gviz inclut les colonnes nulles — index direct fiable
-      // Toutes activités : P2=index 15 Isno, Q2=index 16 HC
-      // Ping            : Q2=index 16 Isno, R2=index 17 HC
-      isno = isPing ? cellNum(row1, 16) : cellNum(row1, 15);
-      hc   = isPing ? cellNum(row1, 17) : cellNum(row1, 16);
-    }
-    // Log pour diagnostic (à supprimer après validation)
-    if (row1.c) {
-      console.log('[FRI] row2', sid, 'nbCols='+row1.c.length,
-        'idx15='+(row1.c[15]?row1.c[15].v:'?'),
-        'idx16='+(row1.c[16]?row1.c[16].v:'?'),
-        'idx17='+(row1.c[17]?row1.c[17].v:'?'));
+  sheetIds2.forEach(function(sid, i) {
+    const rows = ongletActRows2[i];
+    // Ligne 1 = en-tête (O/P/Q), ligne 2 = données → rows[0] ou rows[1] selon gviz
+    // Essayer les 2 premières lignes, prendre celle avec des nombres
+    var isno = 0, hc = 0;
+    for (var ri = 0; ri < Math.min(rows.length, 2); ri++) {
+      var row = rows[ri];
+      if (!row || !row.c) continue;
+      const isPing = sid.toLowerCase().indexOf('ping') >= 0;
+      // Dans range O:R → col O=idx0, P=idx1, Q=idx2, R=idx3
+      const v0 = row.c[0] ? Number(row.c[0].v||0) : 0;
+      const v1 = row.c[1] ? Number(row.c[1].v||0) : 0;
+      const v2 = row.c[2] ? Number(row.c[2].v||0) : 0;
+      const v3 = row.c[3] ? Number(row.c[3].v||0) : 0;
+      if (!isNaN(v1) && v1 > 0) {
+        // P=v1=Isno (non-ping), Q=v2=HC ; ping: Q=v2=Isno, R=v3=HC
+        isno = isPing ? v2 : v1;
+        hc   = isPing ? v3 : v2;
+        break;
+      }
     }
     if (isno > 0 || hc > 0) {
       isnoCounts[sid] = { isno, hc };
