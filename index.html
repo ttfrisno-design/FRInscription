@@ -2223,23 +2223,31 @@ async function loadPlaces(force = false) {
   if (!url) { state.placesLoaded = true; state.placesLoadedAt = now; return; }
 
   try {
-    // Charger via GAS — si places dans le cache local, utiliser d'abord
+    // ── Priorité 1 : cache localStorage (< 1h) ──
     const cached = localStorage.getItem('fri_places_local_cache');
     const cachedTs = parseInt(localStorage.getItem('fri_places_local_cache_ts') || '0');
-    if (cached && (Date.now() - cachedTs) < 3600000) { // 1h localStorage
+    if (cached && (Date.now() - cachedTs) < 3600000) {
       try {
         const cachedPlaces = JSON.parse(cached);
         if (cachedPlaces && Object.keys(cachedPlaces).length > 0) {
           Object.keys(cachedPlaces).forEach(function(actId) {
             const p = cachedPlaces[actId];
-            state.places[actId] = { capacity: p.capacite || p.capacity || 30, registered: p.inscrits || 0, available: p.restantes !== undefined ? p.restantes : (p.capacite || 30) };
+            state.places[actId] = { capacity: p.capacite||p.capacity||30, registered: p.inscrits||0, available: p.restantes!==undefined ? p.restantes : (p.capacite||30) };
           });
           console.log('[FRI] loadPlaces: ' + Object.keys(cachedPlaces).length + ' places depuis cache local');
           state.placesLoaded = true; state.placesLoadedAt = now;
+          // Rafraîchir en arrière-plan si > 10 min
+          if (Date.now() - cachedTs > 600000) loadPlacesFromSheet().catch(()=>{});
+          return;
         }
       } catch(eCc) {}
     }
 
+    // ── Priorité 2 : lire l'onglet Places via gviz (Sheet public, pas de CORS) ──
+    const gvizOk = await loadPlacesFromSheet();
+    if (gvizOk) { state.placesLoaded = true; state.placesLoadedAt = now; return; }
+
+    // ── Priorité 3 : GAS (fallback) ──
     const res = await callAppsScriptFetch(url, { action: 'getPlacesRestantes' });
     const data = (res && res.data) ? res.data : res;
     if (!data || !data.places || Object.keys(data.places).length === 0) {
@@ -2275,6 +2283,45 @@ async function loadPlaces(force = false) {
 }
 // Alias maintenu pour compatibilité
 function loadPlacesJsonp() { return loadPlaces(true); }
+
+async function loadPlacesFromSheet() {
+  try {
+    const sheetId = (localStorage.getItem('fri_sheet_id') || SHEET_ID_PUBLIC || '').trim();
+    if (!sheetId) return false;
+    const gvizUrl = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:json&sheet=Places';
+    const resp = await Promise.race([
+      fetch(gvizUrl),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000))
+    ]);
+    const text = await resp.text();
+    const jsonStr = text.replace(/^[^(]+\(/, '').replace(/\);?$/, '');
+    const json = JSON.parse(jsonStr);
+    const rows = (json.table && json.table.rows) || [];
+    if (rows.length === 0) return false;
+    const places = {};
+    rows.forEach(function(row) {
+      if (!row.c || !row.c[0] || !row.c[0].v) return;
+      const id  = String(row.c[0].v).trim();
+      const cap = row.c[2] ? Number(row.c[2].v||0) : 30;
+      const ins = row.c[3] ? Number(row.c[3].v||0) : 0;
+      const dis = row.c[4] ? Number(row.c[4].v||0) : cap - ins;
+      state.places[id] = { capacity: cap, registered: ins, available: dis };
+      places[id] = { capacite: cap, inscrits: ins, restantes: dis };
+    });
+    if (Object.keys(places).length > 0) {
+      try {
+        localStorage.setItem('fri_places_local_cache', JSON.stringify(places));
+        localStorage.setItem('fri_places_local_cache_ts', String(Date.now()));
+      } catch(e) {}
+      console.log('[FRI] loadPlaces gviz: ' + Object.keys(places).length + ' activités');
+      return true;
+    }
+    return false;
+  } catch(e) {
+    console.warn('[FRI] loadPlacesFromSheet gviz KO:', e.message);
+    return false;
+  }
+}
 
 // Decrement places locally after successful registration
 function decrementPlaces(activities) {
@@ -6481,17 +6528,88 @@ function showTresorierLogin() {
 }
 
 async function chargerStatsTresorier() {
-  const url = getAppsScriptUrl();
-  if (!url) { document.getElementById('tresorier-content').innerHTML = '<p style="color:red">URL GAS non configurée.</p>'; return; }
   document.getElementById('tresorier-content').innerHTML = '<p style="color:#555;text-align:center;padding:40px;">⏳ Chargement des statistiques...</p>';
-  try {
-    const res = await callAppsScriptFetch(url, { action: 'getStatsTresorier', _token: FRI_SECRET_TOKEN });
-    const d = res && res.data ? res.data : res;
-    if (!d || d.status === 'error') { document.getElementById('tresorier-content').innerHTML = '<p style="color:red">Erreur : ' + (d && d.message || 'inconnue') + '</p>'; return; }
-    renderTresorier(d);
-  } catch(e) {
-    document.getElementById('tresorier-content').innerHTML = '<p style="color:red">Erreur : ' + e.message + '</p>';
+  const sheetId = (localStorage.getItem('fri_sheet_id') || SHEET_ID_PUBLIC || '').trim();
+  if (!sheetId) { document.getElementById('tresorier-content').innerHTML = '<p style="color:red">ID Sheet non configuré.</p>'; return; }
+
+  async function lireOnglet(nomOnglet, nbCols) {
+    try {
+      const u = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:json&sheet=' + encodeURIComponent(nomOnglet);
+      const r = await Promise.race([fetch(u), new Promise((_,rj)=>setTimeout(()=>rj(new Error('timeout')),12000))]);
+      const t = await r.text();
+      const j = JSON.parse(t.replace(/^[^(]+\(/,'').replace(/\);?$/,''));
+      return (j.table && j.table.rows) || [];
+    } catch(e) { console.warn('lireOnglet KO:', nomOnglet, e.message); return []; }
   }
+
+  function cellNum(row, idx) { return row.c && row.c[idx] && row.c[idx].v != null ? Number(row.c[idx].v)||0 : 0; }
+  function cellStr(row, idx) { return row.c && row.c[idx] && row.c[idx].v != null ? String(row.c[idx].v) : ''; }
+  function sommeCol(rows, idx) { return rows.reduce(function(s,r){ var v=cellNum(r,idx); return s+(v>1e10?0:v); },0); }
+
+  // Lire tous les onglets en parallèle
+  const [rowsInsc, rowsCheq1, rowsCheq2, rowsCheq3, rowsEsp, rowsHA,
+         rowsANCV, rowsAtout, rowsPassJ, rowsPassS] = await Promise.all([
+    lireOnglet('Inscriptions', 41),
+    lireOnglet('Cheques 1', 7),
+    lireOnglet('Cheques 2', 7),
+    lireOnglet('Cheques 3', 7),
+    lireOnglet('Espèces', 7),
+    lireOnglet('HelloAsso', 7),
+    lireOnglet('Aides ANCV', 9),
+    lireOnglet('Aides Atout Normandie', 9),
+    lireOnglet('Aides Pass Jeunes', 9),
+    lireOnglet('Aides Pass Sport', 9)
+  ]);
+
+  // Statistiques depuis Inscriptions
+  const codesDossiers = {}, codesAdherents = {}, activitesCounts = {};
+  let fnsmrTotal = 0;
+  rowsInsc.forEach(function(row) {
+    const code    = cellStr(row, 19).trim();
+    const statut  = cellStr(row, 39).toLowerCase();
+    if (!code || statut.includes('supprim')) return;
+    codesDossiers[code] = true;
+    const memKey = code + '_' + cellStr(row,2) + cellStr(row,3);
+    codesAdherents[memKey] = true;
+    const actNom = cellStr(row, 22).trim();
+    const actId  = cellStr(row, 37).trim() || cellStr(row, 35).trim() || actNom;
+    const tarif  = cellNum(row, 27); // col AB index 27
+    if (actNom) {
+      if (!activitesCounts[actId]) activitesCounts[actId] = { nom: actNom, inscrits: 0, tarifTotal: 0 };
+      activitesCounts[actId].inscrits++;
+      activitesCounts[actId].tarifTotal += tarif;
+    }
+    fnsmrTotal += cellNum(row, 30); // col AE index 30
+  });
+
+  const activites = Object.values(activitesCounts).map(function(a) {
+    return { nom: a.nom, inscrits: a.inscrits, tarifTotal: Math.round(a.tarifTotal*100)/100,
+             coutMoyen: a.inscrits > 0 ? Math.round(a.tarifTotal/a.inscrits*100)/100 : 0 };
+  }).sort(function(a,b){ return b.tarifTotal - a.tarifTotal; });
+
+  const recettes = {
+    ha1x:    sommeCol(rowsHA,    4), // col E index 4
+    cheq1:   sommeCol(rowsCheq1, 5), // col F index 5
+    cheq2:   sommeCol(rowsCheq2, 5),
+    cheq3:   sommeCol(rowsCheq3, 5),
+    especes: sommeCol(rowsEsp,   4), // col E index 4
+    ancv:    sommeCol(rowsANCV,  7), // col H index 7
+    atout:   sommeCol(rowsAtout, 7),
+    passJ:   sommeCol(rowsPassJ, 7),
+    passS:   sommeCol(rowsPassS, 7)
+  };
+  recettes.totalCheques = recettes.cheq1 + recettes.cheq2 + recettes.cheq3;
+  recettes.totalAides   = recettes.ancv + recettes.atout + recettes.passJ + recettes.passS;
+  recettes.total = recettes.ha1x + recettes.totalCheques + recettes.especes + recettes.totalAides;
+
+  renderTresorier({
+    nbDossiers:  Object.keys(codesDossiers).length,
+    nbAdherents: Object.keys(codesAdherents).length,
+    nbActivites: activites.length,
+    fnsmrTotal:  Math.round(fnsmrTotal*100)/100,
+    recettes,
+    activites
+  });
 }
 
 function renderTresorier(d) {
