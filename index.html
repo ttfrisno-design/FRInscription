@@ -5985,81 +5985,82 @@ async function lireSheetPublic() {
 
 // Envoi vers Apps Script via fetch no-cors
 async function callAppsScriptFetch(url, payload) {
-  // Renouveler le token si besoin
+  // Renouveler le token
   if (payload.action !== 'getToken' && payload.action !== 'ping') {
     await initDynamicToken();
-    // Si token toujours vide, retry jusqu'a 5s
     if (!FRI_SECRET_TOKEN) {
       for (var _r = 0; _r < 5 && !FRI_SECRET_TOKEN; _r++) {
         await new Promise(r => setTimeout(r, 1000));
         await initDynamicToken();
       }
     }
-    if (payload._token !== undefined) payload._token = FRI_SECRET_TOKEN;
   }
-  const action = payload.action || '';
   payload._token = payload._token || FRI_SECRET_TOKEN;
+  const action = payload.action || '';
 
-  // Toutes les actions utilisent JSONP (balise <script> GET)
-  // Apps Script reçoit via doGet → traiterRequete
-  // Le POST no-cors ne déclenche pas doPost de façon fiable dans les navigateurs modernes
+  // ── Essayer d'abord fetch GET (Apps Script supporte CORS sur GET) ──
+  const params = new URLSearchParams();
+  params.set('payload', JSON.stringify(payload));
+  params.set('action',  action);
+  params.set('_token',  FRI_SECRET_TOKEN);
+  params.set('_t',      Date.now());
+  const fullUrl = url + '?' + params.toString();
+
+  try {
+    const resp = await Promise.race([
+      fetch(fullUrl, { method: 'GET', redirect: 'follow' }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('fetch timeout')), 25000))
+    ]);
+    if (resp.ok || resp.type === 'opaqueredirect') {
+      const text = await resp.text();
+      // Apps Script peut retourner JSONP ou JSON pur
+      let data;
+      const jsonpMatch = text.match(/^[\w_]+\((.+)\)\s*;?\s*$/s);
+      if (jsonpMatch) {
+        data = JSON.parse(jsonpMatch[1]);
+      } else {
+        data = JSON.parse(text);
+      }
+      if (data && (data.status === 'ok' || data.token || data.dossiers || data.places || data.journal || data.inserted !== undefined || data.codes_presents || data.nbDossiers !== undefined)) {
+        return { ok: true, data };
+      }
+    }
+  } catch(eFetch) {
+    console.warn('[FRI] fetch GET KO pour', action, ':', eFetch.message, '— fallback JSONP');
+  }
+
+  // ── Fallback JSONP ──
   return new Promise((resolve) => {
     const cbName = '_friW_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-    const payloadStr = JSON.stringify(payload);
-
-    const params = new URLSearchParams();
-    params.set('payload',  payloadStr);
-    params.set('callback', cbName);
-    params.set('action',   action);
-    params.set('_token',   FRI_SECRET_TOKEN);
-    params.set('_t',       Date.now());
-    const fullUrl = url + '?' + params.toString();
-
     let done = false;
     const cleanup = () => {
       try { if (s && s.parentNode) s.parentNode.removeChild(s); } catch(e){}
       try { delete window[cbName]; } catch(e){}
     };
+    const params2 = new URLSearchParams();
+    params2.set('payload',  JSON.stringify(payload));
+    params2.set('callback', cbName);
+    params2.set('action',   action);
+    params2.set('_token',   FRI_SECRET_TOKEN);
+    params2.set('_t',       Date.now());
 
     window[cbName] = function(data) {
-      if (done) return;
-      done = true;
-      cleanup();
+      if (done) return; done = true; cleanup();
       resolve({ ok: true, data });
     };
-
     const t = setTimeout(() => {
-      if (done) return;
-      done = true;
-      cleanup();
-      console.warn('[FRI] JSONP timeout:', action, '— Apps Script a probablement traité la requête');
+      if (done) return; done = true; cleanup();
+      console.warn('[FRI] JSONP timeout:', action);
       resolve({ ok: true });
-    }, 30000); // 30s pour laisser le temps aux actions lentes (getStatsTresorier, getPlacesRestantes)
-
+    }, 30000);
     const s = document.createElement('script');
-    s.src = fullUrl;
-    // Actions attendant des données : ne pas résoudre sur onerror
-    const DATA_ACTIONS = ['getPlacesRestantes','getDossiers','getLicenceFFTT',
-                          'rechercherLicencieFFTT','verifierCodeAvoir','getStatsTresorier',
-                          'getJournalSauvegardes','getDossierDetail','verifierDossiersPerdus'];
-    s.onerror = () => {
-      if (done) return;
-      if (DATA_ACTIONS.includes(action)) {
-        // onerror = redirect 302 normal — le callback va arriver, on attend le timeout
-        return;
-      }
-      done = true;
-      clearTimeout(t);
-      cleanup();
-      resolve({ ok: true });
-    };
+    s.onerror = () => { if (!done) { done = true; clearTimeout(t); cleanup(); resolve({ ok: false, reason: 'script error' }); } };
+    s.src = url + '?' + params2.toString();
     document.head.appendChild(s);
   });
 }
 
-// Validation paiement — utilise une balise <script> dynamique
-// C'est la seule méthode cross-origin qui déclenche réellement doGet sur Apps Script
-// (fetch no-cors ne déclenche pas doGet dans certains navigateurs)
+
 function callAppsScriptValidate(url, code) {
   return new Promise((resolve) => {
     const cbName = '_friVal_' + Date.now();
