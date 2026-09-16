@@ -1341,11 +1341,13 @@ async function initDynamicToken() {
     const url = getAppsScriptUrl();
     if (!url) return '';
     const data = await new Promise((resolve) => {
-      const cb = '_friTok_' + Date.now();
+      const cb = '_friTok_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+      // Définir le callback AVANT d'injecter le script (évite la race condition)
+      window[cb] = function(d) { clearTimeout(t); try { s.remove(); } catch(e){} delete window[cb]; resolve(d); };
       const params = new URLSearchParams({ action: 'getToken', callback: cb });
-      window[cb] = (d) => { clearTimeout(t); try { s.remove(); } catch(e){} delete window[cb]; resolve(d); };
-      const t = setTimeout(() => { try { s.remove(); } catch(e){} delete window[cb]; resolve({}); }, 8000);
+      const t = setTimeout(function() { try { s.remove(); } catch(e){} delete window[cb]; resolve({}); }, 10000);
       const s = document.createElement('script');
+      s.onerror = function() { clearTimeout(t); delete window[cb]; resolve({}); };
       s.src = url + '?' + params;
       document.head.appendChild(s);
     });
