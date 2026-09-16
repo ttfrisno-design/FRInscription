@@ -6604,12 +6604,15 @@ async function chargerStatsTresorier() {
         const a = activitesCounts[sheetId] || activitesCounts[actDef.id]
                || Object.values(activitesCounts).find(function(x){ return x.nom && actDef.name && x.nom.replace(/\n/g,' ').toLowerCase().indexOf(actDef.name.split('\n')[0].toLowerCase()) >= 0; });
         if (!a || a.inscrits === 0) return;
-        // Additionner le créneau lié si présent
+        // Créneaux liés = 1 inscription pour 2 créneaux → prendre le max des 2
         let inscrits = a.inscrits, tarifTotal = a.tarifTotal;
         if (actDef.linkedWith) {
           const linkedSheetId = siteToPlacesId(actDef.linkedWith) || actDef.linkedWith;
           const b = activitesCounts[linkedSheetId] || activitesCounts[actDef.linkedWith];
-          if (b) { inscrits += b.inscrits; tarifTotal += b.tarifTotal; }
+          if (b) {
+            inscrits   = Math.max(a.inscrits,    b.inscrits);
+            tarifTotal = Math.max(a.tarifTotal,   b.tarifTotal);
+          }
         }
         catInscrits += inscrits;
         catTotal    += tarifTotal;
