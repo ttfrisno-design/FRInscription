@@ -6548,7 +6548,7 @@ async function chargerStatsTresorier() {
 
   // Lire tous les onglets en parallèle
   const [rowsInsc, rowsCheq1, rowsCheq2, rowsCheq3, rowsEsp, rowsHA,
-         rowsANCV, rowsAtout, rowsPassJ, rowsPassS, rowsPlaces] = await Promise.all([
+         rowsANCV, rowsAtout, rowsPassJ, rowsPassS, rowsPlaces, rowsAvoirs] = await Promise.all([
     lireOnglet('Inscriptions', 41),
     lireOnglet('Cheques 1', 7),
     lireOnglet('Cheques 2', 7),
@@ -6559,7 +6559,8 @@ async function chargerStatsTresorier() {
     lireOnglet('Aides Atout Normandie', 9),
     lireOnglet('Aides Pass Jeunes', 9),
     lireOnglet('Aides Pass Sport', 9),
-    lireOnglet('Places', 5)
+    lireOnglet('Places', 5),
+    lireOnglet('Avoirs utilisés', 6)
   ]);
 
   // Index Places : A(0)=ID, B(1)=Nom, C(2)=Capacité, D(3)=Inscrits, E(4)=Restantes
@@ -6644,6 +6645,9 @@ async function chargerStatsTresorier() {
   function sommeColSkip3(rows, idx) {
     return rows.slice(3).reduce(function(s,r){ var v=cellNum(r,idx); return s+(v>0&&v<1e10?v:0); },0);
   }
+  // Avoirs utilisés : col E (index 4) = montant utilisé
+  const avoirsUtilises = rowsAvoirs.slice(1).reduce(function(s,r){ var v=cellNum(r,4); return s+(v>0&&v<1e10?v:0); },0);
+
   const recettes = {
     ha1x:    sommeColSkip3(rowsHA,    4), // col E index 4
     cheq1:   sommeColSkip3(rowsCheq1, 5), // col F index 5
@@ -6653,11 +6657,13 @@ async function chargerStatsTresorier() {
     ancv:    sommeColSkip3(rowsANCV,  4), // col E index 4
     atout:   sommeColSkip3(rowsAtout, 4),
     passJ:   sommeColSkip3(rowsPassJ, 4),
-    passS:   sommeColSkip3(rowsPassS, 4)
+    passS:   sommeColSkip3(rowsPassS, 4),
+    avoirs:  avoirsUtilises
   };
   recettes.totalCheques = recettes.cheq1 + recettes.cheq2 + recettes.cheq3;
   recettes.totalAides   = recettes.ancv + recettes.atout + recettes.passJ + recettes.passS;
   recettes.total = recettes.ha1x + recettes.totalCheques + recettes.especes + recettes.totalAides;
+  // Avoirs : recette non perçue en cash mais déduite de la cotisation
 
   renderTresorier({
     nbDossiers:  Object.keys(codesDossiers).length,
@@ -6760,6 +6766,8 @@ function renderTresorier(d) {
     + '<table style="width:100%;border-collapse:collapse;">'
     + ligne('Total FNSMR (col AE)', d.fnsmrTotal)
     + ligne('Total cotisations brutes (col AB)', totalDepenses)
+    + ligne('Avoirs utilisés (recettes non perçues)', r.avoirs || 0)
+    + ligne('Recettes cash + avoirs', r.total + (r.avoirs || 0))
     + ligne('Ratio recettes / cotisations', (r.total > 0 && totalDepenses > 0) ? (r.total / totalDepenses * 100).toFixed(1) + ' %' : '—')
     + '</table>'
     + '<div style="padding:12px 16px;font-size:11px;color:#888;border-top:1px solid #f0f0f0;">'
