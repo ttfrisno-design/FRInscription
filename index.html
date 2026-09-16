@@ -6604,15 +6604,12 @@ async function chargerStatsTresorier() {
         const a = activitesCounts[sheetId] || activitesCounts[actDef.id]
                || Object.values(activitesCounts).find(function(x){ return x.nom && actDef.name && x.nom.replace(/\n/g,' ').toLowerCase().indexOf(actDef.name.split('\n')[0].toLowerCase()) >= 0; });
         if (!a || a.inscrits === 0) return;
-        // Créneaux liés = 1 inscription pour 2 créneaux → prendre le max des 2
+        // Créneaux liés = 1 inscription = 2 lignes dans le Sheet
+        // → diviser les inscrits par 2 (chaque adhérent a une ligne par créneau)
         let inscrits = a.inscrits, tarifTotal = a.tarifTotal;
         if (actDef.linkedWith) {
-          const linkedSheetId = siteToPlacesId(actDef.linkedWith) || actDef.linkedWith;
-          const b = activitesCounts[linkedSheetId] || activitesCounts[actDef.linkedWith];
-          if (b) {
-            inscrits   = Math.max(a.inscrits,    b.inscrits);
-            tarifTotal = Math.max(a.tarifTotal,   b.tarifTotal);
-          }
+          inscrits   = Math.round(inscrits / 2);
+          tarifTotal = Math.round(tarifTotal / 2 * 100) / 100;
         }
         catInscrits += inscrits;
         catTotal    += tarifTotal;
