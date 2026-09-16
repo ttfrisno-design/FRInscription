@@ -6597,16 +6597,25 @@ async function chargerStatsTresorier() {
       actsInCat.forEach(function(actDef) {
         if (seen[actDef.id]) return;
         seen[actDef.id] = true;
+        // Marquer le créneau lié comme déjà vu (ne pas l'afficher une 2e fois)
+        if (actDef.linkedWith) seen[actDef.linkedWith] = true;
         // Chercher dans activitesCounts par id HTML ou par correspondance nom
         const sheetId = siteToPlacesId(actDef.id) || actDef.id;
         const a = activitesCounts[sheetId] || activitesCounts[actDef.id]
                || Object.values(activitesCounts).find(function(x){ return x.nom && actDef.name && x.nom.replace(/\n/g,' ').toLowerCase().indexOf(actDef.name.split('\n')[0].toLowerCase()) >= 0; });
         if (!a || a.inscrits === 0) return;
-        catInscrits += a.inscrits;
-        catTotal    += a.tarifTotal;
-        lignesCat.push({ nom: actDef.name.replace(/\n/g,' — '), inscrits: a.inscrits,
-          tarifTotal: Math.round(a.tarifTotal*100)/100,
-          coutMoyen: a.inscrits > 0 ? Math.round(a.tarifTotal/a.inscrits*100)/100 : 0 });
+        // Additionner le créneau lié si présent
+        let inscrits = a.inscrits, tarifTotal = a.tarifTotal;
+        if (actDef.linkedWith) {
+          const linkedSheetId = siteToPlacesId(actDef.linkedWith) || actDef.linkedWith;
+          const b = activitesCounts[linkedSheetId] || activitesCounts[actDef.linkedWith];
+          if (b) { inscrits += b.inscrits; tarifTotal += b.tarifTotal; }
+        }
+        catInscrits += inscrits;
+        catTotal    += tarifTotal;
+        lignesCat.push({ nom: actDef.name.replace(/\n/g,' — '), inscrits: inscrits,
+          tarifTotal: Math.round(tarifTotal*100)/100,
+          coutMoyen: inscrits > 0 ? Math.round(tarifTotal/inscrits*100)/100 : 0 });
       });
       if (lignesCat.length > 0) {
         activiteGroupees.push({ label, lignes: lignesCat,
@@ -6624,9 +6633,9 @@ async function chargerStatsTresorier() {
   }
   const recettes = {
     ha1x:    sommeColSkip3(rowsHA,    4), // col E index 4
-    cheq1:   sommeColSkip3(rowsCheq1, 4), // col E index 4
-    cheq2:   sommeColSkip3(rowsCheq2, 4),
-    cheq3:   sommeColSkip3(rowsCheq3, 4),
+    cheq1:   sommeColSkip3(rowsCheq1, 5), // col F index 5
+    cheq2:   sommeColSkip3(rowsCheq2, 5),
+    cheq3:   sommeColSkip3(rowsCheq3, 5),
     especes: sommeColSkip3(rowsEsp,   4), // col E index 4
     ancv:    sommeColSkip3(rowsANCV,  4), // col E index 4
     atout:   sommeColSkip3(rowsAtout, 4),
