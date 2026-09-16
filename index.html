@@ -6566,6 +6566,7 @@ async function chargerStatsTresorier() {
   // Index Places : A(0)=ID, B(1)=Nom, C(2)=Cap, D(3)=Inscrits, E(4)=Restantes, J(9)=ID act, P(15)=Coût animateur
   const placesInscrits = {};
   const placesAnimateur = {}; // indexed by placesId
+  const placesSheetNames = {}; // placesId → nom onglet activité
   rowsPlaces.forEach(function(row) {
     const id    = cellStr(row, 0).trim();
     const idAct = cellStr(row, 9).trim();  // col J = ID activité
@@ -6575,11 +6576,30 @@ async function chargerStatsTresorier() {
     if (key) {
       placesInscrits[key]  = ins;
       placesAnimateur[key] = cout;
+      placesSheetNames[key] = key; // nom onglet = ID activité Sheet
       if (id && id !== key) {
         placesInscrits[id]  = ins;
         placesAnimateur[id] = cout;
+        placesSheetNames[id] = key;
       }
     }
+  });
+
+  // Lire P2/Q2/(R2 pour ping) de chaque onglet activité
+  const isnoCounts = {}; // placesId → { isno, hc }
+  const sheetIds = Object.keys(placesSheetNames);
+  // Lire tous les onglets activité en parallèle (max 2 lignes suffisent)
+  const ongletActRows = await Promise.all(sheetIds.map(function(sid) {
+    return lireOnglet(sid, 18).catch(function(){ return []; });
+  }));
+  sheetIds.forEach(function(sid, i) {
+    const rows = ongletActRows[i];
+    if (!rows || rows.length < 2) return; // P2=row[1], Q2=row[1], R2=row[1]
+    const row1 = rows[1]; // index 1 = 2e ligne = ligne 2
+    const isPing = sid.toLowerCase().indexOf('ping') >= 0;
+    const isno = cellNum(row1, 15); // col P = index 15
+    const hc   = isPing ? cellNum(row1, 17) : cellNum(row1, 16); // R2 pour ping, Q2 sinon
+    if (isno > 0 || hc > 0) isnoCounts[sid] = { isno, hc };
   });
 
   // Statistiques depuis Inscriptions
@@ -6640,11 +6660,17 @@ async function chargerStatsTresorier() {
         catTotal    += tarifTotal;
         const coutAnim = placesAnimateur[placesId] || placesAnimateur[actDef.id] || 0;
         const solde    = Math.round((tarifTotal - coutAnim) * 100) / 100;
+        const isnoData = isnoCounts[placesId] || isnoCounts[actDef.id] || null;
+        const pctIsno  = isnoData && (isnoData.isno + isnoData.hc) > 0
+          ? Math.round(isnoData.isno / (isnoData.isno + isnoData.hc) * 100) : null;
         lignesCat.push({ nom: actDef.name.replace(/\n/g,' — '), inscrits: inscrits,
           tarifTotal: Math.round(tarifTotal*100)/100,
           coutMoyen:  inscrits > 0 ? Math.round(tarifTotal/inscrits*100)/100 : 0,
           coutAnim:   Math.round(coutAnim*100)/100,
-          solde:      solde });
+          solde:      solde,
+          isno: isnoData ? isnoData.isno : null,
+          hc:   isnoData ? isnoData.hc   : null,
+          pctIsno: pctIsno });
       });
       if (lignesCat.length > 0) {
         const catCoutAnim = lignesCat.reduce(function(s,l){ return s + (l.coutAnim||0); }, 0);
@@ -6719,7 +6745,7 @@ function renderTresorier(d) {
   (d.activites || []).forEach(function(grp) {
     // En-tête de rubrique
     actsLignes += '<tr style="background:#e8eaf6;">'
-      + '<td colspan="6" style="padding:7px 12px;font-size:12px;font-weight:800;color:#1a237e;">'+grp.label+'</td>'
+      + '<td colspan="7" style="padding:7px 12px;font-size:12px;font-weight:800;color:#1a237e;">'+grp.label+'</td>'
       + '</tr>';
     // Lignes créneaux
     grp.lignes.forEach(function(a) {
@@ -6731,6 +6757,7 @@ function renderTresorier(d) {
         + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#1a237e;">'+eur(a.tarifTotal)+'</td>'
         + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#e65100;">'+(a.coutAnim > 0 ? eur(a.coutAnim) : '—')+'</td>'
         + '<td style="padding:6px 12px;text-align:right;font-size:12px;font-weight:700;color:'+soldeCoul+';">'+(a.coutAnim > 0 ? (a.solde >= 0 ? '+' : '')+eur(a.solde) : '—')+'</td>'
+        + '<td style="padding:6px 12px;text-align:right;font-size:12px;">'+(a.pctIsno !== null ? '<span style="font-weight:700;color:#1565c0;">'+a.pctIsno+' %</span><span style="font-size:10px;color:#888;"> ('+a.isno+'/'+((a.isno||0)+(a.hc||0))+')</span>' : '—')+'</td>'
         + '</tr>';
     });
     // Total de la rubrique
@@ -6742,6 +6769,7 @@ function renderTresorier(d) {
       + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:800;color:#3949ab;">'+eur(grp.totalTarif)+'</td>'
       + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;color:#e65100;">'+(grp.totalCoutAnim > 0 ? eur(grp.totalCoutAnim) : '—')+'</td>'
       + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:800;color:'+catSoldeCoul+';">'+(grp.totalCoutAnim > 0 ? ((grp.totalSolde||0) >= 0 ? '+' : '')+eur(grp.totalSolde||0) : '—')+'</td>'
+      + '<td style="padding:7px 12px;"></td>'
       + '</tr>';
     totalDepenses    += grp.totalTarif;
     totalAnimGlobal  += grp.totalCoutAnim || 0;
@@ -6805,7 +6833,7 @@ function renderTresorier(d) {
     + '<div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;margin-bottom:28px;">'
     + '<div style="background:#e65100;color:white;padding:12px 16px;font-weight:700;font-size:14px;">🏃 Cotisations par activité (col AB — tarif brut)</div>'
     + '<table style="width:100%;border-collapse:collapse;">'
-    + '<thead><tr style="background:#f9f9f9;"><th style="padding:7px 12px;text-align:left;font-size:12px;font-weight:700;">Activité</th><th style="padding:7px 12px;text-align:center;font-size:12px;font-weight:700;">Inscrits</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Coût moyen</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Recettes</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Animateur</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Solde</th></tr></thead>'
+    + '<thead><tr style="background:#f9f9f9;"><th style="padding:7px 12px;text-align:left;font-size:12px;font-weight:700;">Activité</th><th style="padding:7px 12px;text-align:center;font-size:12px;font-weight:700;">Inscrits</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Coût moyen</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Recettes</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Animateur</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Solde</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">% Isno</th></tr></thead>'
     + '<tbody>'+actsLignes+'</tbody>'
     + '<tfoot><tr style="background:#fff3e0;border-top:2px solid #e65100;">'
     + '<td colspan="2" style="padding:9px 12px;font-weight:800;font-size:13px;">TOTAL GÉNÉRAL</td>'
@@ -6813,6 +6841,7 @@ function renderTresorier(d) {
     + '<td style="padding:9px 12px;text-align:right;font-weight:800;font-size:15px;color:#e65100;">'+eur(totalDepenses)+'</td>'
     + '<td style="padding:9px 12px;text-align:right;font-weight:700;font-size:13px;color:#e65100;">'+eur(totalAnimGlobal)+'</td>'
     + '<td style="padding:9px 12px;text-align:right;font-weight:800;font-size:15px;color:'+(totalSoldeGlobal>=0?'#2d6a4f':'#c62828')+';">'+(totalSoldeGlobal>=0?'+':'')+eur(totalSoldeGlobal)+'</td>'
+    + '<td style="padding:9px 12px;"></td>'
     + '</tr></tfoot>'
     + '</table></div>'
 
