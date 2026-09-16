@@ -6582,21 +6582,56 @@ async function chargerStatsTresorier() {
     fnsmrTotal += cellNum(row, 30); // col AE index 30
   });
 
-  const activites = Object.values(activitesCounts).map(function(a) {
-    return { nom: a.nom, inscrits: a.inscrits, tarifTotal: Math.round(a.tarifTotal*100)/100,
-             coutMoyen: a.inscrits > 0 ? Math.round(a.tarifTotal/a.inscrits*100)/100 : 0 };
-  }).sort(function(a,b){ return b.tarifTotal - a.tarifTotal; });
+  // Construire les activités dans l'ordre ACTIVITIES (sections > catégories > créneaux) avec totaux par catégorie
+  const activiteGroupees = [];
+  const allActsDef = getAllActs();
+  const seen = {};
+  // Parcourir ACTIVITIES dans l'ordre
+  Object.values(ACTIVITIES).forEach(function(section) {
+    Object.entries(section.cats).forEach(function([catKey, cat]) {
+      const actsInCat = cat.acts || [];
+      if (actsInCat.length === 0) return;
+      const label = (cat.icon || '') + ' ' + cat.label;
+      let catInscrits = 0, catTotal = 0;
+      const lignesCat = [];
+      actsInCat.forEach(function(actDef) {
+        if (seen[actDef.id]) return;
+        seen[actDef.id] = true;
+        // Chercher dans activitesCounts par id HTML ou par correspondance nom
+        const sheetId = siteToPlacesId(actDef.id) || actDef.id;
+        const a = activitesCounts[sheetId] || activitesCounts[actDef.id]
+               || Object.values(activitesCounts).find(function(x){ return x.nom && actDef.name && x.nom.replace(/\n/g,' ').toLowerCase().indexOf(actDef.name.split('\n')[0].toLowerCase()) >= 0; });
+        if (!a || a.inscrits === 0) return;
+        catInscrits += a.inscrits;
+        catTotal    += a.tarifTotal;
+        lignesCat.push({ nom: actDef.name.replace(/\n/g,' — '), inscrits: a.inscrits,
+          tarifTotal: Math.round(a.tarifTotal*100)/100,
+          coutMoyen: a.inscrits > 0 ? Math.round(a.tarifTotal/a.inscrits*100)/100 : 0 });
+      });
+      if (lignesCat.length > 0) {
+        activiteGroupees.push({ label, lignes: lignesCat,
+          totalInscrits: catInscrits, totalTarif: Math.round(catTotal*100)/100 });
+      }
+    });
+  });
+  // Activités non trouvées dans ACTIVITIES (fallback)
+  const activites = activiteGroupees; // utilisé par renderTresorier
 
+  // Sauter les 3 premières lignes (entêtes/totaux) de chaque onglet paiement
+  // Tous les montants sont en col E (index 4)
+  function sommeColSkip3(rows, idx) {
+    return rows.slice(3).reduce(function(s,r){ var v=cellNum(r,idx); return s+(v>0&&v<1e10?v:0); },0);
+  }
   const recettes = {
-    ha1x:    sommeCol(rowsHA,    4), // col E index 4
-    cheq1:   sommeCol(rowsCheq1, 5), // col F index 5
-    cheq2:   sommeCol(rowsCheq2, 5),
-    cheq3:   sommeCol(rowsCheq3, 5),
-    especes: sommeCol(rowsEsp,   4), // col E index 4
-    ancv:    sommeCol(rowsANCV,  7), // col H index 7
-    atout:   sommeCol(rowsAtout, 7),
-    passJ:   sommeCol(rowsPassJ, 7),
-    passS:   sommeCol(rowsPassS, 7)
+    ha1x:    sommeColSkip3(rowsHA,    4), // col E index 4
+    cheq1:   sommeColSkip3(rowsCheq1, 4), // col E index 4
+    cheq2:   sommeColSkip3(rowsCheq2, 4),
+    cheq3:   sommeColSkip3(rowsCheq3, 4),
+    especes: sommeColSkip3(rowsEsp,   4), // col E index 4
+    ancv:    sommeColSkip3(rowsANCV,  4), // col E index 4
+    atout:   sommeColSkip3(rowsAtout, 4),
+    passJ:   sommeColSkip3(rowsPassJ, 4),
+    passS:   sommeColSkip3(rowsPassS, 4)
   };
   recettes.totalCheques = recettes.cheq1 + recettes.cheq2 + recettes.cheq3;
   recettes.totalAides   = recettes.ancv + recettes.atout + recettes.passJ + recettes.passS;
@@ -6632,17 +6667,32 @@ function renderTresorier(d) {
       + '</tr>';
   }
 
-  // Lignes activités
-  const actsLignes = acts.map(function(a) {
-    return '<tr style="border-bottom:1px solid #f0f0f0;">'
-      + '<td style="padding:7px 12px;font-size:12px;color:#555;">'+a.nom+'</td>'
-      + '<td style="padding:7px 12px;text-align:center;font-size:12px;">'+a.inscrits+'</td>'
-      + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:600;color:#2d6a4f;">'+eur(a.coutMoyen)+'</td>'
-      + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;color:#1a237e;">'+eur(a.tarifTotal)+'</td>'
+  // Lignes activités groupées par catégorie avec total par rubrique
+  let actsLignes = '';
+  let totalDepenses = 0;
+  (d.activites || []).forEach(function(grp) {
+    // En-tête de rubrique
+    actsLignes += '<tr style="background:#e8eaf6;">'
+      + '<td colspan="4" style="padding:7px 12px;font-size:12px;font-weight:800;color:#1a237e;">'+grp.label+'</td>'
       + '</tr>';
-  }).join('');
-
-  const totalDepenses = acts.reduce(function(s,a){ return s + a.tarifTotal; }, 0);
+    // Lignes créneaux
+    grp.lignes.forEach(function(a) {
+      actsLignes += '<tr style="border-bottom:1px solid #f0f0f0;">'
+        + '<td style="padding:6px 12px 6px 20px;font-size:12px;color:#555;">'+a.nom+'</td>'
+        + '<td style="padding:6px 12px;text-align:center;font-size:12px;">'+a.inscrits+'</td>'
+        + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#2d6a4f;">'+eur(a.coutMoyen)+'</td>'
+        + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#1a237e;">'+eur(a.tarifTotal)+'</td>'
+        + '</tr>';
+    });
+    // Total de la rubrique
+    actsLignes += '<tr style="background:#f3f4fd;border-top:1px solid #c5cae9;">'
+      + '<td style="padding:7px 12px 7px 20px;font-size:12px;font-weight:700;color:#3949ab;">Total '+grp.label+'</td>'
+      + '<td style="padding:7px 12px;text-align:center;font-size:12px;font-weight:700;color:#3949ab;">'+grp.totalInscrits+'</td>'
+      + '<td style="padding:7px 12px;"></td>'
+      + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:800;color:#3949ab;">'+eur(grp.totalTarif)+'</td>'
+      + '</tr>';
+    totalDepenses += grp.totalTarif;
+  });
 
   document.getElementById('tresorier-content').innerHTML =
     '<div style="font-family:sans-serif;padding:20px 0;">'
