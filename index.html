@@ -6548,7 +6548,7 @@ async function chargerStatsTresorier() {
 
   // Lire tous les onglets en parallèle
   const [rowsInsc, rowsCheq1, rowsCheq2, rowsCheq3, rowsEsp, rowsHA,
-         rowsANCV, rowsAtout, rowsPassJ, rowsPassS] = await Promise.all([
+         rowsANCV, rowsAtout, rowsPassJ, rowsPassS, rowsPlaces] = await Promise.all([
     lireOnglet('Inscriptions', 41),
     lireOnglet('Cheques 1', 7),
     lireOnglet('Cheques 2', 7),
@@ -6558,8 +6558,17 @@ async function chargerStatsTresorier() {
     lireOnglet('Aides ANCV', 9),
     lireOnglet('Aides Atout Normandie', 9),
     lireOnglet('Aides Pass Jeunes', 9),
-    lireOnglet('Aides Pass Sport', 9)
+    lireOnglet('Aides Pass Sport', 9),
+    lireOnglet('Places', 5)
   ]);
+
+  // Index Places : A(0)=ID, B(1)=Nom, C(2)=Capacité, D(3)=Inscrits, E(4)=Restantes
+  const placesInscrits = {};
+  rowsPlaces.forEach(function(row) {
+    const id  = cellStr(row, 0).trim();
+    const ins = cellNum(row, 3); // col D
+    if (id) placesInscrits[id] = ins;
+  });
 
   // Statistiques depuis Inscriptions
   const codesDossiers = {}, codesAdherents = {}, activitesCounts = {};
@@ -6604,11 +6613,15 @@ async function chargerStatsTresorier() {
         const a = activitesCounts[sheetId] || activitesCounts[actDef.id]
                || Object.values(activitesCounts).find(function(x){ return x.nom && actDef.name && x.nom.replace(/\n/g,' ').toLowerCase().indexOf(actDef.name.split('\n')[0].toLowerCase()) >= 0; });
         if (!a || a.inscrits === 0) return;
-        // Créneaux liés = 1 inscription = 2 lignes dans le Sheet
-        // → diviser les inscrits par 2 (chaque adhérent a une ligne par créneau)
-        let inscrits = a.inscrits, tarifTotal = a.tarifTotal;
+        // Lire le nombre d'inscrits depuis l'onglet Places col D
+        // Pour les créneaux liés : prendre l'ID du premier créneau seulement
+        const placesId = siteToPlacesId(actDef.id) || actDef.id;
+        let inscrits = placesInscrits[placesId] !== undefined
+          ? placesInscrits[placesId]
+          : (actDef.linkedWith ? Math.round(a.inscrits / 2) : a.inscrits);
+        let tarifTotal = a.tarifTotal;
+        // Pour les créneaux liés le tarif est aussi doublé dans Inscriptions
         if (actDef.linkedWith) {
-          inscrits   = Math.round(inscrits / 2);
           tarifTotal = Math.round(tarifTotal / 2 * 100) / 100;
         }
         catInscrits += inscrits;
