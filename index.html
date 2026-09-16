@@ -6559,16 +6559,27 @@ async function chargerStatsTresorier() {
     lireOnglet('Aides Atout Normandie', 9),
     lireOnglet('Aides Pass Jeunes', 9),
     lireOnglet('Aides Pass Sport', 9),
-    lireOnglet('Places', 5),
+    lireOnglet('Places', 16),
     lireOnglet('Avoirs utilisés', 6)
   ]);
 
-  // Index Places : A(0)=ID, B(1)=Nom, C(2)=Capacité, D(3)=Inscrits, E(4)=Restantes
+  // Index Places : A(0)=ID, B(1)=Nom, C(2)=Cap, D(3)=Inscrits, E(4)=Restantes, J(9)=ID act, P(15)=Coût animateur
   const placesInscrits = {};
+  const placesAnimateur = {}; // indexed by placesId
   rowsPlaces.forEach(function(row) {
-    const id  = cellStr(row, 0).trim();
-    const ins = cellNum(row, 3); // col D
-    if (id) placesInscrits[id] = ins;
+    const id    = cellStr(row, 0).trim();
+    const idAct = cellStr(row, 9).trim();  // col J = ID activité
+    const cout  = cellNum(row, 15);        // col P = coût animateur
+    const ins   = cellNum(row, 3);         // col D = inscrits
+    const key   = idAct || id;
+    if (key) {
+      placesInscrits[key]  = ins;
+      placesAnimateur[key] = cout;
+      if (id && id !== key) {
+        placesInscrits[id]  = ins;
+        placesAnimateur[id] = cout;
+      }
+    }
   });
 
   // Statistiques depuis Inscriptions
@@ -6620,20 +6631,27 @@ async function chargerStatsTresorier() {
         let inscrits = placesInscrits[placesId] !== undefined
           ? placesInscrits[placesId]
           : (actDef.linkedWith ? Math.round(a.inscrits / 2) : a.inscrits);
+        // tarifTotal depuis activitesCounts = somme des tarifs du créneau1 uniquement
+        // Pour les créneaux liés, activitesCounts[créneau2] est séparé et ignoré (seen)
+        // inscrits vient de Places col D → valeur réelle sans doublon
+        // coutMoyen = tarifTotal / inscrits (pas de division par 2 nécessaire)
         let tarifTotal = a.tarifTotal;
-        // Pour les créneaux liés le tarif est aussi doublé dans Inscriptions
-        if (actDef.linkedWith) {
-          tarifTotal = Math.round(tarifTotal / 2 * 100) / 100;
-        }
         catInscrits += inscrits;
         catTotal    += tarifTotal;
+        const coutAnim = placesAnimateur[placesId] || placesAnimateur[actDef.id] || 0;
+        const solde    = Math.round((tarifTotal - coutAnim) * 100) / 100;
         lignesCat.push({ nom: actDef.name.replace(/\n/g,' — '), inscrits: inscrits,
           tarifTotal: Math.round(tarifTotal*100)/100,
-          coutMoyen: inscrits > 0 ? Math.round(tarifTotal/inscrits*100)/100 : 0 });
+          coutMoyen:  inscrits > 0 ? Math.round(tarifTotal/inscrits*100)/100 : 0,
+          coutAnim:   Math.round(coutAnim*100)/100,
+          solde:      solde });
       });
       if (lignesCat.length > 0) {
+        const catCoutAnim = lignesCat.reduce(function(s,l){ return s + (l.coutAnim||0); }, 0);
+        const catSolde    = Math.round((catTotal - catCoutAnim)*100)/100;
         activiteGroupees.push({ label, lignes: lignesCat,
-          totalInscrits: catInscrits, totalTarif: Math.round(catTotal*100)/100 });
+          totalInscrits: catInscrits, totalTarif: Math.round(catTotal*100)/100,
+          totalCoutAnim: Math.round(catCoutAnim*100)/100, totalSolde: catSolde });
       }
     });
   });
@@ -6697,29 +6715,37 @@ function renderTresorier(d) {
 
   // Lignes activités groupées par catégorie avec total par rubrique
   let actsLignes = '';
-  let totalDepenses = 0;
+  let totalDepenses = 0, totalAnimGlobal = 0, totalSoldeGlobal = 0;
   (d.activites || []).forEach(function(grp) {
     // En-tête de rubrique
     actsLignes += '<tr style="background:#e8eaf6;">'
-      + '<td colspan="4" style="padding:7px 12px;font-size:12px;font-weight:800;color:#1a237e;">'+grp.label+'</td>'
+      + '<td colspan="6" style="padding:7px 12px;font-size:12px;font-weight:800;color:#1a237e;">'+grp.label+'</td>'
       + '</tr>';
     // Lignes créneaux
     grp.lignes.forEach(function(a) {
+      const soldeCoul = a.solde >= 0 ? '#2d6a4f' : '#c62828';
       actsLignes += '<tr style="border-bottom:1px solid #f0f0f0;">'
         + '<td style="padding:6px 12px 6px 20px;font-size:12px;color:#555;">'+a.nom+'</td>'
         + '<td style="padding:6px 12px;text-align:center;font-size:12px;">'+a.inscrits+'</td>'
         + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#2d6a4f;">'+eur(a.coutMoyen)+'</td>'
         + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#1a237e;">'+eur(a.tarifTotal)+'</td>'
+        + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#e65100;">'+(a.coutAnim > 0 ? eur(a.coutAnim) : '—')+'</td>'
+        + '<td style="padding:6px 12px;text-align:right;font-size:12px;font-weight:700;color:'+soldeCoul+';">'+(a.coutAnim > 0 ? (a.solde >= 0 ? '+' : '')+eur(a.solde) : '—')+'</td>'
         + '</tr>';
     });
     // Total de la rubrique
-    actsLignes += '<tr style="background:#f3f4fd;border-top:1px solid #c5cae9;">'
-      + '<td style="padding:7px 12px 7px 20px;font-size:12px;font-weight:700;color:#3949ab;">Total '+grp.label+'</td>'
+    const catSoldeCoul = (grp.totalSolde || 0) >= 0 ? '#2d6a4f' : '#c62828';
+    actsLignes += '<tr style="background:#f3f4fd;border-top:2px solid #c5cae9;">'
+      + '<td style="padding:7px 12px 7px 20px;font-size:12px;font-weight:700;color:#3949ab;">━ Total '+grp.label+'</td>'
       + '<td style="padding:7px 12px;text-align:center;font-size:12px;font-weight:700;color:#3949ab;">'+grp.totalInscrits+'</td>'
       + '<td style="padding:7px 12px;"></td>'
       + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:800;color:#3949ab;">'+eur(grp.totalTarif)+'</td>'
+      + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;color:#e65100;">'+(grp.totalCoutAnim > 0 ? eur(grp.totalCoutAnim) : '—')+'</td>'
+      + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:800;color:'+catSoldeCoul+';">'+(grp.totalCoutAnim > 0 ? ((grp.totalSolde||0) >= 0 ? '+' : '')+eur(grp.totalSolde||0) : '—')+'</td>'
       + '</tr>';
-    totalDepenses += grp.totalTarif;
+    totalDepenses    += grp.totalTarif;
+    totalAnimGlobal  += grp.totalCoutAnim || 0;
+    totalSoldeGlobal  = Math.round((totalDepenses - totalAnimGlobal)*100)/100;
   });
 
   document.getElementById('tresorier-content').innerHTML =
@@ -6779,12 +6805,14 @@ function renderTresorier(d) {
     + '<div style="background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.08);overflow:hidden;margin-bottom:28px;">'
     + '<div style="background:#e65100;color:white;padding:12px 16px;font-weight:700;font-size:14px;">🏃 Cotisations par activité (col AB — tarif brut)</div>'
     + '<table style="width:100%;border-collapse:collapse;">'
-    + '<thead><tr style="background:#f9f9f9;"><th style="padding:7px 12px;text-align:left;font-size:12px;font-weight:700;">Activité</th><th style="padding:7px 12px;text-align:center;font-size:12px;font-weight:700;">Inscrits</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Coût moyen</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Total</th></tr></thead>'
+    + '<thead><tr style="background:#f9f9f9;"><th style="padding:7px 12px;text-align:left;font-size:12px;font-weight:700;">Activité</th><th style="padding:7px 12px;text-align:center;font-size:12px;font-weight:700;">Inscrits</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Coût moyen</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Recettes</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Animateur</th><th style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;">Solde</th></tr></thead>'
     + '<tbody>'+actsLignes+'</tbody>'
     + '<tfoot><tr style="background:#fff3e0;border-top:2px solid #e65100;">'
-    + '<td colspan="2" style="padding:9px 12px;font-weight:800;font-size:13px;">TOTAL</td>'
+    + '<td colspan="2" style="padding:9px 12px;font-weight:800;font-size:13px;">TOTAL GÉNÉRAL</td>'
     + '<td style="padding:9px 12px;"></td>'
     + '<td style="padding:9px 12px;text-align:right;font-weight:800;font-size:15px;color:#e65100;">'+eur(totalDepenses)+'</td>'
+    + '<td style="padding:9px 12px;text-align:right;font-weight:700;font-size:13px;color:#e65100;">'+eur(totalAnimGlobal)+'</td>'
+    + '<td style="padding:9px 12px;text-align:right;font-weight:800;font-size:15px;color:'+(totalSoldeGlobal>=0?'#2d6a4f':'#c62828')+';">'+(totalSoldeGlobal>=0?'+':'')+eur(totalSoldeGlobal)+'</td>'
     + '</tr></tfoot>'
     + '</table></div>'
 
