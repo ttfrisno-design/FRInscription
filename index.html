@@ -6597,13 +6597,11 @@ async function chargerStatsTresorier() {
     if (!rows || rows.length < 2) return;
     const row1 = rows[1]; // 2e ligne du gviz = ligne 2 du sheet
     const isPing = sid.toLowerCase().indexOf('ping') >= 0;
-    // P=col 16 (index 15), Q=col 17 (index 16), R=col 18 (index 17)
-    // MAIS gviz saute les colonnes vides — on cherche par valeur numérique
-    // Méthode robuste : chercher dans toutes les cellules de la ligne
+    // Toutes activités : P2(index 15)=Isno, Q2(index 16)=HC
+    // Ping uniquement  : Q2(index 16)=Isno, R2(index 17)=HC
     let isno = 0, hc = 0;
     if (row1.c) {
-      // Essai direct index 15/16/17
-      isno = cellNum(row1, 15);
+      isno = isPing ? cellNum(row1, 16) : cellNum(row1, 15);
       hc   = isPing ? cellNum(row1, 17) : cellNum(row1, 16);
       // Si rien, chercher la dernière valeur numérique non nulle (P et Q sont souvent en fin de ligne)
       if (isno === 0 && hc === 0) {
