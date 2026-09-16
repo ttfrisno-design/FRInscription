@@ -6594,12 +6594,29 @@ async function chargerStatsTresorier() {
   }));
   sheetIds.forEach(function(sid, i) {
     const rows = ongletActRows[i];
-    if (!rows || rows.length < 2) return; // P2=row[1], Q2=row[1], R2=row[1]
-    const row1 = rows[1]; // index 1 = 2e ligne = ligne 2
+    if (!rows || rows.length < 2) return;
+    const row1 = rows[1]; // 2e ligne du gviz = ligne 2 du sheet
     const isPing = sid.toLowerCase().indexOf('ping') >= 0;
-    const isno = cellNum(row1, 15); // col P = index 15
-    const hc   = isPing ? cellNum(row1, 17) : cellNum(row1, 16); // R2 pour ping, Q2 sinon
-    if (isno > 0 || hc > 0) isnoCounts[sid] = { isno, hc };
+    // P=col 16 (index 15), Q=col 17 (index 16), R=col 18 (index 17)
+    // MAIS gviz saute les colonnes vides — on cherche par valeur numérique
+    // Méthode robuste : chercher dans toutes les cellules de la ligne
+    let isno = 0, hc = 0;
+    if (row1.c) {
+      // Essai direct index 15/16/17
+      isno = cellNum(row1, 15);
+      hc   = isPing ? cellNum(row1, 17) : cellNum(row1, 16);
+      // Si rien, chercher la dernière valeur numérique non nulle (P et Q sont souvent en fin de ligne)
+      if (isno === 0 && hc === 0) {
+        var nums = [];
+        row1.c.forEach(function(c){ if(c && c.v !== null && !isNaN(Number(c.v)) && Number(c.v) > 0) nums.push(Number(c.v)); });
+        if (nums.length >= 2) { isno = nums[nums.length-2]; hc = nums[nums.length-1]; }
+        else if (nums.length === 1) { isno = nums[0]; }
+      }
+    }
+    if (isno > 0 || hc > 0) {
+      isnoCounts[sid] = { isno, hc };
+      console.log('[FRI] isno', sid, 'isno='+isno, 'hc='+hc);
+    }
   });
 
   // Statistiques depuis Inscriptions
@@ -6756,7 +6773,7 @@ function renderTresorier(d) {
         + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#2d6a4f;">'+eur(a.coutMoyen)+'</td>'
         + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#1a237e;">'+eur(a.tarifTotal)+'</td>'
         + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#e65100;">'+(a.coutAnim > 0 ? eur(a.coutAnim) : '—')+'</td>'
-        + '<td style="padding:6px 12px;text-align:right;font-size:12px;font-weight:700;color:'+soldeCoul+';">'+(a.coutAnim > 0 ? (a.solde >= 0 ? '+' : '')+eur(a.solde) : '—')+'</td>'
+        + '<td style="padding:6px 12px;text-align:right;font-size:12px;font-weight:700;color:'+soldeCoul+';">'+(a.solde >= 0 ? '+' : '')+eur(a.solde)+'</td>'
         + '<td style="padding:6px 12px;text-align:right;font-size:12px;">'+(a.pctIsno !== null ? '<span style="font-weight:700;color:#1565c0;">'+a.pctIsno+' %</span><span style="font-size:10px;color:#888;"> ('+a.isno+'/'+((a.isno||0)+(a.hc||0))+')</span>' : '—')+'</td>'
         + '</tr>';
     });
@@ -6768,7 +6785,7 @@ function renderTresorier(d) {
       + '<td style="padding:7px 12px;"></td>'
       + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:800;color:#3949ab;">'+eur(grp.totalTarif)+'</td>'
       + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:700;color:#e65100;">'+(grp.totalCoutAnim > 0 ? eur(grp.totalCoutAnim) : '—')+'</td>'
-      + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:800;color:'+catSoldeCoul+';">'+(grp.totalCoutAnim > 0 ? ((grp.totalSolde||0) >= 0 ? '+' : '')+eur(grp.totalSolde||0) : '—')+'</td>'
+      + '<td style="padding:7px 12px;text-align:right;font-size:12px;font-weight:800;color:'+catSoldeCoul+';">'+(((grp.totalSolde||0) >= 0 ? '+' : '')+eur(grp.totalSolde||0))+'</td>'
       + '<td style="padding:7px 12px;"></td>'
       + '</tr>';
     totalDepenses    += grp.totalTarif;
