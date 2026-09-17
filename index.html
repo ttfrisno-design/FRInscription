@@ -7692,21 +7692,22 @@ async function ouvrirModifierActivite(code) {
     lignes = rowsDossier
       .filter(r => !(r.statut_inscription||'').toLowerCase().includes('supprim'))
       .map(r => ({
-        activite_id: r.activite_id || r.actId || '',
-        activite:    r.activite    || r.activite_id || '',
-        membre_nom:  (r.nom_membre || r.nom || '').trim().toUpperCase(),
-        membre_prenom:(r.prenom_membre || r.prenom || '').trim(),
-        ddn:         r.ddn || '',
-        tarif:       parseFloat(r.tarif||r.tarif_brut||0),
-        statut:      r.statut_inscription || r.statut || '',
-        jour:        r.jour  || '',
-        heure:       r.heure || '',
-        lieu:        r.lieu  || ''
+        activite_id:   r.activite_id || '',
+        activite:      r.activite    || r.activite_id || '',
+        membre_nom:    (r.nom_membre  || '').trim().toUpperCase(),
+        membre_prenom: (r.prenom_membre || '').trim(),
+        ddn:           r.ddn || '',
+        tarif:         parseFloat(r.tarif || 0),
+        tarif_brut:    parseFloat(r.tarif || 0),
+        statut:        r.statut_inscription || '',
+        jour:          r.jour      || '',
+        heure:         r.heure     || '',
+        lieu:          r.lieu      || ''
       }));
-    totalActuel   = parseFloat(rowsDossier[0].total || rowsDossier[0].total_famille || 0);
-    modePaiement  = rowsDossier[0].mode_paiement || '';
-    const ville   = (rowsDossier[0].ville || '').toUpperCase();
-    isno          = ville.includes('ISNEAUVILLE') || ville.includes('ISNO');
+    totalActuel  = parseFloat(rowsDossier[0].total || 0);
+    modePaiement = rowsDossier[0].mode_paiement || '';
+    const ville  = (rowsDossier[0].ville || '').toUpperCase();
+    isno         = ville.includes('ISNEAUVILLE') || ville.includes('ISNO');
   }
 
   if (!lignes.length) { showAdminToast('Aucune activité trouvée pour ' + code, 'red'); return; }
@@ -7716,8 +7717,9 @@ async function ouvrirModifierActivite(code) {
   getAllActs().forEach(function(actDef) {
     if (!actDef || !actDef.id) return;
     const sheetId = siteToPlacesId(actDef.id) || actDef.id;
-    const placeInfo = state.places && state.places[actDef.id];
-    const dispo = placeInfo ? (placeInfo.available !== undefined ? placeInfo.available : placeInfo.dispo) : 99;
+    const sheetKey = siteToPlacesId(actDef.id) || actDef.id;
+    const placeInfo = state.places && (state.places[sheetKey] || state.places[actDef.id]);
+    const dispo = placeInfo ? (placeInfo.available !== undefined ? placeInfo.available : (placeInfo.restantes !== undefined ? placeInfo.restantes : 99)) : 99;
     allActs.push({
       htmlId:    actDef.id,
       sheetId:   sheetId,
@@ -7745,7 +7747,7 @@ async function ouvrirModifierActivite(code) {
       <div style="margin-bottom:14px;">
         <label style="font-size:13px;font-weight:700;color:var(--dark);display:block;margin-bottom:6px;">Activité à remplacer :</label>
         <select id="mod-act-ancienne" style="width:100%;padding:8px;border:1.5px solid #c8e6c9;border-radius:8px;font-size:13px;">
-          ${lignes.map((r,i) => `<option value="${i}">${r.membre_prenom} ${r.membre_nom} — ${r.activite||r.activite_id} — ${r.jour||''} ${r.heure||''} (${r.tarif_brut||0} €)</option>`).join('')}
+          ${lignes.map((r,i) => `<option value="${i}">${r.membre_prenom} ${r.membre_nom} — ${r.activite||r.activite_id||'?'} — ${r.jour||''} ${r.heure||''} (${r.tarif||0} €)</option>`).join('')}
         </select>
       </div>
 
