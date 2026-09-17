@@ -6084,6 +6084,9 @@ async function callAppsScriptFetch(url, payload) {
   params.set('action',  action);
   params.set('_token',  FRI_SECRET_TOKEN);
   params.set('_t',      Date.now());
+  // Passer aussi les paramètres clés directement pour les actions sans payload
+  if (payload.code)   params.set('code',   payload.code);
+  if (payload.data)   params.set('data',   typeof payload.data === 'string' ? payload.data : JSON.stringify(payload.data));
   const fullUrl = url + '?' + params.toString();
 
   try {
