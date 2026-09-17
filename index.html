@@ -1337,24 +1337,57 @@ let _tokenExpires = 0;     // timestamp ms d'expiration
 async function initDynamicToken() {
   // Si token encore valide (marge 30s), on garde
   if (FRI_SECRET_TOKEN && Date.now() < _tokenExpires - 30000) return FRI_SECRET_TOKEN;
+  const url = getAppsScriptUrl();
+  if (!url) return '';
   try {
-    const url = getAppsScriptUrl();
-    if (!url) return '';
+    // ── Essai 1 : fetch GET (pas de JSONP, pas de race condition) ──
+    const params = new URLSearchParams({ action: 'getToken', _t: Date.now() });
+    const resp = await Promise.race([
+      fetch(url + '?' + params, { redirect: 'follow' }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
+    ]);
+    const text = await resp.text();
+    let data = null;
+    try {
+      const m = text.match(/^\w+\((.+)\);?\s*$/s);
+      data = m ? JSON.parse(m[1]) : JSON.parse(text);
+    } catch(ep) {}
+    if (data && data.token) {
+      FRI_SECRET_TOKEN = data.token;
+      _tokenExpires = data.expires || (Date.now() + 4 * 60 * 1000);
+      setTimeout(initDynamicToken, Math.max(0, _tokenExpires - Date.now() - 60000));
+      return FRI_SECRET_TOKEN;
+    }
+  } catch(eFetch) {
+    console.warn('[FRI] initDynamicToken fetch KO:', eFetch.message);
+  }
+  // ── Fallback : JSONP (avec callback défini AVANT injection) ──
+  try {
     const data = await new Promise((resolve) => {
       const cb = '_friTok_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-      // Définir le callback AVANT d'injecter le script (évite la race condition)
-      window[cb] = function(d) { clearTimeout(t); try { s.remove(); } catch(e){} delete window[cb]; resolve(d); };
-      const params = new URLSearchParams({ action: 'getToken', callback: cb });
-      const t = setTimeout(function() { try { s.remove(); } catch(e){} delete window[cb]; resolve({}); }, 10000);
+      let done = false;
+      window[cb] = function(d) {
+        if (done) return; done = true;
+        clearTimeout(t); try { s.parentNode && s.parentNode.removeChild(s); } catch(e){}
+        delete window[cb]; resolve(d);
+      };
+      const t = setTimeout(function() {
+        if (done) return; done = true;
+        try { s.parentNode && s.parentNode.removeChild(s); } catch(e){}
+        delete window[cb]; resolve({});
+      }, 10000);
       const s = document.createElement('script');
-      s.onerror = function() { clearTimeout(t); delete window[cb]; resolve({}); };
-      s.src = url + '?' + params;
+      s.onerror = function() {
+        if (done) return; done = true;
+        clearTimeout(t); delete window[cb]; resolve({});
+      };
+      const p = new URLSearchParams({ action: 'getToken', callback: cb, _t: Date.now() });
+      s.src = url + '?' + p;
       document.head.appendChild(s);
     });
     if (data && data.token) {
       FRI_SECRET_TOKEN = data.token;
       _tokenExpires = data.expires || (Date.now() + 4 * 60 * 1000);
-      // Renouveler automatiquement 1 min avant expiration
       setTimeout(initDynamicToken, Math.max(0, _tokenExpires - Date.now() - 60000));
     }
   } catch(e) { console.warn('[FRI] initDynamicToken KO:', e); }
