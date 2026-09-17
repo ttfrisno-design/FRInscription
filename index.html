@@ -7684,21 +7684,26 @@ async function ouvrirModifierActivite(code) {
 
   // Construire les données du dossier depuis les données locales (gviz déjà chargé)
   // sans appeler GAS — plus fiable et instantané
+  // Chercher le dossier depuis les données chargées (Sheet via gviz)
   const regsLocales = state.registrations || [];
-  const rowsDossier = regsLocales.filter(r => r.code === code || r.code_dossier === code);
+  const rowsDossier = regsLocales.filter(r => {
+    const c = r.code || r.code_dossier || '';
+    return c.trim().toUpperCase() === code.trim().toUpperCase();
+  });
+  console.log('[FRI] modifier', code, '— rows trouvées:', rowsDossier.length,
+    rowsDossier.length > 0 ? JSON.stringify(rowsDossier[0]).substring(0, 200) : '');
 
   let lignes = [], totalActuel = 0, isno = false, modePaiement = '';
   if (rowsDossier.length > 0) {
     lignes = rowsDossier
       .filter(r => !(r.statut_inscription||'').toLowerCase().includes('supprim'))
       .map(r => ({
-        activite_id:   r.activite_id || '',
-        activite:      r.activite    || r.activite_id || '',
+        activite_id:   r.activite_id  || '',
+        activite:      r.activite     || r.activite_id || '',
         membre_nom:    (r.nom_membre  || '').trim().toUpperCase(),
         membre_prenom: (r.prenom_membre || '').trim(),
         ddn:           r.ddn || '',
         tarif:         parseFloat(r.tarif || 0),
-        tarif_brut:    parseFloat(r.tarif || 0),
         statut:        r.statut_inscription || '',
         jour:          r.jour      || '',
         heure:         r.heure     || '',
@@ -7710,7 +7715,27 @@ async function ouvrirModifierActivite(code) {
     isno         = ville.includes('ISNEAUVILLE') || ville.includes('ISNO');
   }
 
-  if (!lignes.length) { showAdminToast('Aucune activité trouvée pour ' + code, 'red'); return; }
+  console.log('[FRI] modifier lignes:', lignes.length, lignes.map(l => l.activite + '/' + l.activite_id));
+
+  if (!lignes.length) {
+    // Fallback : recharger depuis le Sheet
+    showAdminToast('⏳ Rechargement depuis le Sheet...', 'blue');
+    await chargerDossiersDepuisSheet();
+    const regsReloaded = (state.registrations || []).filter(r =>
+      (r.code||r.code_dossier||'').trim().toUpperCase() === code.trim().toUpperCase()
+      && !(r.statut_inscription||'').toLowerCase().includes('supprim')
+    );
+    if (!regsReloaded.length) { showAdminToast('Aucune activité trouvée pour ' + code, 'red'); return; }
+    lignes = regsReloaded.map(r => ({
+      activite_id: r.activite_id || '', activite: r.activite || '',
+      membre_nom: (r.nom_membre||'').trim().toUpperCase(), membre_prenom: (r.prenom_membre||'').trim(),
+      tarif: parseFloat(r.tarif||0), statut: r.statut_inscription||'',
+      jour: r.jour||'', heure: r.heure||'', lieu: r.lieu||''
+    }));
+    totalActuel  = parseFloat(regsReloaded[0].total || 0);
+    modePaiement = regsReloaded[0].mode_paiement || '';
+    isno = (regsReloaded[0].ville||'').toUpperCase().includes('ISNEAUVILLE');
+  }
 
   // Toutes les activités disponibles — via getAllActs() + state.places pour les dispos
   const allActs = [];
