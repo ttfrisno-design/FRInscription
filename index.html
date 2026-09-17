@@ -6068,7 +6068,7 @@ async function callAppsScriptFetch(url, payload) {
       } else {
         data = JSON.parse(text);
       }
-      if (data && (data.status === 'ok' || data.token || data.dossiers || data.places || data.journal || data.inserted !== undefined || data.codes_presents || data.nbDossiers !== undefined)) {
+      if (data && (data.status === 'ok' || data.token || data.dossiers || data.places || data.journal || data.inserted !== undefined || data.codes_presents || data.nbDossiers !== undefined || data.lignes !== undefined || data.already_exists !== undefined || data.totalNet !== undefined)) {
         return { ok: true, data };
       }
     }
