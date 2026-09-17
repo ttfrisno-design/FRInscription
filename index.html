@@ -7797,7 +7797,9 @@ async function ouvrirModifierActivite(code) {
   if (!url) return;
 
   showAdminToast('⏳ Chargement du dossier...', 'blue');
-  const result = await callAppsScriptFetch(url, { action: 'getDossierDetail', _token: FRI_SECRET_TOKEN, code });
+  // getDossierDetail via JSONP pur (fetch GAS échoue pour cette action)
+  await initDynamicToken();
+  const result = await callAppsScriptJsonp(url, { action: 'getDossierDetail', _token: FRI_SECRET_TOKEN, code });
   const data = result && result.data ? result.data : result;
   if (!data || data.status === 'error') { showAdminToast('⚠️ ' + (data && data.message || 'Erreur'), 'red'); return; }
 
@@ -8106,8 +8108,6 @@ function ouvrirDetailDossier(code, docId) {
   // Sauvegarder l'état des coches dans localStorage
   const savedChecks = JSON.parse(localStorage.getItem('fri_admin_checks') || '{}');
   const checks = savedChecks[code] || {};
-  console.log('[FRI] envoyerRappelPieces — code:', code, 'checks:', JSON.stringify(checks), 'allKeys:', Object.keys(savedChecks));
-
   // Récupérer ou créer le panneau détail
   let panel = document.getElementById('admin-detail-panel');
   if (!panel) {
