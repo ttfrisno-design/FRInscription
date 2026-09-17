@@ -7692,9 +7692,9 @@ async function ouvrirModifierActivite(code) {
   if (regDossier) {
     // Format localStorage : responsable + members[].activities[]
     const resp  = regDossier.responsable || {};
-    const ville = (resp.ville || resp.commune || '').toUpperCase();
-    isno        = ville.includes('ISNEAUVILLE') || ville.includes('ISNO');
-    modePaiement = resp.modePaiement || regDossier.modePaiement || '';
+    const commune = (resp.commune || '').toLowerCase();
+    isno          = commune === 'isno' || commune.includes('isneauville');
+    modePaiement  = resp.modePaiement || regDossier.modePaiement || '';
     // Calculer le total
     totalActuel = 0;
     (regDossier.members || []).forEach(function(m) {
