@@ -5765,7 +5765,40 @@ function callAppsScriptJsonp(url, payload) {
     });
   }
 
-  return callAppsScriptFetch(url, payload);
+  // Handler générique JSONP pour toutes les autres actions (getDossierDetail, modifierActivite, etc.)
+  return new Promise(function(resolve) {
+    const cbName2 = '_friJ_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+    let done2 = false;
+    const payloadStr2 = JSON.stringify(payload);
+    const params2 = new URLSearchParams();
+    params2.set('payload',  payloadStr2);
+    params2.set('callback', cbName2);
+    params2.set('action',   payload.action || '');
+    params2.set('_token',   FRI_SECRET_TOKEN);
+    params2.set('_t',       Date.now());
+    if (payload.code) params2.set('code', payload.code);
+
+    window[cbName2] = function(data) {
+      if (done2) return; done2 = true;
+      clearTimeout(t2);
+      try { if (s2.parentNode) s2.parentNode.removeChild(s2); } catch(e){}
+      delete window[cbName2];
+      resolve({ ok: true, data });
+    };
+    const t2 = setTimeout(function() {
+      if (done2) return; done2 = true;
+      try { if (s2.parentNode) s2.parentNode.removeChild(s2); } catch(e){}
+      delete window[cbName2];
+      console.warn('[FRI] JSONP timeout:', payload.action);
+      resolve({ ok: false });
+    }, 30000);
+    const s2 = document.createElement('script');
+    s2.onerror = function() {
+      // Redirect 302 normal — attendre le callback
+    };
+    s2.src = url + '?' + params2.toString();
+    document.head.appendChild(s2);
+  });
 }
 
 // Convertir le format date gviz "Date(2026,3,20)" en "20/04/2026"
