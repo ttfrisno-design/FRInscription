@@ -7681,18 +7681,35 @@ async function ouvrirModifierActivite(code) {
   if (!url) return;
 
   showAdminToast('⏳ Chargement du dossier...', 'blue');
-  // getDossierDetail via JSONP pur (fetch GAS échoue pour cette action)
-  await initDynamicToken();
-  const result = await callAppsScriptJsonp(url, { action: 'getDossierDetail', _token: FRI_SECRET_TOKEN, code });
-  const data = result && result.data ? result.data : result;
-  if (!data || data.status === 'error') { showAdminToast('⚠️ ' + (data && data.message || 'Erreur'), 'red'); return; }
 
-  const lignes = (data.lignes || []).filter(r => !(r.statut||'').toLowerCase().includes('supprim'));
+  // Construire les données du dossier depuis les données locales (gviz déjà chargé)
+  // sans appeler GAS — plus fiable et instantané
+  const regsLocales = state.registrations || [];
+  const rowsDossier = regsLocales.filter(r => r.code === code || r.code_dossier === code);
+
+  let lignes = [], totalActuel = 0, isno = false, modePaiement = '';
+  if (rowsDossier.length > 0) {
+    lignes = rowsDossier
+      .filter(r => !(r.statut_inscription||'').toLowerCase().includes('supprim'))
+      .map(r => ({
+        activite_id: r.activite_id || r.actId || '',
+        activite:    r.activite    || r.activite_id || '',
+        membre_nom:  (r.nom_membre || r.nom || '').trim().toUpperCase(),
+        membre_prenom:(r.prenom_membre || r.prenom || '').trim(),
+        ddn:         r.ddn || '',
+        tarif:       parseFloat(r.tarif||r.tarif_brut||0),
+        statut:      r.statut_inscription || r.statut || '',
+        jour:        r.jour  || '',
+        heure:       r.heure || '',
+        lieu:        r.lieu  || ''
+      }));
+    totalActuel   = parseFloat(rowsDossier[0].total || rowsDossier[0].total_famille || 0);
+    modePaiement  = rowsDossier[0].mode_paiement || '';
+    const ville   = (rowsDossier[0].ville || '').toUpperCase();
+    isno          = ville.includes('ISNEAUVILLE') || ville.includes('ISNO');
+  }
+
   if (!lignes.length) { showAdminToast('Aucune activité trouvée pour ' + code, 'red'); return; }
-
-  const isno = (data.commune||'').includes('isno') || (data.ville||'').toUpperCase().includes('ISNEAUVILLE');
-  const totalActuel = data.total || 0;
-  const modePaiement = data.mode_paiement || '';
 
   // Toutes les activités disponibles — via getAllActs() + state.places pour les dispos
   const allActs = [];
