@@ -6895,19 +6895,11 @@ function doExport(regs, filename) {
 // ============================================================
 
 // Credentials stored as hashed tokens (SHA-256 of "user:pass")
-// Default: admin / FRI-Isneauville2025
-// To change: update ADMIN_CREDENTIALS below with new hash
-const ADMIN_CREDENTIALS = {
-  'admin':        hashSimple('admin:FRI-Isneauville2025'),
-  'secretariat':  hashSimple('secretariat:FRI2025!')
-};
 // Rôles : 'admin' = accès complet | 'secretariat' = dossiers uniquement
-const ADMIN_ROLES = {
-  'admin':       'admin',
-  'secretariat': 'secretariat'
-};
-function isSecretariat() { return adminSession && ADMIN_ROLES[adminSession] === 'secretariat'; }
-function isFullAdmin()   { return adminSession && ADMIN_ROLES[adminSession] === 'admin'; }
+// Les identifiants sont stockés dans les propriétés du GAS (Script Properties)
+let adminRole = null; // 'admin' | 'secretariat' — rempli après connexion GAS
+function isSecretariat() { return adminSession && adminRole === 'secretariat'; }
+function isFullAdmin()   { return adminSession && adminRole === 'admin'; }
 
 function hashSimple(str) {
   // Simple deterministic hash for client-side (not cryptographic, but obfuscated)
@@ -6941,45 +6933,84 @@ function toggleAdminPassVis() {
   else { inp.type = 'password'; eye.textContent = '👁'; }
 }
 
-function doAdminLogin() {
+async function doAdminLogin() {
   const user = document.getElementById('admin-login-user').value.trim().toLowerCase();
   const pass = document.getElementById('admin-login-pass').value;
-  const expected = ADMIN_CREDENTIALS[user];
-  const actual = hashSimple(user + ':' + pass);
+  const btnLogin = document.querySelector('#admin-modal button[type="submit"], #admin-modal button:not([type])');
+  if (btnLogin) { btnLogin.disabled = true; btnLogin.textContent = '⏳ Connexion…'; }
 
-  if (expected && actual === expected) {
-    adminSession = user;
-    hideAdminLogin();
-    document.getElementById('admin-panel').style.display = 'block';
-    const roleLabel = ADMIN_ROLES[user] === 'secretariat' ? '📋 Secrétariat' : '🔑 Admin';
-    document.getElementById('admin-logged-as').textContent = roleLabel + ' : ' + user;
-    // Changer la couleur du bandeau de connexion selon le rôle
-    const loggedEl = document.getElementById('admin-logged-as');
-    if (loggedEl && isSecretariat()) {
-      loggedEl.style.background = 'rgba(21,101,192,0.8)';
-      loggedEl.style.borderColor = 'rgba(21,101,192,0.5)';
-    }
-    // Appliquer les restrictions de rôle
-    appliquerRestrictionsProfil();
-    try { if (isFullAdmin()) showAdminConfigBanner(); } catch(e) {}
-    try { renderAdmin(); } catch(e) { console.error('renderAdmin:', e); }
-    try { renderAdminStats(); } catch(e) {}
-    try { if (isFullAdmin()) renderSemainierSalle(); } catch(e) {}
-    document.getElementById('admin-panel').scrollIntoView({ behavior: 'smooth' });
-    try { chargerDossiersDepuisSheet(); } catch(e) {}
-  } else {
-    document.getElementById('admin-login-error').style.display = 'block';
-    document.getElementById('admin-login-pass').value = '';
-    document.getElementById('admin-login-pass').focus();
-    // Brief shake animation
-    const modal = document.querySelector('#admin-modal > div');
-    modal.style.animation = 'shake 0.4s ease';
-    setTimeout(() => modal.style.animation = '', 400);
+  const url = getAppsScriptUrl();
+  if (!url || url === 'VOTRE_URL_APPS_SCRIPT_ICI') {
+    // Fallback local si GAS non configuré
+    _doAdminLoginLocal(user, pass);
+    if (btnLogin) { btnLogin.disabled = false; btnLogin.textContent = 'Se connecter'; }
+    return;
   }
+
+  try {
+    const result = await callAppsScriptFetch(url, { action: 'adminLogin', user, pass });
+    if (btnLogin) { btnLogin.disabled = false; btnLogin.textContent = 'Se connecter'; }
+    if (result && result.status === 'ok') {
+      adminSession = result.user || user;
+      adminRole    = result.role || 'admin';
+      _afterAdminLogin();
+    } else {
+      _showAdminLoginError();
+    }
+  } catch(e) {
+    console.warn('[FRI] adminLogin GAS KO, fallback local:', e);
+    if (btnLogin) { btnLogin.disabled = false; btnLogin.textContent = 'Se connecter'; }
+    _doAdminLoginLocal(user, pass);
+  }
+}
+
+function _doAdminLoginLocal(user, pass) {
+  // Fallback : hash local (utilisé si GAS inaccessible)
+  const LOCAL_CREDS = {
+    'admin':       hashSimple('admin:FRI-Isneauville2025'),
+    'secretariat': hashSimple('secretariat:FRI2025!')
+  };
+  const LOCAL_ROLES = { 'admin': 'admin', 'secretariat': 'secretariat' };
+  const actual = hashSimple(user + ':' + pass);
+  if (LOCAL_CREDS[user] && actual === LOCAL_CREDS[user]) {
+    adminSession = user;
+    adminRole    = LOCAL_ROLES[user] || 'admin';
+    _afterAdminLogin();
+  } else {
+    _showAdminLoginError();
+  }
+}
+
+function _afterAdminLogin() {
+  hideAdminLogin();
+  document.getElementById('admin-panel').style.display = 'block';
+  const roleLabel = adminRole === 'secretariat' ? '📋 Secrétariat' : '🔑 Admin';
+  document.getElementById('admin-logged-as').textContent = roleLabel + ' : ' + adminSession;
+  const loggedEl = document.getElementById('admin-logged-as');
+  if (loggedEl && isSecretariat()) {
+    loggedEl.style.background = 'rgba(21,101,192,0.8)';
+    loggedEl.style.borderColor = 'rgba(21,101,192,0.5)';
+  }
+  appliquerRestrictionsProfil();
+  try { if (isFullAdmin()) showAdminConfigBanner(); } catch(e) {}
+  try { renderAdmin(); } catch(e) { console.error('renderAdmin:', e); }
+  try { renderAdminStats(); } catch(e) {}
+  try { if (isFullAdmin()) renderSemainierSalle(); } catch(e) {}
+  document.getElementById('admin-panel').scrollIntoView({ behavior: 'smooth' });
+  try { chargerDossiersDepuisSheet(); } catch(e) {}
+}
+
+function _showAdminLoginError() {
+  document.getElementById('admin-login-error').style.display = 'block';
+  document.getElementById('admin-login-pass').value = '';
+  document.getElementById('admin-login-pass').focus();
+  const modal = document.querySelector('#admin-modal > div');
+  if (modal) { modal.style.animation = 'shake 0.4s ease'; setTimeout(() => modal.style.animation = '', 400); }
 }
 
 function adminLogout() {
   adminSession = null;
+  adminRole    = null;
   document.getElementById('admin-panel').style.display = 'none';
 }
 
