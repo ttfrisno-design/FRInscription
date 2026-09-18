@@ -5865,6 +5865,36 @@ function callAppsScriptJsonp(url, payload) {
       document.head.appendChild(s);
     });
   }
+  // getDossierDetail : JSONP GET — code passé directement en query string
+  if (payload.action === 'getDossierDetail') {
+    return new Promise(function(resolve) {
+      var cbName = '_friDD_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+      var params = new URLSearchParams({
+        action:   'getDossierDetail',
+        code:     payload.code || '',
+        _token:   payload._token || FRI_SECRET_TOKEN || '',
+        callback: cbName,
+        _t:       Date.now()
+      });
+      window[cbName] = function(data) {
+        clearTimeout(timer);
+        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e){}
+        delete window[cbName];
+        resolve({ ok: true, data: data });
+      };
+      var timer = setTimeout(function() {
+        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e){}
+        delete window[cbName];
+        resolve({ ok: false, data: { status: 'error', message: 'Timeout getDossierDetail' } });
+      }, 12000);
+      var s = document.createElement('script');
+      s.src = url + '?' + params.toString();
+      s.onerror = function() {
+        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e){}
+      };
+      document.head.appendChild(s);
+    });
+  }
   // adminLogin : JSONP avec payload JSON dans le paramètre 'payload'
   if (payload.action === 'adminLogin') {
     return new Promise(function(resolve) {
