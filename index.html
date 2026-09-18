@@ -2338,8 +2338,15 @@ async function loadPlacesFromSheet() {
       const cap = row.c[2] ? Number(row.c[2].v||0) : 30;
       const ins = row.c[3] ? Number(row.c[3].v||0) : 0;
       const dis = row.c[4] ? Number(row.c[4].v||0) : cap - ins;
-      state.places[id] = { capacity: cap, registered: ins, available: dis };
+      const d = { capacity: cap, registered: ins, available: dis };
+      state.places[id] = d;
       places[id] = { capacite: cap, inscrits: ins, restantes: dis };
+      // Mapper aussi vers les actId frontend via siteToPlacesId (sens inverse)
+      getAllActs().forEach(function(act) {
+        if ((typeof siteToPlacesId === 'function' ? siteToPlacesId(act.id) : act.id) === id) {
+          state.places[act.id] = d;
+        }
+      });
     });
     if (Object.keys(places).length > 0) {
       try {
