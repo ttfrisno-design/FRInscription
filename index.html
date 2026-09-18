@@ -7836,8 +7836,16 @@ async function ouvrirModifierActivite(code) {
   const data = result && result.data ? result.data : result;
   if (!data || data.status === 'error') { showAdminToast('⚠️ ' + (data && data.message || 'Erreur'), 'red'); return; }
 
-  const lignes = (data.lignes || []).filter(r => !(r.statut||'').toLowerCase().includes('supprim'));
-  if (!lignes.length) { showAdminToast('Aucune activité trouvée pour ' + code, 'red'); return; }
+  const lignesRaw = data.lignes || [];
+  const lignes = lignesRaw.filter(r => !(r.statut||'').toLowerCase().includes('supprim'));
+  console.log('[ModAct] getDossierDetail data:', JSON.stringify(data).slice(0,500));
+  console.log('[ModAct] lignesRaw:', lignesRaw.length, 'lignes après filtre:', lignes.length);
+  if (!lignes.length) {
+    const detail = lignesRaw.length
+      ? ' (statuts: ' + lignesRaw.map(r=>r.statut||'?').join(', ') + ')'
+      : ' (aucune ligne retournée par le GAS)';
+    showAdminToast('Aucune activité trouvée pour ' + code + detail, 'red'); return;
+  }
 
   const isno = (data.commune||'').includes('isno') || (data.ville||'').toUpperCase().includes('ISNEAUVILLE');
   const totalActuel = data.total || 0;
