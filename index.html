@@ -5865,14 +5865,12 @@ function callAppsScriptJsonp(url, payload) {
       document.head.appendChild(s);
     });
   }
-  // getDossierDetail : JSONP GET — code passé directement en query string
+  // getDossierDetail : JSONP avec payload JSON (même pattern qu'adminLogin)
   if (payload.action === 'getDossierDetail') {
     return new Promise(function(resolve) {
       var cbName = '_friDD_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
       var params = new URLSearchParams({
-        action:   'getDossierDetail',
-        code:     payload.code || '',
-        _token:   payload._token || FRI_SECRET_TOKEN || '',
+        payload:  JSON.stringify(payload),
         callback: cbName,
         _t:       Date.now()
       });
