@@ -1872,11 +1872,11 @@ function onAvoirCodeChange() {
     recalcSolde(); return;
   }
   if (code.length < 6) {
-    if (fb) { fb.style.display = 'block'; fb.style.background = '#f5f5f5'; fb.style.color = '#888'; fb.textContent = '⌛ Saisissez les 6 caractÃ¨res du code avoir…'; }
+    if (fb) { fb.style.display = 'block'; fb.style.background = '#f5f5f5'; fb.style.color = '#888'; fb.textContent = '⌛ Saisissez les 6 caractères du code avoir…'; }
     if (field) field.style.display = 'none';
     recalcSolde(); return;
   }
-  if (fb) { fb.style.display = 'block'; fb.style.background = '#e8f4fd'; fb.style.color = '#1565c0'; fb.textContent = 'ð VÃ©rification du code…'; }
+  if (fb) { fb.style.display = 'block'; fb.style.background = '#e8f4fd'; fb.style.color = '#1565c0'; fb.textContent = '🔍 Vérification du code…'; }
   _avoirVerifTimer = setTimeout(async function() {
     const url = getAppsScriptUrl();
     if (!url || url === 'VOTRE_URL_APPS_SCRIPT_ICI') return;
@@ -1911,7 +1911,7 @@ function onAvoirMontantChange() {
   const dispo   = parseFloat(_avoirVerifResult.montantDisponible || 0);
   const fb = document.getElementById('avoir-feedback');
   if (montant > dispo + 0.005) {
-    if (fb) { fb.style.background = '#ffeeed'; fb.style.color = '#c0392b'; fb.innerHTML = '❌ Montant (' + montant.toFixed(2) + ' €) supÃ©rieur au solde disponible (' + dispo.toFixed(2) + ' €).'; }
+    if (fb) { fb.style.background = '#ffeeed'; fb.style.color = '#c0392b'; fb.innerHTML = '❌ Montant (' + montant.toFixed(2) + ' €) supérieur au solde disponible (' + dispo.toFixed(2) + ' €).'; }
   } else {
     if (fb) { fb.style.background = '#d8f3dc'; fb.style.color = '#2d6a4f'; fb.innerHTML = '✅ Avoir valide — Solde disponible : <strong>' + dispo.toFixed(2) + ' €</strong>'; }
   }
@@ -1919,7 +1919,7 @@ function onAvoirMontantChange() {
 }
 
 function toggleAvoirMontant() {
-  // CompatibilitÃ© ascendante
+  // Compatibilité ascendante
 }
 
 // ── Recalculer le solde après déductions ──
@@ -6936,6 +6936,13 @@ function renderTresorier(d) {
 function closeTresorier() {
   document.getElementById('tresorier-console').style.display = 'none';
   document.querySelector('.main').style.display = 'block';
+  // Si un admin était connecté avant l'ouverture de la console trésorier,
+  // son panneau était masqué par showTresorierLogin() — il faut le restaurer,
+  // sinon il reste caché jusqu'à une nouvelle connexion admin.
+  if (adminSession) {
+    const adminCons = document.getElementById('admin-panel');
+    if (adminCons) adminCons.style.display = 'block';
+  }
 }
 
 function _fermerModalPieces(){var m=document.getElementById('modal-pieces');if(m)m.remove();}
