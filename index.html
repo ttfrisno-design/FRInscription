@@ -6620,23 +6620,37 @@ async function chargerStatsTresorier() {
     lireOnglet('Remboursements', 8)
   ]);
 
+  // Alias d'ID activité connus (mêmes créneaux réels enregistrés sous des ID différents
+  // selon l'onglet/l'ancienneté de la donnée) → on les fusionne sous un seul ID canonique.
+  // Ex : PINGME1830 et PINGL1745ME1830 désignent le même créneau double
+  // "Tennis de table Jeunes Confirmés" (Lu 17h45 + Me 18h30).
+  const ACT_ID_ALIASES = {
+    'PINGME1830': 'PINGL1745ME1830'
+  };
+  function canonActId(id) {
+    const t = String(id||'').trim();
+    return ACT_ID_ALIASES[t] || t;
+  }
+
   // Index Places : A(0)=ID, B(1)=Nom, C(2)=Cap, D(3)=Inscrits, E(4)=Restantes, J(9)=ID act, P(15)=Coût animateur
   const placesInscrits = {};
   const placesAnimateur = {}; // indexed by placesId
   const placesSheetNames = {}; // placesId → nom onglet activité
   rowsPlaces.forEach(function(row) {
-    const id    = cellStr(row, 0).trim();
-    const idAct = cellStr(row, 9).trim();  // col J = ID activité
+    const id    = canonActId(cellStr(row, 0).trim());
+    const idAct = canonActId(cellStr(row, 9).trim());  // col J = ID activité
     const cout  = cellNum(row, 15);        // col P = coût animateur
     const ins   = cellNum(row, 3);         // col D = inscrits
     const key   = idAct || id;
     if (key) {
-      placesInscrits[key]  = ins;
-      placesAnimateur[key] = cout;
+      // Cumul (et non écrasement) : si un alias fusionne 2 lignes Places distinctes
+      // sur le même ID canonique, on additionne leurs effectifs/coûts.
+      placesInscrits[key]  = (placesInscrits[key]||0) + ins;
+      placesAnimateur[key] = (placesAnimateur[key]||0) + cout;
       placesSheetNames[key] = key; // nom onglet = ID activité Sheet
       if (id && id !== key) {
-        placesInscrits[id]  = ins;
-        placesAnimateur[id] = cout;
+        placesInscrits[id]  = placesInscrits[key];
+        placesAnimateur[id] = placesAnimateur[key];
         placesSheetNames[id] = key;
       }
     }
@@ -6695,7 +6709,7 @@ async function chargerStatsTresorier() {
     const memKey = code + '_' + cellStr(row,2) + cellStr(row,3);
     codesAdherents[memKey] = true;
     const actNom = cellStr(row, 22).trim();
-    const actId  = cellStr(row, 37).trim() || cellStr(row, 35).trim() || actNom;
+    const actId  = canonActId(cellStr(row, 37).trim() || cellStr(row, 35).trim() || actNom);
     const tarif  = cellNum(row, 27); // col AB index 27
     if (actNom) {
       if (!activitesCounts[actId]) activitesCounts[actId] = { nom: actNom, inscrits: 0, tarifTotal: 0 };
@@ -6723,13 +6737,13 @@ async function chargerStatsTresorier() {
         // Marquer le créneau lié comme déjà vu (ne pas l'afficher une 2e fois)
         if (actDef.linkedWith) seen[actDef.linkedWith] = true;
         // Chercher dans activitesCounts par id HTML ou par correspondance nom
-        const sheetId = siteToPlacesId(actDef.id) || actDef.id;
+        const sheetId = canonActId(siteToPlacesId(actDef.id) || actDef.id);
         const a = activitesCounts[sheetId] || activitesCounts[actDef.id]
                || Object.values(activitesCounts).find(function(x){ return x.nom && actDef.name && x.nom.replace(/\n/g,' ').toLowerCase().indexOf(actDef.name.split('\n')[0].toLowerCase()) >= 0; });
         if (!a || a.inscrits === 0) return;
         // Lire le nombre d'inscrits depuis l'onglet Places col D
         // Pour les créneaux liés : prendre l'ID du premier créneau seulement
-        const placesId = siteToPlacesId(actDef.id) || actDef.id;
+        const placesId = canonActId(siteToPlacesId(actDef.id) || actDef.id);
         // Pour un créneau lié (double, ex: tt-debu-2 Lu+Me → PINGL1745ME1830),
         // buildRows() n'émet qu'UNE seule ligne Inscriptions par membre (prix déjà
         // combiné, non doublé) — donc a.inscrits et a.tarifTotal sont déjà les
