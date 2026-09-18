@@ -7780,6 +7780,20 @@ async function basculerListeAttente(code, actId, actNom, prenomMembre, nomMembre
           actNom, actId, tarif: parseFloat(tarifBrut) || 0, status: 'pending_manual', _isBascule: true });
         localStorage.setItem('fri_bascules_pending', JSON.stringify(bascules2));
       }
+      // Mettre à jour immédiatement _rows en mémoire pour éviter que le bouton
+      // "Inscrire" réapparaisse avant le rechargement du Sheet
+      const regsLocal = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
+      const regLocal  = regsLocal.find(r => r.code === code);
+      if (regLocal && regLocal._rows) {
+        regLocal._rows.forEach(function(row) {
+          if ((row.activite_id === actId || row.activite === actNom)
+              && (row.statut_inscription || '').toLowerCase().includes('attente')) {
+            row.statut_inscription = 'Inscrit';
+          }
+        });
+        localStorage.setItem('fri_registrations', JSON.stringify(regsLocal));
+        state.registrations = regsLocal;
+      }
       // Invalider le cache des places pour forcer le rechargement
       state.placesLoaded = false;
       await loadPlaces(true);
