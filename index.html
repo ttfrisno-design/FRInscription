@@ -6602,7 +6602,8 @@ async function chargerStatsTresorier() {
 
   // Lire tous les onglets en parallèle
   const [rowsInsc, rowsCheq1, rowsCheq2, rowsCheq3, rowsEsp, rowsHA,
-         rowsANCV, rowsAtout, rowsPassJ, rowsPassS, rowsPlaces, rowsAvoirs] = await Promise.all([
+         rowsANCV, rowsAtout, rowsPassJ, rowsPassS, rowsPlaces, rowsAvoirs,
+         rowsAvoirsGeneres, rowsRemboursements] = await Promise.all([
     lireOnglet('Inscriptions', 41),
     lireOnglet('Cheques 1', 7),
     lireOnglet('Cheques 2', 7),
@@ -6614,7 +6615,9 @@ async function chargerStatsTresorier() {
     lireOnglet('Aides Pass Jeunes', 9),
     lireOnglet('Aides Pass Sport', 9),
     lireOnglet('Places', 16),
-    lireOnglet('Avoirs utilisés', 6)
+    lireOnglet('Avoirs utilisés', 6),
+    lireOnglet('Avoirs générés', 9),
+    lireOnglet('Remboursements', 8)
   ]);
 
   // Index Places : A(0)=ID, B(1)=Nom, C(2)=Cap, D(3)=Inscrits, E(4)=Restantes, J(9)=ID act, P(15)=Coût animateur
@@ -6773,6 +6776,10 @@ async function chargerStatsTresorier() {
   }
   // Avoirs utilisés : col E (index 4) = montant utilisé
   const avoirsUtilises = rowsAvoirs.slice(1).reduce(function(s,r){ var v=cellNum(r,4); return s+(v>0&&v<1e10?v:0); },0);
+  // Avoirs générés (onglet "Avoirs générés") : col E (index 4) = montant avoir
+  const avoirsGeneres = sommeCol(rowsAvoirsGeneres, 4);
+  // Remboursements (onglet "Remboursements") : col E (index 4) = montant remboursement
+  const remboursements = sommeCol(rowsRemboursements, 4);
 
   const recettes = {
     ha1x:    sommeColSkip3(rowsHA,    4), // col E index 4
@@ -6784,12 +6791,15 @@ async function chargerStatsTresorier() {
     atout:   sommeColSkip3(rowsAtout, 4),
     passJ:   sommeColSkip3(rowsPassJ, 4),
     passS:   sommeColSkip3(rowsPassS, 4),
-    avoirs:  avoirsUtilises
+    avoirs:  avoirsUtilises,
+    avoirsGeneres,
+    remboursements
   };
   recettes.totalCheques = recettes.cheq1 + recettes.cheq2 + recettes.cheq3;
   recettes.totalAides   = recettes.ancv + recettes.atout + recettes.passJ + recettes.passS;
   recettes.total = recettes.ha1x + recettes.totalCheques + recettes.especes + recettes.totalAides;
   // Avoirs : recette non perçue en cash mais déduite de la cotisation
+  // Avoirs générés / Remboursements : sorties d'argent (ou de créance), non incluses dans le total recettes
 
   renderTresorier({
     nbDossiers:  Object.keys(codesDossiers).length,
@@ -6893,6 +6903,17 @@ function renderTresorier(d) {
     + '<tr style="border-top:2px solid #1a237e;background:#e8eaf6;">'
     + '<td style="padding:10px 14px;font-weight:800;font-size:14px;">TOTAL RECETTES</td>'
     + '<td style="padding:10px 14px;text-align:right;font-weight:800;font-size:16px;color:#1a237e;">'+eur(r.total)+'</td>'
+    + '</tr>'
+    // ── Avoirs générés / Remboursements — sous les moyens de paiement, hors TOTAL RECETTES
+    // (ce sont des sorties/créances, pas des encaissements) ──
+    + '<tr style="border-top:2px solid #ccc;"><td colspan="2" style="padding:6px 14px 0;font-size:10px;color:#999;text-transform:uppercase;letter-spacing:0.5px;">Avoirs &amp; remboursements (hors total recettes)</td></tr>'
+    + '<tr style="border-bottom:1px solid #f0f0f0;">'
+    + '<td style="padding:9px 14px;font-size:13px;">🎁 Avoirs générés</td>'
+    + '<td style="padding:9px 14px;text-align:right;font-size:13px;font-weight:600;color:#e65100;">'+eur(r.avoirsGeneres)+'</td>'
+    + '</tr>'
+    + '<tr style="border-bottom:1px solid #f0f0f0;">'
+    + '<td style="padding:9px 14px;font-size:13px;">💶 Remboursements</td>'
+    + '<td style="padding:9px 14px;text-align:right;font-size:13px;font-weight:600;color:#6a1b9a;">'+eur(r.remboursements)+'</td>'
     + '</tr>'
     + '</table></div>'
 
@@ -8382,7 +8403,7 @@ function ouvrirCreerAvoir(code) {
     <div style="background:#1a2e22;border-radius:14px;width:min(480px,100%);padding:24px;box-shadow:0 8px 40px rgba(0,0,0,0.6);border:1px solid rgba(45,106,79,0.4)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
         <div>
-          <div style="font-size:16px;font-weight:700;color:white">💳 Créer un avoir</div>
+          <div id="avoir-modale-titre" style="font-size:16px;font-weight:700;color:white">💳 Créer un avoir</div>
           <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">Dossier ${code} — ${prenom} ${nom}</div>
         </div>
         <button onclick="document.getElementById('modale-avoir').remove()"
@@ -8390,7 +8411,28 @@ function ouvrirCreerAvoir(code) {
       </div>
       <div style="display:flex;flex-direction:column;gap:12px">
         <div>
-          <label style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Motif de l'avoir</label>
+          <label style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px">Type</label>
+          <div style="display:flex;gap:8px">
+            <label style="flex:1;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.07);border:1.5px solid #52b788;border-radius:7px;padding:9px 12px;cursor:pointer;font-size:13px;color:white">
+              <input type="radio" name="avoir-type" id="avoir-type-avoir" value="avoir" checked onchange="onAvoirTypeChangeAdmin()" style="accent-color:#52b788">
+              🎁 Avoir
+            </label>
+            <label style="flex:1;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.07);border:1.5px solid rgba(106,27,154,0.5);border-radius:7px;padding:9px 12px;cursor:pointer;font-size:13px;color:white">
+              <input type="radio" name="avoir-type" id="avoir-type-remb" value="remboursement" onchange="onAvoirTypeChangeAdmin()" style="accent-color:#8e24aa">
+              💶 Remboursement
+            </label>
+          </div>
+        </div>
+        <div id="avoir-mode-remb-wrap" style="display:none">
+          <label style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Mode de remboursement</label>
+          <select id="avoir-mode-remb" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(45,106,79,0.4);border-radius:7px;padding:9px 12px;color:white;font-size:13px;outline:none">
+            <option value="cheque">Chèque</option>
+            <option value="virement">Virement</option>
+            <option value="helloasso">HelloAsso</option>
+          </select>
+        </div>
+        <div>
+          <label id="avoir-motif-label" style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Motif de l'avoir</label>
           <input id="avoir-motif" type="text" value="Remboursement / Avoir" placeholder="Ex : Annulation activité, remboursement partiel…"
             style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(45,106,79,0.4);border-radius:7px;padding:9px 12px;color:white;font-size:13px;outline:none">
         </div>
@@ -8403,7 +8445,7 @@ function ouvrirCreerAvoir(code) {
           <label style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Email adhérent</label>
           <input id="avoir-email-admin" type="email" value="${email}" placeholder="email@exemple.com"
             style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(45,106,79,0.4);border-radius:7px;padding:9px 12px;color:white;font-size:13px;outline:none">
-          <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:3px">Un email avec le code avoir sera envoyé automatiquement.</div>
+          <div id="avoir-email-hint" style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:3px">Un email avec le code avoir sera envoyé automatiquement.</div>
         </div>
         <div id="avoir-admin-feedback" style="display:none;padding:10px 12px;border-radius:8px;font-size:13px;line-height:1.5"></div>
         <div style="display:flex;gap:8px;margin-top:4px">
@@ -8419,18 +8461,43 @@ function ouvrirCreerAvoir(code) {
   document.getElementById('avoir-montant-admin').focus();
 }
 
+// Bascule l'affichage de la modale Avoir/Remboursement selon le type choisi
+function onAvoirTypeChangeAdmin() {
+  const isRemb = document.getElementById('avoir-type-remb')?.checked;
+  const titre  = document.getElementById('avoir-modale-titre');
+  const wrap   = document.getElementById('avoir-mode-remb-wrap');
+  const motifLabel = document.getElementById('avoir-motif-label');
+  const motifInput = document.getElementById('avoir-motif');
+  const emailHint = document.getElementById('avoir-email-hint');
+  const btn = document.getElementById('btn-creer-avoir');
+  if (titre) titre.textContent = isRemb ? '💶 Créer un remboursement' : '🎁 Créer un avoir';
+  if (wrap) wrap.style.display = isRemb ? 'block' : 'none';
+  if (motifLabel) motifLabel.textContent = isRemb ? 'Motif du remboursement' : "Motif de l'avoir";
+  if (emailHint) emailHint.textContent = isRemb
+    ? 'Un email de confirmation du remboursement sera envoyé automatiquement.'
+    : 'Un email avec le code avoir sera envoyé automatiquement.';
+  if (motifInput && (motifInput.value === 'Remboursement / Avoir' || motifInput.value === '')) {
+    motifInput.value = isRemb ? 'Remboursement' : 'Remboursement / Avoir';
+  }
+  if (btn) btn.innerHTML = isRemb ? '💶 Créer le remboursement &amp; envoyer l\'email' : '💳 Créer l\'avoir &amp; envoyer l\'email';
+}
+
 async function confirmerCreerAvoir(code, nom, prenom, regId) {
+  const isRemb  = document.getElementById('avoir-type-remb')?.checked;
+  const type    = isRemb ? 'remboursement' : 'avoir';
+  const modeRemboursement = document.getElementById('avoir-mode-remb')?.value || 'cheque';
   const motif   = (document.getElementById('avoir-motif')?.value || '').trim();
   const montant = parseFloat(document.getElementById('avoir-montant-admin')?.value || 0);
   const email   = (document.getElementById('avoir-email-admin')?.value || '').trim();
   const fb      = document.getElementById('avoir-admin-feedback');
+  const labelBtn = isRemb ? '💶 Créer le remboursement & envoyer l\'email' : '💳 Créer l\'avoir & envoyer l\'email';
 
   if (!motif)   { if(fb){fb.style.display='block';fb.style.background='rgba(230,81,0,0.15)';fb.style.color='#ff8a65';fb.textContent='❌ Veuillez saisir un motif.';} return; }
   if (montant <= 0) { if(fb){fb.style.display='block';fb.style.background='rgba(230,81,0,0.15)';fb.style.color='#ff8a65';fb.textContent='❌ Montant invalide.';} return; }
   if (!email || email.indexOf('@') < 0) { if(fb){fb.style.display='block';fb.style.background='rgba(230,81,0,0.15)';fb.style.color='#ff8a65';fb.textContent='❌ Email invalide.';} return; }
 
   const btn = document.getElementById('btn-creer-avoir');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Création en cours…'; }
+  if (btn) { btn.disabled = true; btn.textContent = isRemb ? '⏳ Enregistrement en cours…' : '⏳ Création en cours…'; }
   if (fb) { fb.style.display='block'; fb.style.background='rgba(45,106,79,0.15)'; fb.style.color='#52b788'; fb.textContent='⏳ Envoi en cours…'; }
 
   try {
@@ -8438,6 +8505,8 @@ async function confirmerCreerAvoir(code, nom, prenom, regId) {
     const res = await callAppsScriptFetch(url, {
       action: 'creerAvoirManuel',
       _token: FRI_SECRET_TOKEN,
+      type: type,
+      modeRemboursement: modeRemboursement,
       code: code,
       motif: motif,
       montant: montant,
@@ -8450,20 +8519,26 @@ async function confirmerCreerAvoir(code, nom, prenom, regId) {
       if (fb) {
         fb.style.background='rgba(45,106,79,0.25)';
         fb.style.color='#52b788';
-        fb.innerHTML = `✅ Avoir créé avec succès !<br>
-          <span style="font-family:monospace;font-size:18px;font-weight:900;letter-spacing:4px;color:white">${d.codeAvoir}</span>
-          <span style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-top:4px">Email envoyé à ${email}</span>`;
+        fb.innerHTML = isRemb
+          ? `✅ Remboursement enregistré avec succès !<br>
+             <span style="font-size:13px;color:white">Mode : <strong>${d.mode || modeRemboursement}</strong></span>
+             <span style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-top:4px">Email envoyé à ${email}</span>`
+          : `✅ Avoir créé avec succès !<br>
+             <span style="font-family:monospace;font-size:18px;font-weight:900;letter-spacing:4px;color:white">${d.codeAvoir}</span>
+             <span style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-top:4px">Email envoyé à ${email}</span>`;
       }
-      if (btn) { btn.style.background='#52b788'; btn.textContent='✅ Avoir créé'; btn.disabled=true; }
-      showAdminToast('✅ Avoir ' + d.codeAvoir + ' créé — ' + montant.toFixed(2) + ' €', 'green');
+      if (btn) { btn.style.background='#52b788'; btn.textContent = isRemb ? '✅ Remboursement enregistré' : '✅ Avoir créé'; btn.disabled=true; }
+      showAdminToast(isRemb
+        ? '✅ Remboursement (' + (d.mode||modeRemboursement) + ') enregistré — ' + montant.toFixed(2) + ' €'
+        : '✅ Avoir ' + d.codeAvoir + ' créé — ' + montant.toFixed(2) + ' €', 'green');
     } else {
       const msg = (d && d.message) || 'Erreur inconnue';
       if (fb) { fb.style.background='rgba(230,81,0,0.15)'; fb.style.color='#ff8a65'; fb.textContent='❌ ' + msg; }
-      if (btn) { btn.disabled=false; btn.textContent='💳 Créer l\'avoir & envoyer l\'email'; }
+      if (btn) { btn.disabled=false; btn.innerHTML=labelBtn; }
     }
   } catch(e) {
     if (fb) { fb.style.background='rgba(230,81,0,0.15)'; fb.style.color='#ff8a65'; fb.textContent='❌ Erreur réseau : ' + e.message; }
-    if (btn) { btn.disabled=false; btn.textContent='💳 Créer l\'avoir & envoyer l\'email'; }
+    if (btn) { btn.disabled=false; btn.innerHTML=labelBtn; }
   }
 }
 
