@@ -6520,7 +6520,7 @@ async function callAppsScriptFetch(url, payload) {
     s.src = fullUrl;
     // Actions attendant des données : ne pas résoudre sur onerror
     const DATA_ACTIONS = ['getPlacesRestantes','getDossiers','getLicenceFFTT',
-                          'rechercherLicencieFFTT','verifierCodeAvoir'];
+                          'rechercherLicencieFFTT','verifierCodeAvoir','adminLogin'];
     s.onerror = () => {
       if (done) return;
       if (DATA_ACTIONS.includes(action)) {
@@ -6950,12 +6950,17 @@ async function doAdminLogin() {
   try {
     const result = await callAppsScriptFetch(url, { action: 'adminLogin', user, pass });
     if (btnLogin) { btnLogin.disabled = false; btnLogin.textContent = 'Se connecter'; }
-    if (result && result.status === 'ok') {
-      adminSession = result.user || user;
-      adminRole    = result.role || 'admin';
+    const d = result && result.data;
+    if (d && d.status === 'ok') {
+      adminSession = d.user || user;
+      adminRole    = d.role || 'admin';
       _afterAdminLogin();
-    } else {
+    } else if (d && d.status === 'error') {
       _showAdminLoginError();
+    } else {
+      // Timeout JSONP ou réponse vide — fallback local
+      console.warn('[FRI] adminLogin: pas de réponse GAS, fallback local');
+      _doAdminLoginLocal(user, pass);
     }
   } catch(e) {
     console.warn('[FRI] adminLogin GAS KO, fallback local:', e);
@@ -7012,6 +7017,15 @@ function adminLogout() {
   adminSession = null;
   adminRole    = null;
   document.getElementById('admin-panel').style.display = 'none';
+}
+
+// Utilitaire console — purge les clés FRI du localStorage
+function purgerLocalStorage() {
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('fri_'));
+  keys.forEach(k => localStorage.removeItem(k));
+  console.log('[FRI] purgerLocalStorage — ' + keys.length + ' clé(s) supprimée(s) :', keys);
+  if (typeof renderAdmin === 'function') try { renderAdmin(); } catch(e) {}
+  return keys.length + ' clé(s) supprimée(s)';
 }
 
 // ============================================================
