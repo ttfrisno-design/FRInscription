@@ -1421,8 +1421,8 @@ const ACTIVITIES = {
         icon: "🏓", label: "Tennis de table",
         acts: [
           // — Adultes —
-          { id:"tt-comp-entrain",    name:"Tennis de table\nadultes compétiteurs", lieu:"CM", jour:"Lundi",    heure:"20h00/21h15", isno:150, hc:150, animateur:"Y. LAROCHELLE", linkedWith:"tt-comp-entrain-me", fftt:70, note:"2 séances : Lu 20h15-21h30 + Me 19h45-21h", color:"#c5cae9:#1a237e" },
-          { id:"tt-comp-entrain-me", name:"Tennis de table\nadultes compétiteurs", lieu:"CM", jour:"Mercredi", heure:"19h45/21h00", isno:150, hc:150, animateur:"Y. LAROCHELLE", linkedWith:"tt-comp-entrain",    fftt:70, note:"2 séances : Lu 20h15-21h30 + Me 19h45-21h", color:"#c5cae9:#1a237e" },
+          { id:"tt-comp-entrain",    name:"Tennis de table\nadultes compétiteurs", lieu:"CM", jour:"Lundi",    heure:"20h00/21h15", isno:145, hc:145, animateur:"Y. LAROCHELLE", linkedWith:"tt-comp-entrain-me", fftt:70, note:"2 séances : Lu 20h15-21h30 + Me 19h45-21h", color:"#c5cae9:#1a237e" },
+          { id:"tt-comp-entrain-me", name:"Tennis de table\nadultes compétiteurs", lieu:"CM", jour:"Mercredi", heure:"19h45/21h00", isno:145, hc:145, animateur:"Y. LAROCHELLE", linkedWith:"tt-comp-entrain",    fftt:70, note:"2 séances : Lu 20h15-21h30 + Me 19h45-21h", color:"#c5cae9:#1a237e" },
           { id:"tt-comp-sans",       name:"Tennis de table\nlibre", lieu:"CM", jour:"Mardi",    heure:"19h30/21h30", isno:120, hc:120, animateur:"C. MAURICE/X. TRUSSART", fftt:70, linkedWith:"tt-comp-sans-me", note:"2 séances : Ma 19h30-21h30 + Me 21h15-22h45", color:"#b3e5fc:#01579b" },
           { id:"tt-comp-sans-me",    name:"Tennis de table\nlibre", lieu:"CM", jour:"Mercredi", heure:"21h00/22h30", isno:120, hc:120, animateur:"C. MAURICE/X. TRUSSART", fftt:70, linkedWith:"tt-comp-sans",    note:"2 séances : Ma 19h30-21h30 + Me 21h15-22h45", color:"#b3e5fc:#01579b" },
           // — Jeunes —
@@ -1527,7 +1527,7 @@ const ACTIVITIES = {
       guitare: {
         icon: "🎸", label: "Guitare Chant",
         acts: [
-          { id:"guitare-a", name:"Atelier Guitare / Chant", lieu:"RPA", jour:"Jeudi", heure:"18h30/20h30", isno:200, hc:230, animateur:"R. GENTY", color:"#e8f5e9:#1b5e20" },
+          { id:"guitare-a", name:"Atelier Guitare / Chant", lieu:"RPA", jour:"Jeudi", heure:"18h30/20h30", isno:180, hc:215, animateur:"R. GENTY", color:"#e8f5e9:#1b5e20" },
         ]
       },
       gym: {
@@ -6730,17 +6730,14 @@ async function chargerStatsTresorier() {
         // Lire le nombre d'inscrits depuis l'onglet Places col D
         // Pour les créneaux liés : prendre l'ID du premier créneau seulement
         const placesId = siteToPlacesId(actDef.id) || actDef.id;
+        // Pour un créneau lié (double, ex: tt-debu-2 Lu+Me → PINGL1745ME1830),
+        // buildRows() n'émet qu'UNE seule ligne Inscriptions par membre (prix déjà
+        // combiné, non doublé) — donc a.inscrits et a.tarifTotal sont déjà les
+        // valeurs réelles pour la paire, sans division à appliquer.
         let inscrits = placesInscrits[placesId] !== undefined
           ? placesInscrits[placesId]
-          : (actDef.linkedWith ? Math.round(a.inscrits / 2) : a.inscrits);
-        // tarifTotal depuis activitesCounts
-        // Si l'activité a un créneau lié (ex: tt-debu-2 Lu+Me → PINGL1745ME1830),
-        // activitesCounts[sheetId] peut contenir les 2 créneaux fusionnés → tarifTotal doublé.
-        // Dans ce cas, sheetId !== actDef.id → on divise tarifTotal par 2.
+          : a.inscrits;
         let tarifTotal = a.tarifTotal;
-        if (actDef.linkedWith && sheetId !== actDef.id) {
-          tarifTotal = tarifTotal / 2;
-        }
         catInscrits += inscrits;
         catTotal    += tarifTotal;
         const coutAnim = placesAnimateur[placesId] || placesAnimateur[actDef.id] || 0;
