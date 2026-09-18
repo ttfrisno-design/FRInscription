@@ -7799,12 +7799,24 @@ async function basculerListeAttente(code, actId, actNom, prenomMembre, nomMembre
       const regsLocal = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
       const regLocal  = regsLocal.find(r => r.code === code);
       if (regLocal && regLocal._rows) {
+        const tarifNum = parseFloat(tarifBrut) || 0;
+        let basculeDone = false;
         regLocal._rows.forEach(function(row) {
           if ((row.activite_id === actId || row.activite === actNom)
               && (row.statut_inscription || '').toLowerCase().includes('attente')) {
             row.statut_inscription = 'Inscrit';
+            basculeDone = true;
           }
         });
+        // Mettre à jour le total affiché dans l'onglet paiement
+        if (basculeDone && tarifNum > 0) {
+          if (typeof regLocal._sheetTotal === 'number') {
+            regLocal._sheetTotal += tarifNum;
+          }
+          if (regLocal.totals && typeof regLocal.totals.grandTotal === 'number') {
+            regLocal.totals.grandTotal += tarifNum;
+          }
+        }
         localStorage.setItem('fri_registrations', JSON.stringify(regsLocal));
         state.registrations = regsLocal;
       }
@@ -8294,6 +8306,8 @@ function ouvrirDetailDossier(code, docId) {
         style="background:rgba(230,81,0,0.6);color:white;border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;">&#x2796; Suppr.</button>
       <button onclick="exportSingleExcel(${reg.id})"
         style="background:rgba(45,106,79,0.5);color:white;border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;">&#x1F4CA; Export</button>
+      <button onclick="ouvrirCreerAvoir('${code}')"
+        style="background:rgba(45,106,79,0.75);color:white;border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;font-weight:600;" title="Créer un avoir pour ce dossier">&#x1F4B3; Avoir</button>
       <button onclick="ouvrirCommentaireDossier('${code}')"
         style="background:rgba(100,100,100,0.6);color:white;border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;" title="Ajouter un commentaire">&#x1F4DD; Note</button>
       <button onclick="genererPDFInscriptionAdmin('${code}')"
@@ -8338,6 +8352,112 @@ function ouvrirDetailDossier(code, docId) {
 function fermerDetailDossier() {
   const panel = document.getElementById('admin-detail-panel');
   if (panel) panel.remove();
+}
+
+// ── Créer un avoir depuis la console admin ──────────────────────────────────
+function ouvrirCreerAvoir(code) {
+  const regs = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
+  const reg  = regs.find(r => r.code === code);
+  if (!reg) return;
+  const resp = reg.responsable || {};
+  const email = resp.email1 || '';
+  const nom   = resp.nom    || '';
+  const prenom= resp.prenom || '';
+
+  // Supprimer modale existante
+  const old = document.getElementById('modale-avoir');
+  if (old) old.remove();
+
+  const modale = document.createElement('div');
+  modale.id = 'modale-avoir';
+  modale.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1200;display:flex;align-items:center;justify-content:center;padding:16px';
+  modale.innerHTML = `
+    <div style="background:#1a2e22;border-radius:14px;width:min(480px,100%);padding:24px;box-shadow:0 8px 40px rgba(0,0,0,0.6);border:1px solid rgba(45,106,79,0.4)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:white">💳 Créer un avoir</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">Dossier ${code} — ${prenom} ${nom}</div>
+        </div>
+        <button onclick="document.getElementById('modale-avoir').remove()"
+          style="background:rgba(255,255,255,0.08);border:none;color:rgba(255,255,255,0.6);border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1">&times;</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Motif de l'avoir</label>
+          <input id="avoir-motif" type="text" value="Remboursement / Avoir" placeholder="Ex : Annulation activité, remboursement partiel…"
+            style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(45,106,79,0.4);border-radius:7px;padding:9px 12px;color:white;font-size:13px;outline:none">
+        </div>
+        <div>
+          <label style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Montant (€)</label>
+          <input id="avoir-montant-admin" type="number" min="1" step="0.01" placeholder="0.00"
+            style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(45,106,79,0.4);border-radius:7px;padding:9px 12px;color:white;font-size:18px;font-weight:700;outline:none">
+        </div>
+        <div>
+          <label style="font-size:11px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:4px">Email adhérent</label>
+          <input id="avoir-email-admin" type="email" value="${email}" placeholder="email@exemple.com"
+            style="width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(45,106,79,0.4);border-radius:7px;padding:9px 12px;color:white;font-size:13px;outline:none">
+          <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:3px">Un email avec le code avoir sera envoyé automatiquement.</div>
+        </div>
+        <div id="avoir-admin-feedback" style="display:none;padding:10px 12px;border-radius:8px;font-size:13px;line-height:1.5"></div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button onclick="document.getElementById('modale-avoir').remove()"
+            style="flex:1;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.5);border:none;border-radius:8px;padding:10px;font-size:13px;cursor:pointer">Annuler</button>
+          <button id="btn-creer-avoir" onclick="confirmerCreerAvoir('${code}','${nom.replace(/'/g,"\\'")}','${prenom.replace(/'/g,"\\'")}',${reg.id})"
+            style="flex:2;background:#2d6a4f;color:white;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">
+            💳 Créer l'avoir &amp; envoyer l'email</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modale);
+  document.getElementById('avoir-montant-admin').focus();
+}
+
+async function confirmerCreerAvoir(code, nom, prenom, regId) {
+  const motif   = (document.getElementById('avoir-motif')?.value || '').trim();
+  const montant = parseFloat(document.getElementById('avoir-montant-admin')?.value || 0);
+  const email   = (document.getElementById('avoir-email-admin')?.value || '').trim();
+  const fb      = document.getElementById('avoir-admin-feedback');
+
+  if (!motif)   { if(fb){fb.style.display='block';fb.style.background='rgba(230,81,0,0.15)';fb.style.color='#ff8a65';fb.textContent='❌ Veuillez saisir un motif.';} return; }
+  if (montant <= 0) { if(fb){fb.style.display='block';fb.style.background='rgba(230,81,0,0.15)';fb.style.color='#ff8a65';fb.textContent='❌ Montant invalide.';} return; }
+  if (!email || email.indexOf('@') < 0) { if(fb){fb.style.display='block';fb.style.background='rgba(230,81,0,0.15)';fb.style.color='#ff8a65';fb.textContent='❌ Email invalide.';} return; }
+
+  const btn = document.getElementById('btn-creer-avoir');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Création en cours…'; }
+  if (fb) { fb.style.display='block'; fb.style.background='rgba(45,106,79,0.15)'; fb.style.color='#52b788'; fb.textContent='⏳ Envoi en cours…'; }
+
+  try {
+    const url = getAppsScriptUrl();
+    const res = await callAppsScriptFetch(url, {
+      action: 'creerAvoirManuel',
+      _token: FRI_SECRET_TOKEN,
+      code: code,
+      motif: motif,
+      montant: montant,
+      email: email,
+      nom: nom,
+      prenom: prenom
+    });
+    const d = (res && res.data) ? res.data : res;
+    if (d && d.status === 'ok') {
+      if (fb) {
+        fb.style.background='rgba(45,106,79,0.25)';
+        fb.style.color='#52b788';
+        fb.innerHTML = `✅ Avoir créé avec succès !<br>
+          <span style="font-family:monospace;font-size:18px;font-weight:900;letter-spacing:4px;color:white">${d.codeAvoir}</span>
+          <span style="font-size:11px;color:rgba(255,255,255,0.5);display:block;margin-top:4px">Email envoyé à ${email}</span>`;
+      }
+      if (btn) { btn.style.background='#52b788'; btn.textContent='✅ Avoir créé'; btn.disabled=true; }
+      showAdminToast('✅ Avoir ' + d.codeAvoir + ' créé — ' + montant.toFixed(2) + ' €', 'green');
+    } else {
+      const msg = (d && d.message) || 'Erreur inconnue';
+      if (fb) { fb.style.background='rgba(230,81,0,0.15)'; fb.style.color='#ff8a65'; fb.textContent='❌ ' + msg; }
+      if (btn) { btn.disabled=false; btn.textContent='💳 Créer l\'avoir & envoyer l\'email'; }
+    }
+  } catch(e) {
+    if (fb) { fb.style.background='rgba(230,81,0,0.15)'; fb.style.color='#ff8a65'; fb.textContent='❌ Erreur réseau : ' + e.message; }
+    if (btn) { btn.disabled=false; btn.textContent='💳 Créer l\'avoir & envoyer l\'email'; }
+  }
 }
 
 // Enregistre un element de paiement : localStorage + Sheet
