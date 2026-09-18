@@ -5865,34 +5865,6 @@ function callAppsScriptJsonp(url, payload) {
       document.head.appendChild(s);
     });
   }
-  // getDossierDetail : JSONP avec payload JSON (même pattern qu'adminLogin)
-  if (payload.action === 'getDossierDetail') {
-    return new Promise(function(resolve) {
-      var cbName = '_friDD_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-      var params = new URLSearchParams({
-        payload:  JSON.stringify(payload),
-        callback: cbName,
-        _t:       Date.now()
-      });
-      window[cbName] = function(data) {
-        clearTimeout(timer);
-        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e){}
-        delete window[cbName];
-        resolve({ ok: true, data: data });
-      };
-      var timer = setTimeout(function() {
-        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e){}
-        delete window[cbName];
-        resolve({ ok: false, data: { status: 'error', message: 'Timeout getDossierDetail' } });
-      }, 12000);
-      var s = document.createElement('script');
-      s.src = url + '?' + params.toString();
-      s.onerror = function() {
-        try { if (s.parentNode) s.parentNode.removeChild(s); } catch(e){}
-      };
-      document.head.appendChild(s);
-    });
-  }
   // adminLogin : JSONP avec payload JSON dans le paramètre 'payload'
   if (payload.action === 'adminLogin') {
     return new Promise(function(resolve) {
@@ -6165,7 +6137,8 @@ async function callAppsScriptFetch(url, payload) {
       resolve({ ok: true });
     }, 30000);
     const s = document.createElement('script');
-    s.onerror = () => { if (!done) { done = true; clearTimeout(t); cleanup(); resolve({ ok: false, reason: 'script error' }); } };
+    // onerror = redirect 302 GAS (normal) — NE PAS résoudre ici, attendre le callback
+    s.onerror = () => { cleanup(); };
     s.src = url + '?' + params2.toString();
     document.head.appendChild(s);
   });
@@ -7828,9 +7801,7 @@ async function ouvrirModifierActivite(code) {
   if (!url) return;
 
   showAdminToast('⏳ Chargement du dossier...', 'blue');
-  // getDossierDetail via JSONP pur (fetch GAS échoue pour cette action)
-  await initDynamicToken();
-  const result = await callAppsScriptJsonp(url, { action: 'getDossierDetail', _token: FRI_SECRET_TOKEN, code });
+  const result = await callAppsScriptFetch(url, { action: 'getDossierDetail', code });
   const data = result && result.data ? result.data : result;
   if (!data || data.status === 'error') { showAdminToast('⚠️ ' + (data && data.message || 'Erreur'), 'red'); return; }
 
