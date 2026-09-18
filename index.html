@@ -2263,9 +2263,16 @@ async function loadPlaces(force = false) {
       try {
         const cachedPlaces = JSON.parse(cached);
         if (cachedPlaces && Object.keys(cachedPlaces).length > 0) {
-          Object.keys(cachedPlaces).forEach(function(actId) {
-            const p = cachedPlaces[actId];
-            state.places[actId] = { capacity: p.capacite||p.capacity||30, registered: p.inscrits||0, available: p.restantes!==undefined ? p.restantes : (p.capacite||30) };
+          Object.keys(cachedPlaces).forEach(function(cacheId) {
+            const p = cachedPlaces[cacheId];
+            const d = { capacity: p.capacite||p.capacity||30, registered: p.inscrits||0, available: p.restantes!==undefined ? p.restantes : (p.capacite||30) };
+            state.places[cacheId] = d;
+            // Mapping inverse : placesId Sheet → actId frontend
+            getAllActs().forEach(function(act) {
+              if ((typeof siteToPlacesId === 'function' ? siteToPlacesId(act.id) : act.id) === cacheId) {
+                state.places[act.id] = d;
+              }
+            });
           });
           console.log('[FRI] loadPlaces: ' + Object.keys(cachedPlaces).length + ' places depuis cache local');
           state.placesLoaded = true; state.placesLoadedAt = now;
