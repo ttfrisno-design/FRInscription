@@ -6137,8 +6137,11 @@ async function callAppsScriptFetch(url, payload) {
       resolve({ ok: true });
     }, 30000);
     const s = document.createElement('script');
-    // onerror = redirect 302 GAS (normal) — NE PAS résoudre ici, attendre le callback
-    s.onerror = () => { cleanup(); };
+    s.onerror = () => {
+      // onerror = redirect 302 GAS (normal pour les actions JSONP) — laisser le timer attendre le callback
+      // Ne résoudre que si le callback n'est pas déjà en route (on laisse le timer de 30s)
+      cleanup();
+    };
     s.src = url + '?' + params2.toString();
     document.head.appendChild(s);
   });
