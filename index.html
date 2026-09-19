@@ -10208,6 +10208,7 @@ async function confirmerAjoutActivite(code, actId, membreIdx, prixFinal, enListe
   };
 
   console.log('[FRI] Payload GAS:', JSON.stringify(payload).substring(0, 200));
+  console.log('[FRI] [DEBUG commentaire/montant] commentaireAdmin envoyé:', JSON.stringify(payload.commentaireAdmin), '| montantModifie envoyé:', payload.montantModifie);
 
   try {
     const gasResult = await callAppsScriptFetch(url, payload);
