@@ -6631,6 +6631,12 @@ async function chargerStatsTresorier() {
     const t = String(id||'').trim();
     return ACT_ID_ALIASES[t] || t;
   }
+  // Normalise un nom d'activité pour comparaison exacte (insensible aux \n vs "—",
+  // espaces multiples, casse) — utilisé pour fusionner des lignes Inscriptions
+  // enregistrées sous des ID différents mais désignant la même activité.
+  function normNomActivite(s) {
+    return String(s||'').replace(/[\n—]/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+  }
 
   // Index Places : A(0)=ID, B(1)=Nom, C(2)=Cap, D(3)=Inscrits, E(4)=Restantes, J(9)=ID act, P(15)=Coût animateur
   const placesInscrits = {};
@@ -6736,11 +6742,27 @@ async function chargerStatsTresorier() {
         seen[actDef.id] = true;
         // Marquer le créneau lié comme déjà vu (ne pas l'afficher une 2e fois)
         if (actDef.linkedWith) seen[actDef.linkedWith] = true;
-        // Chercher dans activitesCounts par id HTML ou par correspondance nom
+        // Chercher dans activitesCounts par id Sheet, par id HTML, ou par nom exact.
+        // Des inscriptions plus anciennes peuvent avoir été enregistrées sous un ID
+        // différent (ex: colonne activite_id vide → clé de secours = nom brut) : on
+        // FUSIONNE toutes les lignes correspondantes au lieu de ne garder que la
+        // première trouvée, pour ne pas perdre silencieusement des inscrits/recettes.
         const sheetId = canonActId(siteToPlacesId(actDef.id) || actDef.id);
-        const a = activitesCounts[sheetId] || activitesCounts[actDef.id]
-               || Object.values(activitesCounts).find(function(x){ return x.nom && actDef.name && x.nom.replace(/\n/g,' ').toLowerCase().indexOf(actDef.name.split('\n')[0].toLowerCase()) >= 0; });
-        if (!a || a.inscrits === 0) return;
+        const candidateIds = [sheetId, actDef.id];
+        const nomNorm = normNomActivite(actDef.name);
+        let aInscrits = 0, aTarifTotal = 0, aNom = null;
+        Object.keys(activitesCounts).forEach(function(k){
+          const bucket = activitesCounts[k];
+          const idMatch   = candidateIds.indexOf(k) >= 0;
+          const nameMatch = bucket.nom && normNomActivite(bucket.nom) === nomNorm;
+          if (idMatch || nameMatch) {
+            aInscrits   += bucket.inscrits;
+            aTarifTotal += bucket.tarifTotal;
+            if (!aNom) aNom = bucket.nom;
+          }
+        });
+        if (aInscrits === 0) return;
+        const a = { nom: aNom, inscrits: aInscrits, tarifTotal: aTarifTotal };
         // Lire le nombre d'inscrits depuis l'onglet Places col D
         // Pour les créneaux liés : prendre l'ID du premier créneau seulement
         const placesId = canonActId(siteToPlacesId(actDef.id) || actDef.id);
@@ -6748,9 +6770,13 @@ async function chargerStatsTresorier() {
         // buildRows() n'émet qu'UNE seule ligne Inscriptions par membre (prix déjà
         // combiné, non doublé) — donc a.inscrits et a.tarifTotal sont déjà les
         // valeurs réelles pour la paire, sans division à appliquer.
-        let inscrits = placesInscrits[placesId] !== undefined
-          ? placesInscrits[placesId]
-          : a.inscrits;
+        // L'onglet Places peut être désynchronisé pour ces créneaux doubles
+        // (ex: incrémenté historiquement sous un ID différent) : dans ce cas
+        // on fait confiance à l'effectif réel compté depuis Inscriptions,
+        // cohérent avec tarifTotal (qui vient de la même source).
+        let inscrits = actDef.linkedWith
+          ? a.inscrits
+          : (placesInscrits[placesId] !== undefined ? placesInscrits[placesId] : a.inscrits);
         let tarifTotal = a.tarifTotal;
         catInscrits += inscrits;
         catTotal    += tarifTotal;
