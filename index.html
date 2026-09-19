@@ -7821,16 +7821,50 @@ function formatDateAdmin(d) {
 async function basculerListeAttente(code, actId, actNom, prenomMembre, nomMembre, tarifBrut) {
   if (!requireAdmin()) return;
 
-  const confirm = window.confirm(
-    `Basculer "${actNom}" de ${prenomMembre} ${nomMembre}\n`
-    + `de la liste d'attente vers les inscrits ?\n\n`
-    + `Cela va :\n`
-    + `• Mettre à jour le Sheet (statut + tarif ${tarifBrut} €)\n`
-    + `• Déplacer la ligne de l'onglet LA vers les inscrits\n`
-    + `• Envoyer un email à l'adhérent et au FRI`
-  );
-  if (!confirm) return;
+  document.getElementById('modal-confirm-bascule')?.remove();
+  const mcb = document.createElement('div');
+  mcb.id = 'modal-confirm-bascule';
+  mcb.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:20px;';
+  mcb.innerHTML = `
+    <div style="background:white;border-radius:14px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.4);overflow:hidden;">
+      <div style="background:#1565c0;padding:16px 20px;">
+        <div style="color:white;font-weight:700;font-size:14px;">🔄 Confirmer la bascule</div>
+        <div style="color:rgba(255,255,255,0.8);font-size:12px;">Dossier ${code} — ${prenomMembre} ${nomMembre}</div>
+      </div>
+      <div style="padding:20px;">
+        <div style="font-weight:700;font-size:14px;color:#1a2e22;margin-bottom:10px;">${actNom}</div>
+        <div style="background:#e8f4fd;border:1px solid #2980b9;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#1a4d6e;">
+          Cela va mettre à jour le Sheet, déplacer la ligne de l'onglet LA vers les inscrits,
+          et envoyer un email à l'adhérent et au FRI.
+        </div>
+        <label style="font-size:11px;color:#666;display:block;margin-bottom:4px;">Tarif (€)</label>
+        <input id="bascule-tarif-confirm" type="number" step="0.01" value="${(parseFloat(tarifBrut)||0).toFixed(2)}"
+          style="width:100%;box-sizing:border-box;font-size:16px;font-weight:700;color:#1a2e22;border:1.5px solid #ccc;border-radius:8px;padding:8px 10px;margin-bottom:14px;">
+        <label style="font-size:11px;color:#666;display:block;margin-bottom:4px;">Commentaire admin (optionnel — visible par l'adhérent et tracé)</label>
+        <textarea id="bascule-commentaire-admin" rows="2" placeholder="Ex : place libérée suite à..."
+          style="width:100%;box-sizing:border-box;border:1.5px solid #ccc;border-radius:8px;padding:8px 10px;font-size:12px;font-family:inherit;resize:vertical;"></textarea>
+      </div>
+      <div style="padding:0 20px 20px;display:flex;gap:10px;">
+        <button onclick="document.getElementById('modal-confirm-bascule').remove()"
+          style="flex:1;padding:11px;border:1.5px solid #ccc;border-radius:10px;background:white;color:#666;font-size:13px;cursor:pointer;font-weight:600;">Annuler</button>
+        <button id="btn-confirmer-bascule"
+          style="flex:2;padding:11px;border:none;border-radius:10px;background:#1565c0;color:white;font-size:13px;cursor:pointer;font-weight:700;">✅ Confirmer la bascule</button>
+      </div>
+    </div>`;
+  document.body.appendChild(mcb);
+  mcb.addEventListener('click', e => { if (e.target === mcb) mcb.remove(); });
+  const tarifOriginal = parseFloat(tarifBrut) || 0;
+  document.getElementById('btn-confirmer-bascule').addEventListener('click', async () => {
+    const tarifSaisi = parseFloat(document.getElementById('bascule-tarif-confirm')?.value);
+    const tarifFinal = isNaN(tarifSaisi) ? tarifOriginal : tarifSaisi;
+    const commentaireAdmin = document.getElementById('bascule-commentaire-admin')?.value?.trim() || '';
+    const montantModifie = Math.abs(tarifFinal - tarifOriginal) > 0.001;
+    mcb.remove();
+    await executerBasculeListeAttente(code, actId, actNom, prenomMembre, nomMembre, tarifFinal, commentaireAdmin, montantModifie);
+  });
+}
 
+async function executerBasculeListeAttente(code, actId, actNom, prenomMembre, nomMembre, tarifBrut, commentaireAdmin, montantModifie) {
   showAdminToast('⏳ Bascule en cours...', 'orange');
 
   try {
@@ -7843,7 +7877,9 @@ async function basculerListeAttente(code, actId, actNom, prenomMembre, nomMembre
       actNom:       actNom,
       prenomMembre: prenomMembre,
       nomMembre:    nomMembre,
-      tarifBrut:    tarifBrut
+      tarifBrut:    tarifBrut,
+      commentaireAdmin: commentaireAdmin || '',
+      montantModifie:   montantModifie === true
     });
 
     const data = result && result.data ? result.data : (result || {});
@@ -7978,6 +8014,18 @@ async function ouvrirModifierActivite(code) {
 
       <div id="mod-act-diff" style="padding:12px;border-radius:8px;font-size:13px;margin-bottom:14px;display:none;"></div>
 
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px;font-weight:700;color:var(--dark);display:block;margin-bottom:6px;">Tarif de la nouvelle activité (€) :</label>
+        <input id="mod-act-tarif" type="number" step="0.01" style="width:100%;padding:8px;border:1.5px solid #c8e6c9;border-radius:8px;font-size:13px;box-sizing:border-box;">
+        <div style="font-size:10px;color:#999;margin-top:2px;">Modifiable si besoin — recalcule automatiquement la différence ci-dessus</div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px;font-weight:700;color:var(--dark);display:block;margin-bottom:6px;">Commentaire admin (optionnel — visible par l'adhérent et tracé) :</label>
+        <textarea id="mod-act-commentaire" rows="2" placeholder="Ex : changement suite à..."
+          style="width:100%;box-sizing:border-box;padding:8px;border:1.5px solid #c8e6c9;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>
+      </div>
+
       <div style="display:flex;gap:10px;justify-content:flex-end;">
         <button onclick="document.getElementById('modal-modifier-activite').remove()" class="btn btn-secondary">Annuler</button>
         <button onclick="confirmerModifierActivite('${code}')" class="btn btn-primary" style="background:var(--green);">✅ Appliquer</button>
@@ -7987,14 +8035,18 @@ async function ouvrirModifierActivite(code) {
 
   window._modifierActData = { code, lignes, allActs, isno, totalActuel, modePaiement };
 
-  function updateDiff() {
+  function updateDiff(resetTarif) {
     const oldIdx = parseInt(document.getElementById('mod-act-ancienne').value) || 0;
     const newIdx = parseInt(document.getElementById('mod-act-nouvelle').value) || 0;
     const oldLigne = lignes[oldIdx];
     const newAct   = allActs[newIdx];
     if (!oldLigne || !newAct) return;
     const oldTarif = Number(oldLigne.tarif_brut) || 0;
-    const newTarif = isno ? Number(newAct.isno||0) : Number(newAct.hc||0);
+    const tarifInput = document.getElementById('mod-act-tarif');
+    if (resetTarif !== false) {
+      tarifInput.value = (isno ? Number(newAct.isno||0) : Number(newAct.hc||0)).toFixed(2);
+    }
+    const newTarif = parseFloat(tarifInput.value) || 0;
     const diff = newTarif - oldTarif;
     // Déterminer si le dossier est réglé d'après le statut de la ligne
     const statutLigne = (oldLigne.statut || '').toLowerCase();
@@ -8017,9 +8069,10 @@ async function ouvrirModifierActivite(code) {
         + (diff < 0 ? ' <span style="color:#2d6a4f;font-weight:700;">✅ Avoir</span>' : '');
     }
   }
-  document.getElementById('mod-act-ancienne').addEventListener('change', updateDiff);
-  document.getElementById('mod-act-nouvelle').addEventListener('change', updateDiff);
-  updateDiff();
+  document.getElementById('mod-act-ancienne').addEventListener('change', () => updateDiff(true));
+  document.getElementById('mod-act-nouvelle').addEventListener('change', () => updateDiff(true));
+  document.getElementById('mod-act-tarif').addEventListener('input', () => updateDiff(false));
+  updateDiff(true);
 }
 
 async function confirmerModifierActivite(code) {
@@ -8034,10 +8087,14 @@ async function confirmerModifierActivite(code) {
   if (!oldLigne || !newAct) return;
 
   const oldTarif = Number(oldLigne.tarif_brut) || 0;
-  const newTarif = d.isno ? Number(newAct.isno||0) : Number(newAct.hc||0);
-  const diff = newTarif - oldTarif;
+  const defautTarif = d.isno ? Number(newAct.isno||0) : Number(newAct.hc||0);
+  const newTarif = parseFloat(document.getElementById('mod-act-tarif')?.value);
+  const newTarifFinal = isNaN(newTarif) ? defautTarif : newTarif;
+  const diff = newTarifFinal - oldTarif;
+  const commentaireAdmin = document.getElementById('mod-act-commentaire')?.value?.trim() || '';
+  const montantModifie = Math.abs(newTarifFinal - defautTarif) > 0.001;
 
-  if (!confirm(`Remplacer "${oldLigne.activite}" par "${newAct.nom}" (${newAct.jour} ${newAct.heure}) pour ${oldLigne.membre_prenom} ${oldLigne.membre_nom} ?\n\nDifférence : ${diff > 0 ? '+' : ''}${diff} €`)) return;
+  if (!confirm(`Remplacer "${oldLigne.activite}" par "${newAct.nom}" (${newAct.jour} ${newAct.heure}) pour ${oldLigne.membre_prenom} ${oldLigne.membre_nom} ?\n\nDifférence : ${diff > 0 ? '+' : ''}${diff.toFixed(2)} €`)) return;
 
   document.getElementById('modal-modifier-activite').remove();
   showAdminToast('⏳ Modification en cours...', 'orange');
@@ -8054,9 +8111,11 @@ async function confirmerModifierActivite(code) {
       newActNom:     newAct.nom,
       membreNom:     oldLigne.membre_nom,
       membrePrenom:  oldLigne.membre_prenom,
-      newTarif,
+      newTarif:      newTarifFinal,
       oldTarif,
       diff,
+      commentaireAdmin,
+      montantModifie,
       jour:          newAct.jour,
       heure:         newAct.heure,
       lieu:          newAct.lieu,
@@ -9271,6 +9330,10 @@ function ouvrirModalPaiementBascule(code, actId, tarifBrut, actNom) {
     + '<input id="bascule-montant-pay" type="number" step="0.01" value="' + tarif.toFixed(2) + '" '
     + 'style="width:100%;background:#0d1f14;color:white;border:1px solid rgba(45,106,79,0.5);border-radius:7px;padding:8px 12px;font-size:14px;font-weight:700;box-sizing:border-box;">'
     + '</div>'
+    + '<div style="margin-bottom:16px;">'
+    + '<label style="font-size:12px;color:rgba(255,255,255,0.6);display:block;margin-bottom:6px;">Commentaire admin (optionnel)</label>'
+    + '<textarea id="bascule-commentaire-pay" rows="2" style="width:100%;box-sizing:border-box;background:#0d1f14;color:white;border:1px solid rgba(45,106,79,0.5);border-radius:7px;padding:8px 12px;font-size:12px;font-family:inherit;resize:vertical;"></textarea>'
+    + '</div>'
     + '<div style="display:flex;gap:10px;">'
     + '<button onclick="document.getElementById(\'modal-pay-bascule\').remove()" '
     + 'style="flex:1;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);border:none;border-radius:8px;padding:10px;font-size:13px;cursor:pointer;">Annuler</button>'
@@ -9280,14 +9343,16 @@ function ouvrirModalPaiementBascule(code, actId, tarifBrut, actNom) {
   document.body.appendChild(mc);
   // Attacher le listener proprement pour eviter les pb d'echappement
   document.getElementById('btn-confirm-bascule').addEventListener('click', function() {
-    confirmerPaiementBascule(code, actId);
+    confirmerPaiementBascule(code, actId, tarif);
   });
   mc.addEventListener('click', e => { if (e.target === mc) mc.remove(); });
 }
 
-async function confirmerPaiementBascule(code, actId) {
+async function confirmerPaiementBascule(code, actId, tarifOriginal) {
   const mode    = document.getElementById('bascule-mode-pay')?.value || 'cheque';
   const montant = parseFloat(document.getElementById('bascule-montant-pay')?.value) || 0;
+  const commentaireAdmin = document.getElementById('bascule-commentaire-pay')?.value?.trim() || '';
+  const montantModifie = Math.abs(montant - (parseFloat(tarifOriginal)||0)) > 0.001;
   document.getElementById('modal-pay-bascule')?.remove();
   if (!requireAdmin()) return;
   showAdminToast('⏳ Validation...', 'orange');
@@ -9295,7 +9360,8 @@ async function confirmerPaiementBascule(code, actId) {
     const url = getAppsScriptUrl();
     const result = await callAppsScriptFetch(url, {
       action: 'validerPaiementBascule', _token: FRI_SECRET_TOKEN,
-      code: code, actId: actId, modePaiement: mode, montant: montant
+      code: code, actId: actId, modePaiement: mode, montant: montant,
+      commentaireAdmin: commentaireAdmin, montantModifie: montantModifie
     });
     const data = result && result.data ? result.data : (result || {});
     if (data && data.status === 'ok') {
@@ -9953,9 +10019,17 @@ async function selectionnerActiviteAjout(code, actId) {
           : ''}
         <div style="background:#f0f7f3;border-radius:8px;padding:12px;text-align:center;">
           <div style="font-size:11px;color:#666;margin-bottom:2px;">${estRegle ? 'TARIF À RÉGLER IMMÉDIATEMENT' : 'TARIF (montant dossier mis à jour)'}</div>
-          <div style="font-size:24px;font-weight:900;color:${isFull ? '#e65100' : '#1a2e22'};">
-            ${isFull ? '⏳ Liste d\'attente — 0 €' : prixApresRemise.toFixed(2) + ' €'}
-          </div>
+          ${isFull
+            ? `<div style="font-size:24px;font-weight:900;color:#e65100;">⏳ Liste d'attente — 0 €</div>`
+            : `<input id="ajout-montant-confirm" type="number" step="0.01" value="${prixApresRemise.toFixed(2)}"
+                style="width:140px;text-align:center;font-size:22px;font-weight:900;color:#1a2e22;border:1.5px solid #ccc;border-radius:8px;padding:4px 8px;">
+               <span style="font-size:14px;color:#666;"> €</span>
+               <div style="font-size:10px;color:#999;margin-top:2px;">Modifiable si besoin</div>`}
+        </div>
+        <div style="margin-top:12px;">
+          <label style="font-size:11px;color:#666;display:block;margin-bottom:4px;">Commentaire admin (optionnel — visible par l'adhérent et tracé)</label>
+          <textarea id="ajout-commentaire-admin" rows="2" placeholder="Ex : tarif ajusté suite à..."
+            style="width:100%;box-sizing:border-box;border:1.5px solid #ccc;border-radius:8px;padding:8px 10px;font-size:12px;font-family:inherit;resize:vertical;"></textarea>
         </div>
       </div>
       <div style="padding:0 20px 20px;display:flex;gap:10px;">
@@ -9973,18 +10047,22 @@ async function selectionnerActiviteAjout(code, actId) {
   mc.addEventListener('click', e => { if (e.target === mc) mc.remove(); });
 
   document.getElementById('btn-valider-ajout').addEventListener('click', async () => {
+    const montantSaisi = isFull ? 0 : (parseFloat(document.getElementById('ajout-montant-confirm')?.value) || prixApresRemise);
+    const commentaireSaisi = document.getElementById('ajout-commentaire-admin')?.value?.trim() || '';
+    const montantModifie = !isFull && Math.abs(montantSaisi - prixApresRemise) > 0.001;
     mc.remove();
     modal.remove();
     if (!isFull && estRegle) {
       // Dossier deja regle + inscription immediate -> modale paiement
-      ouvrirModalPaiementAjout(code, actId, membreIdx, prixApresRemise, existingActCount);
+      ouvrirModalPaiementAjout(code, actId, membreIdx, montantSaisi, existingActCount, commentaireSaisi, montantModifie);
     } else {
-      await confirmerAjoutActivite(code, actId, membreIdx, prixApresRemise, isFull, false, existingActCount, '');
+      await confirmerAjoutActivite(code, actId, membreIdx, montantSaisi, isFull, false, existingActCount, '', commentaireSaisi, montantModifie);
     }
   });
 }
 
-function ouvrirModalPaiementAjout(code, actId, membreIdx, montant, existingActCount) {
+function ouvrirModalPaiementAjout(code, actId, membreIdx, montant, existingActCount, commentaireAdmin, montantModifie) {
+  commentaireAdmin = commentaireAdmin || '';
   document.getElementById('modal-pay-ajout')?.remove();
   const act = getActById(actId);
   const actNom = act ? act.name.replace(/\n/g,' \u2014 ') : actId;
@@ -10013,6 +10091,10 @@ function ouvrirModalPaiementAjout(code, actId, membreIdx, montant, existingActCo
     + '<label style="font-size:12px;color:rgba(255,255,255,0.6);display:block;margin-bottom:6px;">Montant r\u00e9gl\u00e9 (\u20ac)</label>'
     + '<input id="ajout-montant-pay" type="number" step="0.01" value="' + montant.toFixed(2) + '" style="width:100%;background:#0d1f14;color:white;border:1px solid rgba(45,106,79,0.5);border-radius:7px;padding:8px 12px;font-size:14px;font-weight:700;box-sizing:border-box;">'
     + '</div>'
+    + '<div style="margin-bottom:16px;">'
+    + '<label style="font-size:12px;color:rgba(255,255,255,0.6);display:block;margin-bottom:6px;">Commentaire admin (optionnel)</label>'
+    + '<textarea id="ajout-commentaire-pay" rows="2" style="width:100%;box-sizing:border-box;background:#0d1f14;color:white;border:1px solid rgba(45,106,79,0.5);border-radius:7px;padding:8px 12px;font-size:12px;font-family:inherit;resize:vertical;">' + commentaireAdmin.replace(/</g,'&lt;') + '</textarea>'
+    + '</div>'
     + '<div style="display:flex;gap:10px;">'
     + '<button onclick="document.getElementById(\'modal-pay-ajout\').remove()" style="flex:1;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.6);border:none;border-radius:8px;padding:10px;font-size:13px;cursor:pointer;">Annuler</button>'
     + '<button id="btn-confirm-ajout-pay" style="flex:2;background:var(--gold);color:var(--dark);border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;cursor:pointer;">\u2705 Valider le r\u00e8glement</button>'
@@ -10022,12 +10104,14 @@ function ouvrirModalPaiementAjout(code, actId, membreIdx, montant, existingActCo
   document.getElementById('btn-confirm-ajout-pay').addEventListener('click', async function() {
     const mode    = document.getElementById('ajout-mode-pay')?.value || 'cheque';
     const montantPay = parseFloat(document.getElementById('ajout-montant-pay')?.value) || montant;
+    const commentairePay = document.getElementById('ajout-commentaire-pay')?.value?.trim() || '';
+    const montantModifiePay = montantModifie || Math.abs(montantPay - montant) > 0.001;
     mc.remove();
-    await confirmerAjoutActivite(code, actId, membreIdx, montantPay, false, true, existingActCount, mode);
+    await confirmerAjoutActivite(code, actId, membreIdx, montantPay, false, true, existingActCount, mode, commentairePay, montantModifiePay);
   });
 }
 
-async function confirmerAjoutActivite(code, actId, membreIdx, prixFinal, enListeAttente, estRegle, existingActCount, modePaiement) {
+async function confirmerAjoutActivite(code, actId, membreIdx, prixFinal, enListeAttente, estRegle, existingActCount, modePaiement, commentaireAdmin, montantModifie) {
   restoreStateApresAjout();
   const allRegs = JSON.parse(localStorage.getItem('fri_registrations') || '[]');
   const regIdx  = allRegs.findIndex(r => r.code === code || String(r.id) === String(code));
@@ -10098,7 +10182,9 @@ async function confirmerAjoutActivite(code, actId, membreIdx, prixFinal, enListe
     statutInscription: enListeAttente ? 'Liste attente' : '',
     existingActCount:  existingActCount || 0,
     ffttPrice:         0,
-    modePaiement:      modePaiement || 'cheque'
+    modePaiement:      modePaiement || 'cheque',
+    commentaireAdmin:  commentaireAdmin || '',
+    montantModifie:    montantModifie === true
   };
 
   console.log('[FRI] Payload GAS:', JSON.stringify(payload).substring(0, 200));
@@ -10247,15 +10333,58 @@ async function confirmerSupprActivite(code, ligneIdx) {
     }
   }
 
-  // Message de confirmation adapté au cas
-  const msgConfirm = estRegle
-    ? `Supprimer "${l.actNom}" pour ${l.membreNom} ?\n\nActivité déjà réglée → fond orange dans Inscriptions\nAvoir crédité : ${avoir.toFixed(2)} €\n\nCette action est irréversible.`
-    : `Supprimer "${l.actNom}" pour ${l.membreNom} ?\n\nActivité non réglée → suppression complète des lignes\nLe montant dû sera mis à jour.\n\nCette action est irréversible.`;
+  const montantParDefaut = estRegle ? avoir : l.prix;
 
-  if (!confirm(msgConfirm)) return;
-  modal.remove();
+  // ── Modal de confirmation avec montant modifiable + commentaire admin ──
+  document.getElementById('modal-confirm-suppr')?.remove();
+  const mcs = document.createElement('div');
+  mcs.id = 'modal-confirm-suppr';
+  mcs.style.cssText = 'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:20px;';
+  mcs.innerHTML = `
+    <div style="background:white;border-radius:14px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.4);overflow:hidden;">
+      <div style="background:#c0392b;padding:16px 20px;">
+        <div style="color:white;font-weight:700;font-size:14px;">🗑️ Confirmer la suppression</div>
+        <div style="color:rgba(255,255,255,0.8);font-size:12px;">Dossier ${code} — ${l.membreNom}</div>
+      </div>
+      <div style="padding:20px;">
+        <div style="font-weight:700;font-size:14px;color:#1a2e22;margin-bottom:10px;">${l.actNom}</div>
+        <div style="background:#fdf3f2;border:1px solid #e74c3c;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#7a2e22;">
+          ${estRegle
+            ? 'Activité déjà réglée → fond orange dans Inscriptions, un avoir sera crédité.'
+            : 'Activité non réglée → suppression complète des lignes, le montant dû sera mis à jour.'}
+          <br><strong>Cette action est irréversible.</strong>
+        </div>
+        <label style="font-size:11px;color:#666;display:block;margin-bottom:4px;">${estRegle ? 'Avoir à créditer (€)' : 'Montant de l\'activité (€)'}</label>
+        <input id="suppr-montant-confirm" type="number" step="0.01" value="${montantParDefaut.toFixed(2)}"
+          style="width:100%;box-sizing:border-box;font-size:16px;font-weight:700;color:#1a2e22;border:1.5px solid #ccc;border-radius:8px;padding:8px 10px;margin-bottom:14px;">
+        <label style="font-size:11px;color:#666;display:block;margin-bottom:4px;">Commentaire admin (optionnel — visible par l'adhérent et tracé)</label>
+        <textarea id="suppr-commentaire-admin" rows="2" placeholder="Ex : suppression suite à..."
+          style="width:100%;box-sizing:border-box;border:1.5px solid #ccc;border-radius:8px;padding:8px 10px;font-size:12px;font-family:inherit;resize:vertical;"></textarea>
+      </div>
+      <div style="padding:0 20px 20px;display:flex;gap:10px;">
+        <button onclick="document.getElementById('modal-confirm-suppr').remove()"
+          style="flex:1;padding:11px;border:1.5px solid #ccc;border-radius:10px;background:white;color:#666;font-size:13px;cursor:pointer;font-weight:600;">Annuler</button>
+        <button id="btn-confirmer-suppr-activite"
+          style="flex:2;padding:11px;border:none;border-radius:10px;background:#c0392b;color:white;font-size:13px;cursor:pointer;font-weight:700;">🗑️ Confirmer la suppression</button>
+      </div>
+    </div>`;
+  document.body.appendChild(mcs);
+  mcs.addEventListener('click', e => { if (e.target === mcs) mcs.remove(); });
+  document.getElementById('btn-confirmer-suppr-activite').addEventListener('click', async () => {
+    const montantSaisi = parseFloat(document.getElementById('suppr-montant-confirm')?.value);
+    const montantFinal = isNaN(montantSaisi) ? montantParDefaut : montantSaisi;
+    const commentaireAdmin = document.getElementById('suppr-commentaire-admin')?.value?.trim() || '';
+    const montantModifie = Math.abs(montantFinal - montantParDefaut) > 0.001;
+    if (estRegle) avoir = montantFinal; else l.prix = montantFinal;
+    mcs.remove();
+    await executerSuppressionActivite(code, l, membre, estRegle, avoir, aRemise, actObj, commentaireAdmin, montantModifie);
+  });
+}
 
-  console.log('[FRI] Suppression activité — code:', code, 'estRegle:', estRegle, 'status:', reg.status, 'actId:', l.actId);
+async function executerSuppressionActivite(code, l, membre, estRegle, avoir, aRemise, actObj, commentaireAdmin, montantModifie) {
+  document.getElementById('modal-suppr-activite')?.remove();
+
+  console.log('[FRI] Suppression activité — code:', code, 'estRegle:', estRegle, 'actId:', l.actId);
 
   // ── CAS 1 : Non réglé — suppression complète ──
   if (!estRegle) {
@@ -10303,7 +10432,9 @@ async function confirmerSupprActivite(code, ligneIdx) {
           placesId:     l.placesId || siteToPlacesId(l.actId),
           actNom:       l.actNom,
           membreNom:    l.membreNom,
-          nouveauTotal: allRegs.find(r => r.code === code)?.totals?.grandTotal || 0
+          nouveauTotal: allRegs.find(r => r.code === code)?.totals?.grandTotal || 0,
+          commentaireAdmin: commentaireAdmin || '',
+          montantModifie:   montantModifie === true
         });
         // ── Mettre à jour grandTotal depuis le vrai total retourné par le GAS ──
         await chargerDossiersDepuisSheet();
@@ -10341,7 +10472,9 @@ async function confirmerSupprActivite(code, ligneIdx) {
           placesId:   l.placesId || siteToPlacesId(l.actId),
           actNom:     l.actNom,
           membreNom:  l.membreNom,
-          avoir:      avoir
+          avoir:      avoir,
+          commentaireAdmin: commentaireAdmin || '',
+          montantModifie:   montantModifie === true
         });
         // Recharger depuis le Sheet — le total AF fait foi
         await chargerDossiersDepuisSheet();
