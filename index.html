@@ -6637,6 +6637,19 @@ async function chargerStatsTresorier() {
   function normNomActivite(s) {
     return String(s||'').replace(/[\n—]/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
   }
+  // Compte, pour chaque nom normalisé, combien de créneaux DISTINCTS du catalogue
+  // portent ce nom (ex: plusieurs créneaux "Pilates" à des jours/heures différents
+  // partagent le même nom affiché). Le fallback par nom (nameMatch, ci-dessous)
+  // ne doit s'appliquer que lorsque le nom est UNIQUE dans le catalogue : sinon,
+  // une seule ligne Inscriptions mal identifiée (ID vide → clé de secours = nom)
+  // se retrouverait fusionnée dans TOUS les créneaux homonymes, gonflant leurs
+  // totaux de façon identique (bug rapporté : coûts moyens faux sur la plupart
+  // des activités ayant des créneaux multiples au nom identique).
+  const _nomOccurrences = {};
+  getAllActs().forEach(function(a){
+    const n = normNomActivite(a.name);
+    _nomOccurrences[n] = (_nomOccurrences[n] || 0) + 1;
+  });
 
   // Index Places : A(0)=ID, B(1)=Nom, C(2)=Cap, D(3)=Inscrits, E(4)=Restantes, J(9)=ID act, P(15)=Coût animateur
   const placesInscrits = {};
@@ -6750,11 +6763,18 @@ async function chargerStatsTresorier() {
         const sheetId = canonActId(siteToPlacesId(actDef.id) || actDef.id);
         const candidateIds = [sheetId, actDef.id];
         const nomNorm = normNomActivite(actDef.name);
+        // Le fallback par nom n'est fiable que si ce nom désigne un SEUL créneau
+        // dans tout le catalogue (ex: "Danse moderne — CP-CE1"). Quand plusieurs
+        // créneaux partagent le même nom (ex: plusieurs "Pilates"), le nom seul ne
+        // permet pas de distinguer lequel est concerné : on désactive alors le
+        // fallback par nom pour éviter de fusionner les données d'un créneau dans
+        // tous ses homonymes, et on se fie uniquement à la correspondance d'ID.
+        const nameFallbackOk = _nomOccurrences[nomNorm] === 1;
         let aInscrits = 0, aTarifTotal = 0, aNom = null;
         Object.keys(activitesCounts).forEach(function(k){
           const bucket = activitesCounts[k];
           const idMatch   = candidateIds.indexOf(k) >= 0;
-          const nameMatch = bucket.nom && normNomActivite(bucket.nom) === nomNorm;
+          const nameMatch = nameFallbackOk && bucket.nom && normNomActivite(bucket.nom) === nomNorm;
           if (idMatch || nameMatch) {
             aInscrits   += bucket.inscrits;
             aTarifTotal += bucket.tarifTotal;
