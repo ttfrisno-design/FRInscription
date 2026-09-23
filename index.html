@@ -10532,6 +10532,20 @@ async function executerSuppressionActivite(code, l, membre, estRegle, avoir, aRe
 }
 
 async function deleteRegistration(codeOrId, id) {
+  console.log('[FRI] deleteRegistration appelé — codeOrId:', codeOrId, 'id:', id);
+  try {
+    await deleteRegistrationImpl(codeOrId, id);
+  } catch (errDel) {
+    console.error('[FRI] deleteRegistration ERREUR :', errDel);
+    try {
+      showAdminToast('❌ Erreur suppression : ' + (errDel && errDel.message || errDel), 'red');
+    } catch (e2) {
+      alert('Erreur suppression : ' + (errDel && errDel.message || errDel));
+    }
+  }
+}
+
+async function deleteRegistrationImpl(codeOrId, id) {
   if (!requireAdmin()) return;
 
   const code = (typeof codeOrId === 'string' && codeOrId.startsWith('FRI-')) ? codeOrId : null;
