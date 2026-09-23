@@ -6739,6 +6739,12 @@ async function chargerStatsTresorier() {
   });
 
   // Construire les activités dans l'ordre ACTIVITIES (sections > catégories > créneaux) avec totaux par catégorie
+  // Recettes hors cotisations adhérents (subventions, aides diverses…) à
+  // ajouter manuellement au total d'une catégorie du Console Trésorier.
+  // Clé = catKey (ex: "tt" pour Tennis de table).
+  const SUBVENTIONS_CATEGORIE = {
+    tt: [ { nom: 'Subvention Département', montant: 2635 } ]
+  };
   const activiteGroupees = [];
   const allActsDef = getAllActs();
   const seen = {};
@@ -6813,6 +6819,15 @@ async function chargerStatsTresorier() {
           isno: isnoData ? isnoData.isno : null,
           hc:   isnoData ? isnoData.hc   : null,
           pctIsno: pctIsno });
+      });
+      // Ajouter les recettes hors cotisations (subventions…) de la catégorie,
+      // en recette pure (pas d'inscrits, pas de coût animateur associé).
+      (SUBVENTIONS_CATEGORIE[catKey] || []).forEach(function(sub) {
+        catTotal += sub.montant;
+        lignesCat.push({ nom: '🏛️ ' + sub.nom, inscrits: null,
+          tarifTotal: Math.round(sub.montant*100)/100,
+          coutMoyen: null, coutAnim: 0, solde: Math.round(sub.montant*100)/100,
+          isno: null, hc: null, pctIsno: null, isSubvention: true });
       });
       if (lignesCat.length > 0) {
         const catCoutAnim = lignesCat.reduce(function(s,l){ return s + (l.coutAnim||0); }, 0);
@@ -6899,10 +6914,11 @@ function renderTresorier(d) {
     // Lignes créneaux
     grp.lignes.forEach(function(a) {
       const soldeCoul = a.solde >= 0 ? '#2d6a4f' : '#c62828';
-      actsLignes += '<tr style="border-bottom:1px solid #f0f0f0;">'
-        + '<td style="padding:6px 12px 6px 20px;font-size:12px;color:#555;">'+a.nom+'</td>'
-        + '<td style="padding:6px 12px;text-align:center;font-size:12px;">'+a.inscrits+'</td>'
-        + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#2d6a4f;">'+eur(a.coutMoyen)+'</td>'
+      const bgSub = a.isSubvention ? 'background:#fff8e1;' : '';
+      actsLignes += '<tr style="border-bottom:1px solid #f0f0f0;'+bgSub+'">'
+        + '<td style="padding:6px 12px 6px 20px;font-size:12px;color:#555;'+(a.isSubvention?'font-weight:600;':'')+'">'+a.nom+'</td>'
+        + '<td style="padding:6px 12px;text-align:center;font-size:12px;">'+(a.inscrits !== null ? a.inscrits : '—')+'</td>'
+        + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#2d6a4f;">'+(a.coutMoyen !== null ? eur(a.coutMoyen) : '—')+'</td>'
         + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#1a237e;">'+eur(a.tarifTotal)+'</td>'
         + '<td style="padding:6px 12px;text-align:right;font-size:12px;color:#e65100;">'+(a.coutAnim > 0 ? eur(a.coutAnim) : '—')+'</td>'
         + '<td style="padding:6px 12px;text-align:right;font-size:12px;font-weight:700;color:'+soldeCoul+';">'+(a.solde >= 0 ? '+' : '')+eur(a.solde)+'</td>'
