@@ -8472,7 +8472,7 @@ function ouvrirDetailDossier(code, docId) {
         style="background:rgba(100,100,100,0.6);color:white;border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;" title="Ajouter un commentaire">&#x1F4DD; Note</button>
       <button onclick="genererPDFInscriptionAdmin('${code}')"
         style="background:rgba(74,20,140,0.7);color:white;border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;" title="Générer PDF inscription">&#x1F4C4; PDF</button>
-      <button onclick="deleteRegistration('${code}', ${reg.id})"
+      <button id="btn-delete-dossier" data-code="${String(code).replace(/"/g,'&quot;')}" data-id="${reg.id}"
         style="background:rgba(192,57,43,0.6);color:white;border:none;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer;">&#x1F5D1;</button>
     </div>`;
 
@@ -8507,6 +8507,20 @@ function ouvrirDetailDossier(code, docId) {
       ${aidesHtml}
       ${actionsHtml}
     </div>`;
+
+  // Bouton supprimer dossier : attaché via addEventListener plutôt qu'un
+  // onclick inline avec valeurs interpolées — évite tout risque de casse de
+  // l'attribut HTML si le code dossier ou l'id contiennent un caractère
+  // spécial (ex: "Uncaught ReferenceError: FRI is not defined" quand les
+  // guillemets autour du code étaient perdus dans l'attribut onclick).
+  const btnDelete = panel.querySelector('#btn-delete-dossier');
+  if (btnDelete) {
+    btnDelete.addEventListener('click', function() {
+      const dCode = btnDelete.dataset.code;
+      const dId   = btnDelete.dataset.id ? Number(btnDelete.dataset.id) : undefined;
+      deleteRegistration(dCode, dId);
+    });
+  }
 }
 
 function fermerDetailDossier() {
