@@ -6584,22 +6584,12 @@ function showTresorierLogin() {
 async function chargerStatsTresorier() {
   document.getElementById('tresorier-content').innerHTML = '<p style="color:#555;text-align:center;padding:40px;">⏳ Chargement des statistiques...</p>';
 
-  function cellNum(row, idx) { return row.c && row.c[idx] && row.c[idx].v != null ? Number(row.c[idx].v)||0 : 0; }
-  function cellStr(row, idx) { return row.c && row.c[idx] && row.c[idx].v != null ? String(row.c[idx].v) : ''; }
-  function sommeCol(rows, idx) { return rows.reduce(function(s,r){ var v=cellNum(r,idx); return s+(v>1e10?0:v); },0); }
-  // Adapte un tableau 2D brut (renvoyé par le serveur) au format "ligne gviz"
-  // { c: [{v:...}, ...] } attendu par cellNum/cellStr, pour ne rien changer
-  // au reste de la logique ci-dessous.
-  function toGvizRows(vals) {
-    return (vals || []).map(function(row) {
-      return { c: (row || []).map(function(v) { return { v: v }; }) };
-    });
-  }
-
-  // ── Toutes les données sont désormais lues côté serveur (Apps Script),
-  // qui accède au Sheet via SpreadsheetApp — plus besoin que le classeur
-  // soit partagé publiquement (il contient des données personnelles des
-  // adhérents : ce partage public a été désactivé pour cette raison). ──
+  // ── Toutes les données sont désormais lues ET AGRÉGÉES côté serveur
+  // (Apps Script), qui accède au Sheet via SpreadsheetApp — plus besoin que
+  // le classeur soit partagé publiquement (il contient des données
+  // personnelles des adhérents : ce partage public a été désactivé pour
+  // cette raison), et le payload renvoyé au navigateur reste compact
+  // (chiffres agrégés uniquement, pas de lignes brutes). ──
   const url = getAppsScriptUrl();
   if (!url || url === 'VOTRE_URL_APPS_SCRIPT_ICI') {
     document.getElementById('tresorier-content').innerHTML = '<p style="color:red">⚠️ URL Apps Script non configurée.</p>';
@@ -6616,34 +6606,16 @@ async function chargerStatsTresorier() {
     console.warn('[FRI] getStatsTresorier KO:', eStats.message);
   }
 
-  const rowsInsc            = toGvizRows(statsData && statsData.inscriptions);
-  const rowsCheq1           = toGvizRows(statsData && statsData.cheques1);
-  const rowsCheq2           = toGvizRows(statsData && statsData.cheques2);
-  const rowsCheq3           = toGvizRows(statsData && statsData.cheques3);
-  const rowsEsp             = toGvizRows(statsData && statsData.especes);
-  const rowsHA              = toGvizRows(statsData && statsData.helloasso);
-  const rowsANCV            = toGvizRows(statsData && statsData.ancv);
-  const rowsAtout           = toGvizRows(statsData && statsData.atout);
-  const rowsPassJ           = toGvizRows(statsData && statsData.passJ);
-  const rowsPassS           = toGvizRows(statsData && statsData.passS);
-  const rowsPlaces          = toGvizRows(statsData && statsData.places);
-  const rowsAvoirs          = toGvizRows(statsData && statsData.avoirsUtilises);
-  const rowsAvoirsGeneres   = toGvizRows(statsData && statsData.avoirsGeneres);
-  const rowsRemboursements  = toGvizRows(statsData && statsData.remboursements);
-  const isnoParOnglet       = (statsData && statsData.isnoParOnglet) || {};
-
-  // Si les 2 onglets principaux (Inscriptions + Places) reviennent tous les
-  // deux vides, c'est presque certainement un échec de chargement (le GAS
-  // n'a pas répondu, token expiré, timeout réseau…) et non un dossier
-  // réellement vide — on l'affiche clairement plutôt que de rendre un
+  // Si le serveur n'a rien renvoyé (échec de chargement, token expiré,
+  // timeout réseau…), on l'affiche clairement plutôt que de rendre un
   // tableau de bord tronqué et trompeur (qui ne montrerait plus alors que
   // les lignes indépendantes du Sheet, ex: les subventions manuelles).
-  if (rowsInsc.length === 0 && rowsPlaces.length === 0) {
+  if (!statsData || (!statsData.nbDossiers && (!statsData.activitesCounts || Object.keys(statsData.activitesCounts).length === 0) && (!statsData.placesInscrits || Object.keys(statsData.placesInscrits).length === 0))) {
     document.getElementById('tresorier-content').innerHTML =
       '<div style="padding:40px;text-align:center;color:#c62828;">'
       + '<p style="font-size:15px;font-weight:700;">⚠️ Échec du chargement des données</p>'
       + '<p style="font-size:13px;color:#888;max-width:480px;margin:8px auto;">'
-      + 'Le serveur Apps Script n\'a renvoyé aucune donnée pour "Inscriptions" et "Places" — '
+      + 'Le serveur Apps Script n\'a renvoyé aucune donnée — '
       + 'vérifiez la connexion réseau ou réessayez dans quelques instants.</p>'
       + '<button onclick="chargerStatsTresorier()" style="margin-top:12px;background:#1565c0;color:white;border:none;border-radius:8px;padding:10px 18px;font-size:13px;cursor:pointer;font-weight:600;">🔄 Réessayer</button>'
       + '</div>';
@@ -6654,6 +6626,8 @@ async function chargerStatsTresorier() {
   // selon l'onglet/l'ancienneté de la donnée) → on les fusionne sous un seul ID canonique.
   // Ex : PINGME1830 et PINGL1745ME1830 désignent le même créneau double
   // "Tennis de table Jeunes Confirmés" (Lu 17h45 + Me 18h30).
+  // (La fusion elle-même est désormais faite côté serveur ; canonActId reste
+  // utile ici pour retrouver un créneau par ID alias dans les données déjà agrégées.)
   const ACT_ID_ALIASES = {
     'PINGME1830': 'PINGL1745ME1830'
   };
@@ -6681,84 +6655,14 @@ async function chargerStatsTresorier() {
     _nomOccurrences[n] = (_nomOccurrences[n] || 0) + 1;
   });
 
-  // Index Places : A(0)=ID, B(1)=Nom, C(2)=Cap, D(3)=Inscrits, E(4)=Restantes, J(9)=ID act, P(15)=Coût animateur
-  const placesInscrits = {};
-  const placesAnimateur = {}; // indexed by placesId
-  const placesSheetNames = {}; // placesId → nom onglet activité
-  rowsPlaces.forEach(function(row) {
-    const id    = canonActId(cellStr(row, 0).trim());
-    const idAct = canonActId(cellStr(row, 9).trim());  // col J = ID activité
-    const cout  = cellNum(row, 15);        // col P = coût animateur
-    const ins   = cellNum(row, 3);         // col D = inscrits
-    const key   = idAct || id;
-    if (key) {
-      // Cumul (et non écrasement) : si un alias fusionne 2 lignes Places distinctes
-      // sur le même ID canonique, on additionne leurs effectifs/coûts.
-      placesInscrits[key]  = (placesInscrits[key]||0) + ins;
-      placesAnimateur[key] = (placesAnimateur[key]||0) + cout;
-      placesSheetNames[key] = key; // nom onglet = ID activité Sheet
-      if (id && id !== key) {
-        placesInscrits[id]  = placesInscrits[key];
-        placesAnimateur[id] = placesAnimateur[key];
-        placesSheetNames[id] = key;
-      }
-    }
-  });
-
-  // Lire Isno/HC : les onglets activité ont les données en ligne 2 (O=nbre, P=Isno, Q=HC)
-  // Dans gviz, ligne 1 = en-tête (exclue) → rows[0] = ligne 2 = données
-  // Mais certains onglets n'existent pas sous ce nom → on lit chaque onglet individuellement
-  const isnoCounts = {};
-  // isnoParOnglet[sid] = tableau 2D brut (jusqu'à 2 lignes × O:R) renvoyé par
-  // le serveur pour chaque onglet activité — remplace les anciens appels
-  // gviz individuels par onglet (un par créneau, faits depuis le navigateur).
-  const sheetIds2 = Object.keys(placesSheetNames);
-  sheetIds2.forEach(function(sid) {
-    const rows = toGvizRows(isnoParOnglet[sid]);
-    // Ligne 1 = en-tête (O/P/Q), ligne 2 = données → essayer les 2 premières
-    // lignes, prendre celle avec des nombres.
-    var isno = 0, hc = 0;
-    for (var ri = 0; ri < Math.min(rows.length, 2); ri++) {
-      var row = rows[ri];
-      if (!row || !row.c) continue;
-      const isPing = sid.toLowerCase().indexOf('ping') >= 0;
-      // Dans range O:R → col O=idx0, P=idx1, Q=idx2, R=idx3
-      const v0 = row.c[0] ? Number(row.c[0].v||0) : 0;
-      const v1 = row.c[1] ? Number(row.c[1].v||0) : 0;
-      const v2 = row.c[2] ? Number(row.c[2].v||0) : 0;
-      const v3 = row.c[3] ? Number(row.c[3].v||0) : 0;
-      if (!isNaN(v1) && v1 > 0) {
-        // P=v1=Isno (non-ping), Q=v2=HC ; ping: Q=v2=Isno, R=v3=HC
-        isno = isPing ? v2 : v1;
-        hc   = isPing ? v3 : v2;
-        break;
-      }
-    }
-    if (isno > 0 || hc > 0) {
-      isnoCounts[sid] = { isno, hc };
-    }
-  });
-
-  // Statistiques depuis Inscriptions
-  const codesDossiers = {}, codesAdherents = {}, activitesCounts = {};
-  let fnsmrTotal = 0;
-  rowsInsc.forEach(function(row) {
-    const code    = cellStr(row, 19).trim();
-    const statut  = cellStr(row, 39).toLowerCase();
-    if (!code || statut.includes('supprim')) return;
-    codesDossiers[code] = true;
-    const memKey = code + '_' + cellStr(row,2) + cellStr(row,3);
-    codesAdherents[memKey] = true;
-    const actNom = cellStr(row, 22).trim();
-    const actId  = canonActId(cellStr(row, 37).trim() || cellStr(row, 35).trim() || actNom);
-    const tarif  = cellNum(row, 27); // col AB index 27
-    if (actNom) {
-      if (!activitesCounts[actId]) activitesCounts[actId] = { nom: actNom, inscrits: 0, tarifTotal: 0 };
-      activitesCounts[actId].inscrits++;
-      activitesCounts[actId].tarifTotal += tarif;
-    }
-    fnsmrTotal += cellNum(row, 30); // col AE index 30
-  });
+  // Données déjà agrégées côté serveur (voir getStatsTresorierGAS dans Code.gs) :
+  const placesInscrits   = statsData.placesInscrits   || {};
+  const placesAnimateur  = statsData.placesAnimateur  || {};
+  const isnoCounts       = statsData.isnoCounts       || {};
+  const activitesCounts  = statsData.activitesCounts  || {};
+  const codesDossiersCount  = statsData.nbDossiers  || 0;
+  const codesAdherentsCount = statsData.nbAdherents || 0;
+  const fnsmrTotal = statsData.fnsmrTotal || 0;
 
   // Construire les activités dans l'ordre ACTIVITIES (sections > catégories > créneaux) avec totaux par catégorie
   // Recettes hors cotisations adhérents (subventions, aides diverses…) à
@@ -6863,41 +6767,17 @@ async function chargerStatsTresorier() {
   // Activités non trouvées dans ACTIVITIES (fallback)
   const activites = activiteGroupees; // utilisé par renderTresorier
 
-  // Sauter les 3 premières lignes (entêtes/totaux) de chaque onglet paiement
-  // Tous les montants sont en col E (index 4)
-  function sommeColSkip3(rows, idx) {
-    return rows.slice(3).reduce(function(s,r){ var v=cellNum(r,idx); return s+(v>0&&v<1e10?v:0); },0);
-  }
-  // Avoirs utilisés : col E (index 4) = montant utilisé
-  const avoirsUtilises = rowsAvoirs.slice(1).reduce(function(s,r){ var v=cellNum(r,4); return s+(v>0&&v<1e10?v:0); },0);
-  // Avoirs générés (onglet "Avoirs générés") : col E (index 4) = montant avoir
-  const avoirsGeneres = sommeCol(rowsAvoirsGeneres, 4);
-  // Remboursements (onglet "Remboursements") : col E (index 4) = montant remboursement
-  const remboursements = sommeCol(rowsRemboursements, 4);
-
-  const recettes = {
-    ha1x:    sommeColSkip3(rowsHA,    4), // col E index 4
-    cheq1:   sommeColSkip3(rowsCheq1, 5), // col F index 5
-    cheq2:   sommeColSkip3(rowsCheq2, 5),
-    cheq3:   sommeColSkip3(rowsCheq3, 5),
-    especes: sommeColSkip3(rowsEsp,   4), // col E index 4
-    ancv:    sommeColSkip3(rowsANCV,  4), // col E index 4
-    atout:   sommeColSkip3(rowsAtout, 4),
-    passJ:   sommeColSkip3(rowsPassJ, 4),
-    passS:   sommeColSkip3(rowsPassS, 4),
-    avoirs:  avoirsUtilises,
-    avoirsGeneres,
-    remboursements
-  };
-  recettes.totalCheques = recettes.cheq1 + recettes.cheq2 + recettes.cheq3;
-  recettes.totalAides   = recettes.ancv + recettes.atout + recettes.passJ + recettes.passS;
-  recettes.total = recettes.ha1x + recettes.totalCheques + recettes.especes + recettes.totalAides;
+  // Recettes par mode de paiement : déjà agrégées côté serveur
+  // (voir getStatsTresorierGAS dans Code.gs — mêmes règles de calcul,
+  // notamment le saut des 3 premières lignes entêtes/totaux par onglet
+  // paiement, et col F pour les 3 onglets Chèques vs col E ailleurs).
+  const recettes = statsData.recettes || {};
   // Avoirs : recette non perçue en cash mais déduite de la cotisation
   // Avoirs générés / Remboursements : sorties d'argent (ou de créance), non incluses dans le total recettes
 
   renderTresorier({
-    nbDossiers:  Object.keys(codesDossiers).length,
-    nbAdherents: Object.keys(codesAdherents).length,
+    nbDossiers:  codesDossiersCount,
+    nbAdherents: codesAdherentsCount,
     nbActivites: activites.length,
     fnsmrTotal:  Math.round(fnsmrTotal*100)/100,
     recettes,
