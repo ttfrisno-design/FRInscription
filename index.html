@@ -6583,42 +6583,72 @@ function showTresorierLogin() {
 
 async function chargerStatsTresorier() {
   document.getElementById('tresorier-content').innerHTML = '<p style="color:#555;text-align:center;padding:40px;">⏳ Chargement des statistiques...</p>';
-  const sheetId = (localStorage.getItem('fri_sheet_id') || SHEET_ID_PUBLIC || '').trim();
-  if (!sheetId) { document.getElementById('tresorier-content').innerHTML = '<p style="color:red">ID Sheet non configuré.</p>'; return; }
-
-  async function lireOnglet(nomOnglet, nbCols) {
-    try {
-      const u = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:json&sheet=' + encodeURIComponent(nomOnglet);
-      const r = await Promise.race([fetch(u), new Promise((_,rj)=>setTimeout(()=>rj(new Error('timeout')),12000))]);
-      const t = await r.text();
-      const j = JSON.parse(t.replace(/^[^(]+\(/,'').replace(/\);?$/,''));
-      return (j.table && j.table.rows) || [];
-    } catch(e) { console.warn('lireOnglet KO:', nomOnglet, e.message); return []; }
-  }
 
   function cellNum(row, idx) { return row.c && row.c[idx] && row.c[idx].v != null ? Number(row.c[idx].v)||0 : 0; }
   function cellStr(row, idx) { return row.c && row.c[idx] && row.c[idx].v != null ? String(row.c[idx].v) : ''; }
   function sommeCol(rows, idx) { return rows.reduce(function(s,r){ var v=cellNum(r,idx); return s+(v>1e10?0:v); },0); }
+  // Adapte un tableau 2D brut (renvoyé par le serveur) au format "ligne gviz"
+  // { c: [{v:...}, ...] } attendu par cellNum/cellStr, pour ne rien changer
+  // au reste de la logique ci-dessous.
+  function toGvizRows(vals) {
+    return (vals || []).map(function(row) {
+      return { c: (row || []).map(function(v) { return { v: v }; }) };
+    });
+  }
 
-  // Lire tous les onglets en parallèle
-  const [rowsInsc, rowsCheq1, rowsCheq2, rowsCheq3, rowsEsp, rowsHA,
-         rowsANCV, rowsAtout, rowsPassJ, rowsPassS, rowsPlaces, rowsAvoirs,
-         rowsAvoirsGeneres, rowsRemboursements] = await Promise.all([
-    lireOnglet('Inscriptions', 41),
-    lireOnglet('Cheques 1', 7),
-    lireOnglet('Cheques 2', 7),
-    lireOnglet('Cheques 3', 7),
-    lireOnglet('Espèces', 7),
-    lireOnglet('HelloAsso', 7),
-    lireOnglet('Aides ANCV', 9),
-    lireOnglet('Aides Atout Normandie', 9),
-    lireOnglet('Aides Pass Jeunes', 9),
-    lireOnglet('Aides Pass Sport', 9),
-    lireOnglet('Places', 16),
-    lireOnglet('Avoirs utilisés', 6),
-    lireOnglet('Avoirs générés', 9),
-    lireOnglet('Remboursements', 8)
-  ]);
+  // ── Toutes les données sont désormais lues côté serveur (Apps Script),
+  // qui accède au Sheet via SpreadsheetApp — plus besoin que le classeur
+  // soit partagé publiquement (il contient des données personnelles des
+  // adhérents : ce partage public a été désactivé pour cette raison). ──
+  const url = getAppsScriptUrl();
+  if (!url || url === 'VOTRE_URL_APPS_SCRIPT_ICI') {
+    document.getElementById('tresorier-content').innerHTML = '<p style="color:red">⚠️ URL Apps Script non configurée.</p>';
+    return;
+  }
+
+  let statsData = null;
+  try {
+    const gasResult = await callAppsScriptFetch(url, { action: 'getStatsTresorier', _token: FRI_SECRET_TOKEN });
+    const d = (gasResult && gasResult.data) ? gasResult.data : gasResult;
+    if (d && d.status === 'ok' && d.stats) statsData = d.stats;
+    else console.warn('[FRI] getStatsTresorier : réponse inattendue', d);
+  } catch (eStats) {
+    console.warn('[FRI] getStatsTresorier KO:', eStats.message);
+  }
+
+  const rowsInsc            = toGvizRows(statsData && statsData.inscriptions);
+  const rowsCheq1           = toGvizRows(statsData && statsData.cheques1);
+  const rowsCheq2           = toGvizRows(statsData && statsData.cheques2);
+  const rowsCheq3           = toGvizRows(statsData && statsData.cheques3);
+  const rowsEsp             = toGvizRows(statsData && statsData.especes);
+  const rowsHA              = toGvizRows(statsData && statsData.helloasso);
+  const rowsANCV            = toGvizRows(statsData && statsData.ancv);
+  const rowsAtout           = toGvizRows(statsData && statsData.atout);
+  const rowsPassJ           = toGvizRows(statsData && statsData.passJ);
+  const rowsPassS           = toGvizRows(statsData && statsData.passS);
+  const rowsPlaces          = toGvizRows(statsData && statsData.places);
+  const rowsAvoirs          = toGvizRows(statsData && statsData.avoirsUtilises);
+  const rowsAvoirsGeneres   = toGvizRows(statsData && statsData.avoirsGeneres);
+  const rowsRemboursements  = toGvizRows(statsData && statsData.remboursements);
+  const isnoParOnglet       = (statsData && statsData.isnoParOnglet) || {};
+
+  // Si les 2 onglets principaux (Inscriptions + Places) reviennent tous les
+  // deux vides, c'est presque certainement un échec de chargement (le GAS
+  // n'a pas répondu, token expiré, timeout réseau…) et non un dossier
+  // réellement vide — on l'affiche clairement plutôt que de rendre un
+  // tableau de bord tronqué et trompeur (qui ne montrerait plus alors que
+  // les lignes indépendantes du Sheet, ex: les subventions manuelles).
+  if (rowsInsc.length === 0 && rowsPlaces.length === 0) {
+    document.getElementById('tresorier-content').innerHTML =
+      '<div style="padding:40px;text-align:center;color:#c62828;">'
+      + '<p style="font-size:15px;font-weight:700;">⚠️ Échec du chargement des données</p>'
+      + '<p style="font-size:13px;color:#888;max-width:480px;margin:8px auto;">'
+      + 'Le serveur Apps Script n\'a renvoyé aucune donnée pour "Inscriptions" et "Places" — '
+      + 'vérifiez la connexion réseau ou réessayez dans quelques instants.</p>'
+      + '<button onclick="chargerStatsTresorier()" style="margin-top:12px;background:#1565c0;color:white;border:none;border-radius:8px;padding:10px 18px;font-size:13px;cursor:pointer;font-weight:600;">🔄 Réessayer</button>'
+      + '</div>';
+    return;
+  }
 
   // Alias d'ID activité connus (mêmes créneaux réels enregistrés sous des ID différents
   // selon l'onglet/l'ancienneté de la donnée) → on les fusionne sous un seul ID canonique.
@@ -6679,22 +6709,14 @@ async function chargerStatsTresorier() {
   // Dans gviz, ligne 1 = en-tête (exclue) → rows[0] = ligne 2 = données
   // Mais certains onglets n'existent pas sous ce nom → on lit chaque onglet individuellement
   const isnoCounts = {};
+  // isnoParOnglet[sid] = tableau 2D brut (jusqu'à 2 lignes × O:R) renvoyé par
+  // le serveur pour chaque onglet activité — remplace les anciens appels
+  // gviz individuels par onglet (un par créneau, faits depuis le navigateur).
   const sheetIds2 = Object.keys(placesSheetNames);
-  const ongletActRows2 = await Promise.all(sheetIds2.map(function(sid) {
-    // tq= : sélectionner seulement les 2 premières lignes pour perf
-    const u = 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:json&sheet='
-      + encodeURIComponent(sid) + '&range=O1:R2';
-    return fetch(u).then(function(r){ return r.text(); }).then(function(t){
-      try {
-        const j = JSON.parse(t.replace(/^[^(]+\(/,'').replace(/\);?$/,''));
-        return (j.table && j.table.rows) || [];
-      } catch(e){ return []; }
-    }).catch(function(){ return []; });
-  }));
-  sheetIds2.forEach(function(sid, i) {
-    const rows = ongletActRows2[i];
-    // Ligne 1 = en-tête (O/P/Q), ligne 2 = données → rows[0] ou rows[1] selon gviz
-    // Essayer les 2 premières lignes, prendre celle avec des nombres
+  sheetIds2.forEach(function(sid) {
+    const rows = toGvizRows(isnoParOnglet[sid]);
+    // Ligne 1 = en-tête (O/P/Q), ligne 2 = données → essayer les 2 premières
+    // lignes, prendre celle avec des nombres.
     var isno = 0, hc = 0;
     for (var ri = 0; ri < Math.min(rows.length, 2); ri++) {
       var row = rows[ri];
