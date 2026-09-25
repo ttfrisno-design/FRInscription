@@ -6674,6 +6674,11 @@ async function chargerStatsTresorier() {
   const activiteGroupees = [];
   const allActsDef = getAllActs();
   const seen = {};
+  // Nombre total de SOUSCRIPTIONS (un adhérent inscrit à 2 activités compte
+  // pour 2) — PAS le nombre de rubriques (activiteGroupees.length, ~14 :
+  // Pilates, Yoga, TT…) ni le nombre de créneaux distincts (~70) : la somme
+  // des inscrits de chaque créneau affiché (attendu ~980).
+  let nbActivitesTotal = 0;
   // Parcourir ACTIVITIES dans l'ordre
   Object.values(ACTIVITIES).forEach(function(section) {
     Object.entries(section.cats).forEach(function([catKey, cat]) {
@@ -6745,6 +6750,7 @@ async function chargerStatsTresorier() {
           isno: isnoData ? isnoData.isno : null,
           hc:   isnoData ? isnoData.hc   : null,
           pctIsno: pctIsno });
+        nbActivitesTotal += inscrits;
       });
       // Ajouter les recettes hors cotisations (subventions…) de la catégorie,
       // en recette pure (pas d'inscrits, pas de coût animateur associé).
@@ -6778,7 +6784,7 @@ async function chargerStatsTresorier() {
   renderTresorier({
     nbDossiers:  codesDossiersCount,
     nbAdherents: codesAdherentsCount,
-    nbActivites: activites.length,
+    nbActivites: nbActivitesTotal,
     fnsmrTotal:  Math.round(fnsmrTotal*100)/100,
     recettes,
     activites
