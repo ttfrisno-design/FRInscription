@@ -6720,26 +6720,16 @@ async function chargerStatsTresorier() {
         });
         if (aInscrits === 0) return;
         const a = { nom: aNom, inscrits: aInscrits, tarifTotal: aTarifTotal };
-        // Lire le nombre d'inscrits depuis l'onglet Places col D
         // Pour les créneaux liés : prendre l'ID du premier créneau seulement
         const placesId = canonActId(siteToPlacesId(actDef.id) || actDef.id);
-        // Pour un créneau lié (double, ex: tt-debu-2 Lu+Me → PINGL1745ME1830),
-        // buildRows() n'émet qu'UNE seule ligne Inscriptions par membre (prix déjà
-        // combiné, non doublé) — donc a.inscrits et a.tarifTotal sont déjà les
-        // valeurs réelles pour la paire, sans division à appliquer.
-        // L'onglet Places peut être désynchronisé pour ces créneaux doubles
-        // (ex: incrémenté historiquement sous un ID différent) : dans ce cas
-        // on fait confiance à l'effectif réel compté depuis Inscriptions,
-        // cohérent avec tarifTotal (qui vient de la même source).
-        // On utilise TOUJOURS l'effectif compté depuis Inscriptions (a.inscrits),
-        // jamais celui de l'onglet Places (placesInscrits) : ce dernier peut être
-        // désynchronisé (cas déjà documenté pour les créneaux liés, mais confirmé
-        // aussi sur des créneaux simples — ex: Danse moderne CE2-CM1, Places
-        // indiquait 11 inscrits pour seulement 5 lignes Inscriptions réelles).
-        // Le coût moyen = tarifTotal / inscrits n'a de sens QUE si les deux
-        // viennent de la même source ; tarifTotal vient toujours d'Inscriptions,
-        // donc inscrits doit en venir aussi, sous peine de moyennes aberrantes.
-        let inscrits = a.inscrits;
+        // "Inscrits" vient de l'onglet Places, colonne AH (nombre d'inscrits
+        // pour l'activité identifiée en colonne J) — placesInscrits est
+        // maintenant lu depuis cette colonne AH côté serveur (getStatsTresorierGAS,
+        // Code.gs), plutôt que l'ancienne colonne D qui pouvait être désynchronisée
+        // (ex: Danse moderne CE2-CM1 y affichait 11 pour 5 inscriptions réelles).
+        // Le coût moyen (tarifTotal Inscriptions ÷ inscrits) utilise CE MÊME
+        // nombre, pour rester cohérent entre les deux chiffres affichés.
+        let inscrits = placesInscrits[placesId] !== undefined ? placesInscrits[placesId] : a.inscrits;
         let tarifTotal = a.tarifTotal;
         catInscrits += inscrits;
         catTotal    += tarifTotal;
