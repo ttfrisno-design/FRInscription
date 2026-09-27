@@ -6731,9 +6731,15 @@ async function chargerStatsTresorier() {
         // (ex: incrémenté historiquement sous un ID différent) : dans ce cas
         // on fait confiance à l'effectif réel compté depuis Inscriptions,
         // cohérent avec tarifTotal (qui vient de la même source).
-        let inscrits = actDef.linkedWith
-          ? a.inscrits
-          : (placesInscrits[placesId] !== undefined ? placesInscrits[placesId] : a.inscrits);
+        // On utilise TOUJOURS l'effectif compté depuis Inscriptions (a.inscrits),
+        // jamais celui de l'onglet Places (placesInscrits) : ce dernier peut être
+        // désynchronisé (cas déjà documenté pour les créneaux liés, mais confirmé
+        // aussi sur des créneaux simples — ex: Danse moderne CE2-CM1, Places
+        // indiquait 11 inscrits pour seulement 5 lignes Inscriptions réelles).
+        // Le coût moyen = tarifTotal / inscrits n'a de sens QUE si les deux
+        // viennent de la même source ; tarifTotal vient toujours d'Inscriptions,
+        // donc inscrits doit en venir aussi, sous peine de moyennes aberrantes.
+        let inscrits = a.inscrits;
         let tarifTotal = a.tarifTotal;
         catInscrits += inscrits;
         catTotal    += tarifTotal;
